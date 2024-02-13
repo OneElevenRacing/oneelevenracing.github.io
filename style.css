@@ -7,16 +7,20 @@
   /* Apply the custom font to elements */
   body {
     font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
-  }
+    margin: 0;
+}
 
 header {
-    text-align: center;
-    padding: 10px 0;
+    background-color: black; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 50px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
 #logo {
-    height: 20px; /* Adjust as needed */
+    height: 50px; /* Adjust as needed */
     margin-bottom: 50px; /* Space between logo and title */
+    float: left; /* Align the logo to the left */
 }
 
 #menu {
@@ -26,6 +30,22 @@ header {
     font-size: 1.5em; /* Adjust size of the gear icon */
 }
 
+#gdrive img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 10px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 100px;
+    float: right;
+}
+
+#ytube img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 10px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 60px;
+    float: right;
+}
+    
 /* Dropdown Menu Styles */
 #dropdown {
     display: none;
@@ -345,7 +365,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
     .back-button {
         left: 5px; /* Adjust left position for smaller screens */
         padding: 4px 6px; /* Adjust padding for a smaller button */
-        font-size: 0.8em; /* Adjust font size for smaller screens */
+        font-size: 0.6em; /* Adjust font size for smaller screens */
         width: auto; /* Allow button to size based on content */
         min-width: unset; /* Remove the minimum width */
         display: inline-block; /* Ensure button is only as wide as its content */
@@ -355,7 +375,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
     button {
         width: auto; /* Allow button to size based on content */
         min-width: 250px; /* Remove the minimum width */ 
-        font-size: 1em;
+        font-size: 0.8em;
     }
     
     .red-button, .red-button:disabled, .red-button:disabled:hover {
