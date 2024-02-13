@@ -13,12 +13,21 @@
 header {
     background-color: black; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
-    height: 50px;
+    height: 60px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
+footer {
+    position: fixed; /* Position the footer relative to the browser window */
+    bottom: 0; /* Align the footer to the bottom of the window */
+    background-color: white; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 100px;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
 #logo {
-    height: 50px; /* Adjust as needed */
+    height: 60px; /* Adjust as needed */
     margin-bottom: 50px; /* Space between logo and title */
     float: left; /* Align the logo to the left */
 }
@@ -33,16 +42,24 @@ header {
 #gdrive img {
     width: 24px; /* Adjust the width of the icon as needed */
     height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 10px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 100px;
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+#discord img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
     float: right;
 }
 
 #ytube img {
     width: 24px; /* Adjust the width of the icon as needed */
     height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 10px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 60px;
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
     float: right;
 }
     
@@ -81,16 +98,15 @@ header {
 button {
     display: block;
     width: 80%;
-    margin: 10px auto;
-    padding: 10px;
+    margin: 15px auto;
+    padding: 15px;
     background-color: #000000;
     color: white;
     font-family: 'KeepCalm', Arial, sans-serif;
-    font-size: 0.7em;
+    font-size: 0.8em;
     text-transform: uppercase;
-    line-height: 2;
     border: none;
-    border-radius: 15px;
+    border-radius: 20px;
     cursor: pointer;
 }
 
@@ -374,7 +390,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
 
     button {
         width: auto; /* Allow button to size based on content */
-        min-width: 250px; /* Remove the minimum width */ 
+        min-width: 400px; /* Remove the minimum width */ 
         font-size: 0.8em;
     }
     
