@@ -1,0 +1,360 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    text-align: center;
+    padding: 10px 0;
+}
+
+#logo {
+    height: 20px; /* Adjust as needed */
+    margin-bottom: 50px; /* Space between logo and title */
+}
+
+#menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5em; /* Adjust size of the gear icon */
+}
+
+/* Dropdown Menu Styles */
+#dropdown {
+    display: none;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background-color: #f9f9f9;
+    min-width: 200px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: 10px; /* Rounded corners */
+    font-size: 0.6em; /* Adjust font size as needed */
+        text-align: left; /* Align text to the left */
+}
+
+#dropdown.show {
+    display: block;
+}
+
+#dropdown a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: flex; /* Use flexbox for layout */
+    align-items: center; /* Align icon and text */
+    justify-content: space-between; /* Space between text and icon */
+    border-bottom: 1px solid #ddd; /* Separator line */
+}
+
+#dropdown a:hover {background-color: #f1f1f1;}
+
+/* Button styles */
+button {
+    display: block;
+    width: 80%;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #000000;
+    color: white;
+    font-size: 0.9em;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: grey;
+}
+
+
+/* Race Info Styles */
+#raceInfo {
+    width: 80%;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+#date-time-section, #weather-section {
+    display: flex;
+    justify-content: space-between;
+}
+
+.info-title_top {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+.info-title {
+    font-weight: bold;
+    margin: 0;
+}
+
+.info-title_left {
+    font-weight: bold;
+    text-align: left;
+    margin: 0px;
+    margin-bottom: 2px;
+}
+
+.info-title_right {
+    font-weight: bold;
+    text-align: right;
+    margin: 0px;
+    margin-bottom: 2px;
+}
+
+.info-value_top {
+    color: blue;
+    font-weight: bold;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.info-value_left {
+    color: blue;
+    text-align: left;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.info-value_right {
+    color: blue;
+    text-align: right;
+    font-size: 0.9em;
+    margin: 0;    
+}
+
+.info-title, .info-value {
+    text-align: center;
+    margin: 3px 0; /* Adjust spacing as needed */
+}
+
+
+.page-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+    margin: 0;
+}
+
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background:white; /* Light grey background for visibility */
+    color: black;
+    padding: 5px 10px; /* Adjust padding as needed */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    text-decoration: none; /* Remove underline from text */
+}
+
+.back-button:hover {
+    background-color: white; /* Slightly darker on hover */
+    color: #0056b3; /* Change text color on hover */
+}
+
+
+/* Existing button hover styles */
+button:hover {
+    background-color: grey;
+    /* other hover styles if any */
+}
+
+/* Disable hover effects for disabled buttons */
+button:disabled, button:disabled:hover {
+    background-color: #cccccc; /* Keeps the background color for disabled state */
+    color: #666666; /* Keeps the text color for disabled state */
+    cursor: not-allowed; /* Keeps the cursor style for disabled state */
+}
+
+/* Specific disabled style for the red button, including hover */
+.red-button:disabled, .red-button:disabled:hover {
+    background-color: #ffcccc; /* Light red for disabled state */
+    color: #666666; /* Darker grey text for disabled state */
+}
+
+.red-button {
+    display: block;
+    width: 85%; /* Slightly larger */
+    margin: 10px auto;
+    padding: 15px; /* Slightly larger */
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.red-button:hover {
+    background-color: darkred;
+}
+
+/* Weather Page Styles */
+#weatherDisplay {
+    text-align: center;
+}
+
+.weather-slot {
+    font-weight: bold;
+    font-size: 1em;
+    margin: 30px;
+}
+
+.weather-result {
+    color: blue;
+    font-size: 0.9em;
+    margin: 5px 0;
+    display: block; /* Make the weather result appear on a new line */
+}
+
+.weather-result-practice {
+    color: grey;
+}
+
+.weather-message {
+    text-align: center;
+    color: grey;
+    margin-top: 20px;
+    font-size: 1em;
+}
+
+.debug-info {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+/* Admin Page Styles */
+
+.admin-container {
+    width: 80%;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.admin-field {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+input[type="text"], input[type="date"], input[type="time"], select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.admin-actions button {
+    margin-top: 20px;
+    margin-right: 10px;
+}
+
+
+.admin-login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px; /* Adjust as needed */
+}
+
+.admin-login-container input,
+.admin-login-container button {
+    margin-bottom: 10px;
+    width: 200px; /* Set a specific width for these elements */
+    padding: 10px; /* Adjust padding as needed */
+}
+
+
+/* About page Styles */
+.about-container {
+    text-align: center;
+    padding: 20px;
+}
+
+#about-logo {
+    max-width: 200px; /* Adjust as needed */
+    margin-bottom: 20px;
+}
+
+.popup-container {
+    position: fixed;
+    top: 10px;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5); /* Semi-transparent background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-content {
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    max-height: 80vh; /* Maximum height of the popup */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.close-popup {
+    float: right;
+    font-size: 1.5em;
+    cursor: pointer;
+}
+
+
+/* Media query for larger screens (e.g., laptops) */
+@media (min-width: 768px) { /* Adjust the breakpoint as needed */
+
+    #raceInfo {
+        width: 25%; /* Narrower width for larger screens */
+        /* Additional styling adjustments for larger screens can go here */
+    }
+
+    button, .red-button {
+        width: 20%; /* Smaller width on larger screens */
+        /* Additional styling adjustments for larger screens can go here */
+    }
+}
+
+@media (max-width: 1280px) {
+    .back-button {
+        left: 5px; /* Adjust left position for smaller screens */
+        padding: 4px 6px; /* Adjust padding for a smaller button */
+        font-size: 0.8em; /* Adjust font size for smaller screens */
+        width: auto; /* Allow button to size based on content */
+        min-width: unset; /* Remove the minimum width */
+        display: inline-block; /* Ensure button is only as wide as its content */
+        box-sizing: border-box; /* Include padding and border in the button's total width */
+    }
+
+    button {
+        width: auto; /* Allow button to size based on content */
+        min-width: 250px; /* Remove the minimum width */ 
+        font-size: 1em;
+    }
+    
+    .red-button, .red-button:disabled, .red-button:disabled:hover {
+        white-space: normal; /* Allow text to wrap inside the button */
+        width: auto; /* Allow button to size based on content */
+        min-width: unset; /* Remove the minimum width */
+        font-size: 0.8em;
+        box-sizing: border-box;
+        max-width: 200px;
+    }
+    
+}

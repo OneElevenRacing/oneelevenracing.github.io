@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- WebApp bits for Apple, not sure for Android -->
+    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+
+    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - One Eleven WebApp</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Add any additional CSS or scripts you need -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script>
+        // Your Firebase configuration
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <script defer src="checkAuth.js"></script>
+
+</head>
+<body>
+    <header>
+        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <div>
+        </div>
+    </header>
+
+    <div class="about-container">
+        <img src="one_eleven_logo_about.png" alt="One Eleven Logo" id="about-logo">
+        <h1>One Eleven WebApp</h1>
+        <p>Version 1.0.0</p>
+        <button onclick="showPrivacyPolicy()">Privacy Policy</button>
+    </div>
+
+    <!-- Privacy Policy Popup (Initially hidden) -->
+    <div id="privacyPolicyPopup" class="popup-container" style="display:none;">
+        <div class="popup-content">
+            <span class="close-popup" onclick="closePrivacyPolicy()">&times;</span>
+            <h2>Privacy Policy</h2>
+            <p>The One Eleven App does not collect or store any personal data. The app has a screenshot an share function. This takes a screenshot of the app only and does not include any personal information or other screen elements such as status bar, notificaitons or navigation bar. The screenshot is stored on your device. We do not collect or store this information, and it remains on your device unless you choose to share it with others. By using our app, you consent to the collection and storage of these screenshots on your device.</p>
+            <p>The One Eleven App does not share user data with any third parties, such as analytics tools, advertising networks, or third-party SDKs. The app provides links to external resources, such as Google Drive. Access to these resources is governed by their respective privacy policies and terms of use. The App uses a Firebase Realtime Database to store and retrieve data in real-time. Firebase is a service provided by Google LLC. The app retrieves and sends basic race information. This includes race location, date, time and weather. We do not collect or share any personally identifiable information (PII) such as email addresses, phone numbers, or addresses.</p>
+            <p>As the One Eleven App does not collect or store personal data, there are no data retention or deletion policies in place. Users who wish to stop using the app can simply uninstall it from their devices.</p>
+            <p>We may update our privacy policy from time to time. We will notify you of any changes by posting the new privacy policy on this page. You are advised to review this privacy policy periodically for any changes.</p>
+            <p>If you have any questions or concerns regarding this privacy policy, please contact us at fabian.jungmann@gmail.com or c.a.wardle@hotmail.co.uk. This policy can also be accessed online at https://oneelevenracing.github.io/.</p>
+        </div>
+    </div>
+
+    <script>
+        function showPrivacyPolicy() {
+            document.getElementById('privacyPolicyPopup').style.display = 'block';
+        }
+
+        function closePrivacyPolicy() {
+            document.getElementById('privacyPolicyPopup').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

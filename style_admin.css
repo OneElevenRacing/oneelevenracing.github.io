@@ -1,0 +1,176 @@
+body {
+    font-family: Arial, sans-serif;
+}
+
+header {
+    text-align: center;
+    padding: 10px 0;
+}
+
+#logo {
+    height: 20px; /* Adjust as needed */
+    margin-bottom: 50px; /* Space between logo and title */
+}
+
+#menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5em; /* Adjust size of the gear icon */
+}
+
+#raceInfo {
+    width: 80%;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
+}
+
+/* Button styles */
+button {
+    display: block;
+    width: 80%;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    min-width: 200px; /* Set a minimum width for better appearance */
+}
+
+button:hover {
+    background-color: grey;
+}
+
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background:white; /* Light grey background for visibility */
+    color: black;
+    padding: 5px 10px; /* Adjust padding as needed */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    text-decoration: none; /* Remove underline from text */
+    min-width: unset; /* Remove the minimum width */
+    padding: 5px 8px; /* Adjust padding to make the button smaller */
+    white-space: nowrap; /* Prevent text from wrapping to the next line */
+}
+
+.back-button:hover {
+    background-color: white; /* Slightly darker on hover */
+    color: #0056b3; /* Change text color on hover */
+}
+
+
+/* Existing button hover styles */
+button:hover {
+    background-color: grey;
+    /* other hover styles if any */
+}
+
+/* Disable hover effects for disabled buttons */
+button:disabled, button:disabled:hover {
+    background-color: #cccccc; /* Keeps the background color for disabled state */
+    color: #666666; /* Keeps the text color for disabled state */
+    cursor: not-allowed; /* Keeps the cursor style for disabled state */
+}
+
+/* Admin Page Styles */
+
+.admin-container {
+    width: 80%;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.admin-field {
+    margin-bottom: 20px;
+    border: 1px solid #ccc; /* Add a border */
+    padding: 10px; /* Add some padding inside the border */
+    width: 300px; /* Adjust this value as needed */
+    text-align: center; /* Center-align the content */
+}
+
+.admin-field input, .admin-field select {
+    border: 1px solid #ccc; /* Add border */
+    background-color: #f9f9f9; /* Light grey background */
+}
+
+label, .current-data {
+    display: block; /* Make label and current data block elements */
+    margin: auto; /* Auto margins for horizontal centering */
+    width: fit-content; /* Adjust width to fit the content */
+}
+
+input[type="text"], input[type="date"], input[type="time"], select {
+    width: calc(100% - 20px); /* Adjust width to account for padding */
+    padding: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    display: block; /* Make input/select block elements */
+    margin-left: auto; /* Auto margins for horizontal centering */
+    margin-right: auto;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+
+/* Style for displaying current Firebase data */
+.current-data {
+    margin-top: 5px;
+    margin-bottom: 2px;
+    font-size: 0.9em;
+    color: blue;
+}
+
+/* Specific styles for admin action buttons */
+.admin-actions button {
+    display: block;
+    margin: 10px auto;
+    padding: 10px 15px; /* Adjust padding for a better look */
+    background-color: #000000;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: auto; /* Reset the width for admin page buttons */
+    min-width: 250px; /* Set a minimum width for better appearance */
+}
+
+/* Adjusting hover effect for admin action buttons */
+.admin-actions button:hover {
+    background-color: grey;
+}
+
+
+/* Media query for larger screens (e.g., laptops) */
+@media (min-width: 768px) { /* Adjust the breakpoint as needed */
+
+    #raceInfo {
+        width: 25%; /* Narrower width for larger screens */
+        /* Additional styling adjustments for larger screens can go here */
+    }
+
+    button, .red-button {
+        width: 20%; /* Smaller width on larger screens */
+        /* Additional styling adjustments for larger screens can go here */
+    }
+}
+
+
+@media (max-width: 768px) {
+    .back-button {
+        left: 5px; /* Adjust left position for smaller screens */
+        padding: 4px 6px; /* Adjust padding for a smaller button */
+        font-size: 0.8em; /* Adjust font size for smaller screens */
+        width: auto; /* Allow button to size based on content */
+        min-width: unset; /* Remove the minimum width */
+        display: inline-block; /* Ensure button is only as wide as its content */
+        box-sizing: border-box; /* Include padding and border in the button's total width */
+    }
+}
+

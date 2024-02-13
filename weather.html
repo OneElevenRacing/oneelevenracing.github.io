@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- WebApp bits for Apple, not sure for Android -->
+    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+
+    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weather Generator</title>
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script defer src="checkAuth.js"></script>
+
+    <script>
+        // Firebase config goes here
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <script src="weatherGenerator.js" defer></script>
+</head>
+    
+<body>
+    <header>
+        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <div>
+            <img src="111_new_logo.png" alt="One Eleven" id="logo">
+            <h1 class="page-title">Weather Generator</h1>
+        </div>        
+    </header>
+
+    <!-- The buttons and stuff for the weather genereator -->
+    <div id="weatherApp">
+        <button id="generateRandomWeather">Practice Weather</button>
+        <button id="generateRaceWeather" class="red-button" disabled>Generate Random Weathers for next event</button>
+        <div id="weatherDisplay">
+            <p class="weather-slot">Weather Slot 1: <span id="weather1" class="weather-result">Loading...</span></p>
+            <p class="weather-slot">Weather Slot 2: <span id="weather2" class="weather-result">Loading</span></p>
+        </div>
+        <p id="weatherMessage" class="weather-message"></p> 
+        
+    </div>
+
+    <!-- Use this for when you're trying to figure out which day it is and the app is ONCE AGAIN not behaving!
+    <div class="debug-info">
+        <p>Firebase Date: <span id="firebaseDate">Loading...</span></p>
+        <p>Current Date: <span id="currentDate">Loading...</span></p>
+        <p>Do Dates Match: <span id="datesMatch">Loading...</span></p>
+    </div>
+    -->
+    
+
+</body>
+</html>

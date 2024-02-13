@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- WebApp bits for Apple, not sure for Android -->
+    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+    
+    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Page</A></title>
+    <link rel="stylesheet" href="style_admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    
+    <!-- Add any additional CSS or scripts you need -->
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script>
+        // Your Firebase configuration
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+<!-- Which script to use -->
+    <script src="tracks.js"></script>
+    <script defer src="checkAuth.js"></script>
+
+</head>
+<body>
+    <header>
+        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <div>
+            <img src="111_new_logo.png" alt="One Eleven" id="logo">
+        </div>
+    </header>
+    <!-- The four containers with the race data in them -->
+    <div class="admin-container">
+        <div class="admin-field">
+            <label for="raceTrackSelect">Select Next Race Track:</label>
+            <select id="raceTrackSelect">
+            </select>
+            <p id="currentRaceTrack" class="current-data"></p>
+        </div>
+
+        <div class="admin-field">
+            <label for="raceDate">Select Next Race Date:</label>
+            <input type="date" id="raceDate">
+            <p id="currentRaceDate" class="current-data"></p>
+            <button onclick="setDateTBD()">TBD</button>
+        </div>
+        
+
+        <div class="admin-field">
+            <label for="raceTime">Select Next Race Time:</label>
+            <input type="time" id="raceTime" value="19:00">
+            <p id="currentRaceTime" class="current-data"></p>
+            <button onclick="setTimeTBD()">TBD</button>
+        </div>
+
+        <div class="admin-field">
+            <label for="xoyondoLink">Update Xoyondo Link:</label>
+            <input type="text" id="xoyondoLink">
+            <p id="currentXoyondoLink" class="current-data"></p>
+            <button onclick="submitXoyondoLink()">Submit</button>
+        </div>
+
+        <!-- The buttons at the bottom -->
+        <div class="admin-actions">
+            <button onclick="submitRaceData()">Submit Race Info</button>
+            <button onclick="resetWeather()">Reset Weather</button>
+            <button onclick="resetAll()">Reset All</button>
+
+
+        </div>
+    </div>
+
+    <script>
+        populateTrackOptions();
+        fetchCurrentData(); 
+    </script>
+</body>
+</html>

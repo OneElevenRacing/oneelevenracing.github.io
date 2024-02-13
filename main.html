@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- WebApp bits for Apple, not sure for Android -->
+    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+
+    <!-- Remaining head lines -->
+    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Eleven App</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script defer src="checkAuth.js"></script>
+    
+
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+
+    <!-- Javascript initialisation -->
+    <script src="script.js"></script>
+    <script src="login.js"></script>
+
+</head>
+<body>
+    <header>
+        <!-- One Eleven Logo-->
+        <img src="111_new_logo.png" alt="One Eleven" id="logo">
+    	
+        <!-- Dropdown menu for Admin and About pages -->
+        <div id="menu">
+            <i class="fa-solid fa-gear"></i>
+            <div id="dropdown" class="dropdown-content">
+                <a href="adminPassword.html">
+                    Admin
+                    <i class="fa-solid fa-user-shield"></i> <!-- Icon for Admin -->
+                </a>
+                <a href="about.html">
+                    About
+                    <i class="fa-solid fa-circle-info"></i> <!-- Icon for About -->
+                </a>
+                <a href="#" onclick="logoutUser()">
+                    Logout
+                    <i class="fa-solid fa-right-from-bracket"></i> <!-- Icon for Logout -->
+                </a>
+            </div>
+        </div>
+        
+    </header>
+
+    <main>
+	    <div id="raceInfo">	    	           
+            <!-- First Section: Race Location -->
+            <div class="info-section" id="location-section">
+                <p class="info-title_top">Next Race Location:</p>
+                <p class="info-value_top" id="raceLocation">Loading...</p>
+            </div>
+
+            <!-- Second Section: Race Date and Time -->
+            <div class="info-section" id="date-time-section">
+                <div>
+                    <p class="info-title_left">Next Race Date:</p>
+                    <p class="info-value_left" id="raceDate">Loading...</p>
+                </div>
+                <div>
+                    <p class="info-title_right">Next Race Time:</p>
+                    <p class="info-value_right" id="raceTime">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Third Section: Weather 1 and Weather 2 -->
+            <div class="info-section" id="weather-section">
+                <div>
+                    <p class="info-title">Weather 1:</p>
+                    <p class="info-value_left" id="weather1">Loading...</p>
+                </div>
+                <div>
+                    <p class="info-title">Weather 2:</p>
+                    <p class="info-value_right" id="weather2">Loading...</p>
+                </div>
+            </div>
+		</div>
+
+        <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
+        <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
+        <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
+        <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
+        <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
+        <button onclick="showAlert()">Other Polls and Forms</button>
+    </main>
+
+</body>
+</html>
