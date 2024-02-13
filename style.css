@@ -1,6 +1,13 @@
-body {
-    font-family: Arial, sans-serif;
-}
+/* Define @font-face rule */
+@font-face {
+    font-family: 'KeepCalm'; /* Give your custom font a name */
+    src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
+  }
+  
+  /* Apply the custom font to elements */
+  body {
+    font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
+  }
 
 header {
     text-align: center;
@@ -58,9 +65,12 @@ button {
     padding: 10px;
     background-color: #000000;
     color: white;
-    font-size: 0.9em;
+    font-family: 'KeepCalm', Arial, sans-serif;
+    font-size: 0.7em;
+    text-transform: uppercase;
+    line-height: 2;
     border: none;
-    border-radius: 5px;
+    border-radius: 15px;
     cursor: pointer;
 }
 
