@@ -17,14 +17,6 @@ header {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-footer {
-    position: fixed; /* Position the footer relative to the browser window */
-    bottom: 0; /* Align the footer to the bottom of the window */
-    background-color: white; /* Set the background color to black */
-    width: 100%; /* Make the header span the full width of the page */
-    height: 100px;
-    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
-}
 
 #logo {
     height: 60px; /* Adjust as needed */
@@ -93,6 +85,25 @@ footer {
 }
 
 #dropdown a:hover {background-color: #f1f1f1;}
+
+
+footer {
+    position: fixed; /* Position the footer relative to the browser window */
+    bottom: 0; /* Align the footer to the bottom of the window */
+    background-color: white; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 100px;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
+
+#settings img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
 
 /* Button styles */
 button {

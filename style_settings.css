@@ -1,0 +1,32 @@
+@font-face {
+    font-family: 'KeepCalm'; /* Give your custom font a name */
+    src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
+  }
+  
+  /* Apply the custom font to elements */
+  body {
+    font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
+    margin: 0;
+}
+
+header {
+    background-color: black; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 60px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
+header h1 {
+  font-size: 24px; /* Adjust the font size as needed */
+  color: #ffffff; /* Set the font color */
+  text-align: center; /* Align the text to the center */
+}
+
+footer {
+  position: fixed; /* Position the footer relative to the browser window */
+  bottom: 0; /* Align the footer to the bottom of the window */
+  background-color: white; /* Set the background color to black */
+  width: 100%; /* Make the header span the full width of the page */
+  height: 100px;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}

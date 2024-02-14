@@ -56,6 +56,10 @@ function navigateToWeatherGenerator() {
     window.location.href = 'weather.html'; // Adjust as per your weather generator page
 }
 
+function navigateToSettingsPage() {
+    window.location.href = 'settings.html';
+}
+
 function showAlert() {
     alert('Coming Soon!');
 }
