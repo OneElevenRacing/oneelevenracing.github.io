@@ -45,17 +45,15 @@ footer {
   text-decoration: none; /* Remove default text decoration */
   flex-direction: column; /* Stack items vertically */
   float: right;
+  cursor: default; /* Set cursor to default on hover */
 }
 
-.footerbutton:hover {
-  background-color: #ebebeb; /* Change background color on hover */
-}
 
 /* Style for the footer button's image */
 .footerbutton img {
   vertical-align: middle; /* Align the image vertically */
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   margin-top: -10px;
   padding: 10px;
   filter:brightness(0);

@@ -97,7 +97,7 @@ footer {
 }
 
 
-.footerbutton {
+.footerbutton4 {
     display: flex; /* Use flexbox to center content */
     align-items: center; /* Align items vertically */
     justify-content: center; /* Align items horizontally */
@@ -112,15 +112,20 @@ footer {
     float: right;
 }
 
-.footerbutton:hover {
-    background-color: #ebebeb; /* Change background color on hover */
+.footerbutton4:hover img {
+    filter: brightness(0);
 }
 
+.footerbutton4:hover {
+    color: #000000; /* Change text color on hover */
+}
+
+
 /* Style for the footer button's image */
-.footerbutton img {
+.footerbutton4 img {
     vertical-align: middle; /* Align the image vertically */
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     margin-top: -10px;
     padding: 10px;
 }
