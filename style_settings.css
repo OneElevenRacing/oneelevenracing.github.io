@@ -30,3 +30,33 @@ footer {
   height: 100px;
   box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
+
+
+.footerbutton {
+  display: flex; /* Use flexbox to center content */
+  align-items: center; /* Align items vertically */
+  justify-content: center; /* Align items horizontally */
+  width: 25%;
+  height: 100%;
+  background-color: #ffffff; /* Set background color */
+  color: #000000; /* Set text color */
+  border: none; /* Remove border */
+  cursor: pointer; /* Change cursor to pointer */
+  text-decoration: none; /* Remove default text decoration */
+  flex-direction: column; /* Stack items vertically */
+  float: right;
+}
+
+.footerbutton:hover {
+  background-color: #ebebeb; /* Change background color on hover */
+}
+
+/* Style for the footer button's image */
+.footerbutton img {
+  vertical-align: middle; /* Align the image vertically */
+  width: 24px;
+  height: 24px;
+  margin-top: -10px;
+  padding: 10px;
+  filter:brightness(0);
+}
