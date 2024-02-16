@@ -63,45 +63,46 @@
 
 
     <main>
-	    <div id="raceInfo">	    	           
-            <!-- First Section: Race Location -->
-            <div class="info-section" id="location-section">
-                <p class="info-title_top">Next Race Location:</p>
-                <p class="info-value_top" id="raceLocation">Loading...</p>
+        <!-- Top Box: Season, Racing Class, Car Image, Driver and Car Name -->
+        <div class="top-box">
+            <div class="season-info">
+                <span id="seasonNumber">Season: 14</span>
+                <span id="racingClass">Class: DPi</span>
+            </div>
+            <img src="Mockups/Dpi.jpg" alt="Race Car" id="raceCarImage">
+            <div class="driver-info">
+                <p id="driverName">Chris Wardle</p>
+                <span>-</span> <!-- Dash between names -->
+                <p id="carName">#44 BMW Motorsport</p>
+            </div>
+        </div>        
+
+        <!-- Middle Box: Split into Left and Right -->
+        <div class="middle-box">
+            <!-- Left Box: Race Information -->
+            <div class="left-box">
+                <p id="nextRace">Next Race</p>
+                <p>Date: <span id="raceDate">Loading...</span></p>
+                <p>Time: <span id="raceTime">Loading...</span></p>
+                <p>Weather 1: <span id="weather1">Loading...</span></p>
+                <p>Weather 2: <span id="weather2">Loading...</span></p>
             </div>
 
-            <!-- Second Section: Race Date and Time -->
-            <div class="info-section" id="date-time-section">
-                <div>
-                    <p class="info-title_left">Next Race Date:</p>
-                    <p class="info-value_left" id="raceDate">Loading...</p>
-                </div>
-                <div>
-                    <p class="info-title_right">Next Race Time:</p>
-                    <p class="info-value_right" id="raceTime">Loading...</p>
-                </div>
+            <!-- Right Box: Next Track Name and Image -->
+            <div class="right-box">
+                <p id="raceLocation">Next Race Track: <span>Loading...</span></p>
+                <img src="Logos_and_icons/racetracks/hockenheim_historic_2001.png" alt="Race Track" id="raceTrackImage">
             </div>
+        </div>
 
-            <!-- Third Section: Weather 1 and Weather 2 -->
-            <div class="info-section" id="weather-section">
-                <div>
-                    <p class="info-title">Weather 1:</p>
-                    <p class="info-value_left" id="weather1">Loading...</p>
-                </div>
-                <div>
-                    <p class="info-title">Weather 2:</p>
-                    <p class="info-value_right" id="weather2">Loading...</p>
-                </div>
-            </div>
-		</div>
-
+        <!-- Bottom Box: Buttons -->
         <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
         <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
         <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
         <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
         <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
-        <button onclick="showAlert()">Other Polls and Forms</button>
-    </main>
+        <button onclick="showAlert()">Other Polls and Forms</button> 
+    </main> 
 
     <!-- Footer Section -->
     <footer>
