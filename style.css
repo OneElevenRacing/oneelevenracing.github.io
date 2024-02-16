@@ -1,4 +1,20 @@
-/* Define @font-face rule */
+/*
+Sections in this CSS:
+Font
+Main Page Header Styles
+Main Page Season Information Styles
+Main Page Dropdown Menu Styles
+Main Page Footer
+Generic Button Styles
+Main Page Race Info Styles
+Weather Page Styles
+Admin Page Styles
+About Page Styles
+Media Queries
+*/
+
+
+/* Fonts */
 @font-face {
     font-family: 'KeepCalm'; /* Give your custom font a name */
     src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
