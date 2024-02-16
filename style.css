@@ -89,13 +89,11 @@ header {
     position: center; /* Position it relative to the .top-box */
     bottom: 0; /* Position it at the bottom of the .top-box */
     margin-top: 10px;
-    left: 10%; /* Start 10% from the left to make it 80% wide */
-    width: 35%; /* Width of the line */
+    left: 0%; /* Start 10% from the left to make it 80% wide */
+    width: 40%; /* Width of the line */
     height: 1px; /* Height of the line */
     background-color: #ccc; /* Color of the line */
 }
-
-
 
 .season-info {
     display: flex;
@@ -109,7 +107,7 @@ header {
 }
 
 #raceCarImage {
-    max-width: 40%; /* Ensures the image is responsive */
+    max-width: 30%; /* Ensures the image is responsive */
     height: auto;
     margin-bottom: 10px; /* Space below the image */
 }
@@ -127,13 +125,37 @@ header {
     display: flex;
     justify-content: space-between; /* Space elements evenly */
     align-items: flex-start; /* Align items to the start of the flex container */
-    margin: 20px auto; /* Add some vertical margin */
+    margin: 0px auto; /* Add some vertical margin */
+    margin-bottom: 40px;
     width: 40%;
+    position: relative;
 }
+
+.middle-box::before { /* Vertical line between left and right box */
+    content: '';
+    position: absolute;
+    left: 50%; /* Position at the center of middle-box */
+    top: 0; /* Start from the top edge of the box */
+    bottom: 0; /* Extend to the bottom edge of the box */
+    width: 1px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+    transform: translateX(-50%); /* Center the line */
+}
+
+.middle-box::after { /* Horizontal line under the middle box */
+    content: '';
+    position: absolute;
+    left: 0; /* Start from the left edge of the middle box */
+    right: 0; /* End at the right edge of the middle box */
+    bottom: -20px;
+    height: 1px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+}
+
 
 .left-box, .right-box {
     flex: 1; /* Each box takes equal width */
-    padding: 10px; /* Add some padding inside each box */
+    position: relative;
 }
 
 .left-box {
@@ -143,19 +165,23 @@ header {
 
 .right-box {
     text-align: center;
+    padding-left: 30px;
+    padding-right: 0px;
 }
 
 #raceTrackImage {
-    max-width: 100%; /* Ensure the image doesn't exceed the container width */
+    max-width: 80%; /* Ensure the image doesn't exceed the container width */
     height: auto; /* Maintain aspect ratio */
 }
 
 #nextRace {
     font-size: 1.2em;
+    margin-top: 5px;
 }
 
 #raceLocation{
     margin-bottom: 0px;
+    margin-top: 0px;
 }
 
 #raceDate, #raceTime, #weather1, #weather2, #raceLocation {
@@ -200,7 +226,7 @@ footer {
     bottom: 0; /* Align the footer to the bottom of the window */
     background-color: white; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
-    height: 100px;
+    height: 70px;
     box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
@@ -230,8 +256,8 @@ footer {
 
 .footerbutton4 img {
     vertical-align: middle; /* Align the image vertically */
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     margin-top: -10px;
     padding: 10px;
 }
@@ -536,5 +562,8 @@ input[type="text"], input[type="date"], input[type="time"], select {
         box-sizing: border-box;
         max-width: 200px;
     }
-    
+
+    .middle-box {
+        width: 80%;
+    }
 }

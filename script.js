@@ -20,8 +20,21 @@ function fetchAndUpdateRaceInfo() {
 
     // Fetch and update race location
     databaseRef.child("race_location").on('value', function(snapshot) {
-        document.getElementById("raceLocation").innerText = (snapshot.val() || "No data");
+        const currentTrackName = snapshot.val() || "No data";
+        document.getElementById("raceLocation").innerText = currentTrackName;
+
+        // Find the corresponding image path for the current track
+        const trackInfo = trackData.find(track => track.name === currentTrackName);
+        if (trackInfo) {
+            // Update the image source
+            document.getElementById("raceTrackImage").src = trackInfo.imagePath;
+            console.log("Image path found: ", trackInfo.imagePath);
+        } else {
+            // Fallback in case no track matches
+            document.getElementById("raceTrackImage").src = "Logos_and_icons/racetracks/TBD.png";
+        }
     });
+
 
     // Fetch and update race time
     databaseRef.child("race_time").on('value', function(snapshot) {
