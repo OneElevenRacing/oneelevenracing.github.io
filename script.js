@@ -64,6 +64,16 @@ function openLink(url) {
     window.open(url, '_blank');
 }
 
+function navigateToHomePage() {
+    // Navigate to Home Page
+    window.location.href = 'main.html'; 
+}
+
+function navigateToKartingPage() {
+    // Navigate to Karting Page
+    window.location.href = 'main.html'; 
+}
+
 function navigateToWeatherGenerator() {
     // Navigate to Weather Generator Page
     window.location.href = 'weather.html'; // Adjust as per your weather generator page

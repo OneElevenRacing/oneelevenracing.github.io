@@ -36,12 +36,11 @@ footer {
   display: flex; /* Use flexbox to center content */
   align-items: center; /* Align items vertically */
   justify-content: center; /* Align items horizontally */
-  width: 25%;
+  width: 33.3%;
   height: 100%;
   background-color: #ffffff; /* Set background color */
   color: #000000; /* Set text color */
   border: none; /* Remove border */
-  cursor: pointer; /* Change cursor to pointer */
   text-decoration: none; /* Remove default text decoration */
   flex-direction: column; /* Stack items vertically */
   float: right;

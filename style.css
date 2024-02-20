@@ -226,40 +226,96 @@ footer {
     bottom: 0; /* Align the footer to the bottom of the window */
     background-color: white; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
-    height: 70px;
+    height: 100px;
     box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-
-.footerbutton4 {
+.footerbutton1 {
     display: flex; /* Use flexbox to center content */
     align-items: center; /* Align items vertically */
     justify-content: center; /* Align items horizontally */
-    width: 25%;
+    width: 33.3%;
     height: 100%;
     background-color: #ffffff; /* Set background color */
     color: #808080; /* Set text color */
     border: none; /* Remove border */
-    cursor: pointer; /* Change cursor to pointer */
     text-decoration: none; /* Remove default text decoration */
     flex-direction: column; /* Stack items vertically */
     float: right;
 }
 
-.footerbutton4:hover img {
+.footerbutton1:hover img {
     filter: brightness(0);
 }
 
-.footerbutton4:hover {
+.footerbutton1:hover {
     color: #000000; /* Change text color on hover */
 }
 
-.footerbutton4 img {
+.footerbutton1 img {
     vertical-align: middle; /* Align the image vertically */
-    width: 20px;
-    height: 20px;
+    width: 30px;
+    height: 30px;
     margin-top: -10px;
     padding: 10px;
+}
+
+
+
+
+.footerbutton2 {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #808080; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    float: right;
+}
+
+.footerbutton2:hover img {
+    filter: brightness(0);
+}
+
+.footerbutton2:hover {
+    color: #000000; /* Change text color on hover */
+}
+
+.footerbutton2 img {
+    vertical-align: middle; /* Align the image vertically */
+    width: 30px;
+    height: 30px;
+    margin-top: -10px;
+    padding: 10px;
+}
+
+
+.footerbutton3 {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #000000; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    float: right;
+    cursor: default; /* Set cursor to default on hover */
+}
+
+.footerbutton3 img {
+    vertical-align: middle; /* Align the image vertically */
+    width: 30px;
+    height: 30px;
+    margin-top: -10px;
+    padding: 10px;
+    filter:brightness(0);
 }
 
 /* Button styles */
@@ -309,18 +365,18 @@ button:disabled, button:disabled:hover {
 /* Specific disabled style for the red button, including hover */
 .red-button:disabled, .red-button:disabled:hover {
     background-color: #ffcccc; /* Light red for disabled state */
-    color: #666666; /* Darker grey text for disabled state */
+    color: #ffffff; /* Darker grey text for disabled state */
 }
 
 .red-button {
     display: block;
-    width: 85%; /* Slightly larger */
-    margin: 10px auto;
+    width: 80%; /* Slightly larger */
+    margin: 15px auto;
     padding: 15px; /* Slightly larger */
     background-color: red;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 20px;
     cursor: pointer;
 }
 
@@ -524,7 +580,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
 
 
 /* Media query for larger screens (e.g., laptops) */
-@media (min-width: 768px) { /* Adjust the breakpoint as needed */
+@media (min-width: 768px) { Adjust the breakpoint as needed
 
     #raceInfo {
         width: 25%; /* Narrower width for larger screens */
@@ -557,11 +613,10 @@ input[type="text"], input[type="date"], input[type="time"], select {
     .red-button, .red-button:disabled, .red-button:disabled:hover {
         white-space: normal; /* Allow text to wrap inside the button */
         width: auto; /* Allow button to size based on content */
-        min-width: unset; /* Remove the minimum width */
+        min-width: 400px; /* Remove the minimum width */
         font-size: 0.8em;
         box-sizing: border-box;
-        max-width: 200px;
-    }
+            }
 
     .middle-box {
         width: 80%;
