@@ -1,7 +1,45 @@
 var xoyondoLink = "";
+// This is the season info - UPDATE EVERY SEASON
+const seasonInfo = {
+    seasonNumber: 13,
+    racingClass: "Formula Ultimate Gen 2",
+};
+
+// This is where the links to the car pictures for each driver are stored - UPDATE EVERY SEASON
+const driverData = {
+    "bkfSQcOqCOchZY5xmr0dFc2ZRp43": { //Chris
+        "carImage": "Logos_and_icons/Car_Thumbnails/Chris.jpg", 
+        "carName": "Chris Livery #1"
+    },
+    "f88AuHLw82RPilJjY620yyc4POc2": { //Fabian
+        "carImage": "Logos_and_icons/Car_Thumbnails/Fabian.jpg", 
+        "carName": "Lemon-Martini Racing"
+    },
+    "wDINxmqfqqMqZ5C4qEQyTlcZNuq1": { //Jake
+        "carImage": "Logos_and_icons/Car_Thumbnails/Jake.jpg", 
+        "carName": "Jake Racing"
+    },
+    "nXNq1RBKkFQLRy31EuFI0WE0zC83": { //Ian
+        "carImage": "Logos_and_icons/Car_Thumbnails/Ian.jpg", 
+        "carName": "Ian Racing"
+    },
+    "CE5kXCu9NFOOMtuOwMPrPPqiPb52": { //James
+        "carImage": "Logos_and_icons/Car_Thumbnails/James.jpg", 
+        "carName": "James Racing"
+    },
+    "4aRXTmu8JOQIY84ujk4pbT3Udsv2": { //Rob
+        "carImage": "Logos_and_icons/Car_Thumbnails/Rob.jpg", 
+        "carName": "Rob Racing"
+    },
+    // ... copy paste for more driver car infos ...
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded and parsed");
+
+    // Define the season number and car class stuff
+    document.getElementById('seasonNumber').textContent = 'Season: ' + seasonInfo.seasonNumber;
+    document.getElementById('racingClass').textContent = 'Class: ' + seasonInfo.racingClass;
 
     // Fetch and display race info
     fetchAndUpdateRaceInfo();
@@ -57,6 +95,25 @@ function fetchAndUpdateRaceInfo() {
         // Update the button's onclick attribute with the fetched link
         document.querySelector('button[onclick*="race-availability"]').setAttribute('onclick', `openLink('${xoyondoLink}')`);
     });
+
+    // Check for user authentication and update the driver name and picture
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            // User is signed in
+            const userName = user.displayName || "Anonymous User";
+            const userData = driverData[user.uid] || { "carImage": "default/car/image.png", "carName": "Default Car" };
+            
+            document.getElementById("driverName").innerText = userName;
+            document.getElementById("raceCarImage").src = userData.carImage;
+            document.getElementById("carName").innerText = userData.carName;
+        } else {
+            // No user is signed in
+            document.getElementById("driverName").innerText = "Guest";
+            document.getElementById("raceCarImage").src = "default/car/image.png";
+            document.getElementById("carName").innerText = "Default Car";
+        }
+    });
+    
 }
 fetchAndUpdateRaceInfo();
 
