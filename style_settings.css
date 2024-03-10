@@ -1,19 +1,22 @@
+
+/* Custom Font Definition*/
 @font-face {
     font-family: 'KeepCalm'; /* Give your custom font a name */
     src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
   }
   
-  /* Apply the custom font to elements */
-  body {
-    font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
-    margin: 0;
+/* Global Styles */
+body {
+  font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
+  margin: 0;
 }
 
+/* Header Styles */
 header {
-    background-color: black; /* Set the background color to black */
-    width: 100%; /* Make the header span the full width of the page */
-    height: 60px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+  background-color: black; /* Set the background color to black */
+  width: 100%; /* Make the header span the full width of the page */
+  height: 60px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
 header h1 {
@@ -22,6 +25,7 @@ header h1 {
   text-align: center; /* Align the text to the center */
 }
 
+/* Footer Styles */
 footer {
   position: fixed; /* Position the footer relative to the browser window */
   bottom: 0; /* Align the footer to the bottom of the window */
@@ -31,7 +35,7 @@ footer {
   box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-
+/* Footer Button Styles */
 .footerbutton {
   display: flex; /* Use flexbox to center content */
   align-items: center; /* Align items vertically */
@@ -48,7 +52,7 @@ footer {
 }
 
 
-/* Style for the footer button's image */
+/* Footer Button Image Styles */
 .footerbutton img {
   vertical-align: middle; /* Align the image vertically */
   width: 30px;

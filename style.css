@@ -1,6 +1,6 @@
 /*
 Sections in this CSS:
-Font
+Fonts
 Main Page Header Styles
 Main Page Season Information Styles
 Main Page Dropdown Menu Styles
@@ -27,7 +27,7 @@ body {
 }
 
 
-/* Header styles */
+/* Main page header styles */
 header {
     background-color: black; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
