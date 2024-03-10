@@ -1,31 +1,14 @@
 
-/* Custom Font Definition*/
-@font-face {
-    font-family: 'KeepCalm'; /* Give your custom font a name */
-    src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
-  }
-
 /* Header Styles */
 header {
   position: fixed; /* Position the footer relative to the browser window */
   top: 0; /* Align the footer to the bottom of the window */
 }
 
-
 header h1 {
   font-size: 24px; /* Adjust the font size as needed */
   color: #ffffff; /* Set the font color */
   text-align: center; /* Align the text to the center */
-}
-
-/* Footer Styles */
-footer {
-  position: fixed; /* Position the footer relative to the browser window */
-  bottom: 0; /* Align the footer to the bottom of the window */
-  background-color: white; /* Set the background color to black */
-  width: 100%; /* Make the header span the full width of the page */
-  height: 100px;
-  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
 /* Body Styles */
