@@ -35,7 +35,7 @@ function fetchAndDisplayDriverData(uid) {
             // Assuming you have elements with ID 'driverName', 'carName', and 'raceCarImage' in your HTML
             document.getElementById('driverName').textContent = driverData.name || 'Unknown Driver';
             document.getElementById('carName').textContent = driverData.carName || 'Unknown Car';
-            document.getElementById('raceCarImage').src = driverData.carImage || 'Logos_and_icons/racetracks/TBD.png';
+            document.getElementById('raceCarImage').src = driverData.carImage || 'Logos_and_icons/Car_Thumbnails/placeholder.png';
         }
     });
 }
@@ -49,7 +49,7 @@ firebase.auth().onAuthStateChanged((user) => {
         // User is not logged in, show default or guest data
         document.getElementById('driverName').textContent = 'Guest';
         document.getElementById('carName').textContent = 'Default Car';
-        document.getElementById('raceCarImage').src = 'Logos_and_icons/racetracks/TBD.png';
+        document.getElementById('raceCarImage').src = 'Logos_and_icons/Car_Thumbnails/placeholder.png';
     }
 });
 

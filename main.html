@@ -61,47 +61,52 @@
     </header>
 
 
-    <main>
-        <!-- Top Box: Season, Racing Class, Car Image, Driver and Car Name -->
-        <div class="top-box">
-            <div class="season-info">
-                <span id="seasonNumber">Season: Loading...</span>
-                <span id="racingClass">Class: Loading...</span>
-            </div>
-            <img src="Logos_and_icons/racetracks/TBD.png" alt="Race Car" id="raceCarImage">
-            <div class="driver-info">
-                <p id="driverName">Loading...</p>
-                <span>-</span> <!-- Dash between names -->
-                <p id="carName">Loading...</p>
-            </div>
-        </div>        
+    <main class="main">
+        <div class="info-container">
+            <!-- Top Box: Season, Racing Class, Car Image, Driver and Car Name -->
+            <div class="top-box">
+                <div class="season-info">
+                    <span id="seasonNumber">Season: Loading...</span>
+                    <span id="racingClass">Class: Loading...</span>
+                </div>
+                <img src="Logos_and_icons/Car_Thumbnails/placeholder.png" alt="" id="raceCarImage">
+                <div class="driver-info">
+                    <p id="driverName">Loading...</p>
+                    <span>-</span> <!-- Dash between names -->
+                    <p id="carName">Loading...</p>
+                </div>
+            </div>        
 
-        <!-- Middle Box: Split into Left and Right -->
-        <div class="middle-box">
-            <!-- Left Box: Race Information -->
-            <div class="left-box">
-                <p id="nextRace">Next Race</p>
-                <p>Date: <span id="raceDate">Loading...</span></p>
-                <p>Time: <span id="raceTime">Loading...</span></p>
-                <p>Weather 1: <span id="weather1">Loading...</span></p>
-                <p>Weather 2: <span id="weather2">Loading...</span></p>
-            </div>
+            <!-- Middle Box: Split into Left and Right -->
+            <div class="middle-box">
+                <!-- Left Box: Race Information -->
+                <div class="left-box">
+                    <p id="nextRace">Next Race</p>
+                    <p>Date: <span id="raceDate">Loading...</span></p>
+                    <p>Time: <span id="raceTime">Loading...</span></p>
+                    <p>Weather 1: <span id="weather1">Loading...</span></p>
+                    <p>Weather 2: <span id="weather2">Loading...</span></p>
+                </div>
 
-            <!-- Right Box: Next Track Name and Image -->
-            <div class="right-box">
-                <p id="raceLocation">Next Race Track: <span>Loading...</span></p>
-                <img src="Logos_and_icons/racetracks/TBD.png" alt="Race Track Image" id="raceTrackImage">
+                <!-- Right Box: Next Track Name and Image -->
+                <div class="right-box">
+                    <p id="raceLocation">Next Race Track: <span>Loading...</span></p>
+                    <img src="Logos_and_icons/racetracks/TBD.png" alt="Race Track Image" id="raceTrackImage">
+                </div>
             </div>
         </div>
 
         <!-- Bottom Box: Buttons -->
-        <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
-        <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
-        <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
-        <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
-        <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
-        <button onclick="showAlert()">Other Polls and Forms</button> 
+        <div class="button-container">
+            <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
+            <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
+            <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
+            <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
+            <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
+            <button onclick="showAlert()">Other Polls and Forms</button> 
+        </div>
     </main> 
+</div>
 
     <!-- Footer Section -->
     <footer>
@@ -115,7 +120,7 @@
             KARTING
         </a>
 
-        <a href="javascript:void(0);" class="footerbutton3" id="simracing">
+        <a class="footerbuttonselected" id="simracing">
             <img src="Logos_and_icons/settings.png" alt="Sim Racing">
             SIM RACING
         </a>
