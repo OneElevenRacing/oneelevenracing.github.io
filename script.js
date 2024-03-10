@@ -1,49 +1,10 @@
 var xoyondoLink = "";
-// This is the season info - UPDATE EVERY SEASON
-const seasonInfo = {
-    seasonNumber: 13,
-    racingClass: "Formula Ultimate Gen 2",
-};
-
-// This is where the links to the car pictures for each driver are stored - UPDATE EVERY SEASON
-const driverData = {
-    "bkfSQcOqCOchZY5xmr0dFc2ZRp43": { //Chris
-        "carImage": "Logos_and_icons/Car_Thumbnails/Chris.jpg", 
-        "carName": "Chris Livery #1"
-    },
-    "f88AuHLw82RPilJjY620yyc4POc2": { //Fabian
-        "carImage": "Logos_and_icons/Car_Thumbnails/Fabian.jpg", 
-        "carName": "Lemon-Martini Racing"
-    },
-    "wDINxmqfqqMqZ5C4qEQyTlcZNuq1": { //Jake
-        "carImage": "Logos_and_icons/Car_Thumbnails/Jake.jpg", 
-        "carName": "Jake Racing"
-    },
-    "nXNq1RBKkFQLRy31EuFI0WE0zC83": { //Ian
-        "carImage": "Logos_and_icons/Car_Thumbnails/Ian.jpg", 
-        "carName": "Ian Racing"
-    },
-    "CE5kXCu9NFOOMtuOwMPrPPqiPb52": { //James
-        "carImage": "Logos_and_icons/Car_Thumbnails/James.jpg", 
-        "carName": "James Racing"
-    },
-    "4aRXTmu8JOQIY84ujk4pbT3Udsv2": { //Rob
-        "carImage": "Logos_and_icons/Car_Thumbnails/Rob.jpg", 
-        "carName": "Rob Racing"
-    },
-    "Y4ZwDx17mxVM3wTmEI0XLfmcyvo2": { //Richard
-        "carImage": "Logos_and_icons/Car_Thumbnails/Richard.jpg", 
-        "carName": "Richard Racing"
-    },
-    // ... copy paste for more driver car infos ...
-};
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded and parsed");
 
-    // Define the season number and car class stuff
-    document.getElementById('seasonNumber').textContent = 'Season: ' + seasonInfo.seasonNumber;
-    document.getElementById('racingClass').textContent = 'Class: ' + seasonInfo.racingClass;
+    // Fetch and display season information
+    fetchAndDisplaySeasonData();
 
     // Fetch and display race info
     fetchAndUpdateRaceInfo();
@@ -51,6 +12,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup menu dropdown toggle
     setupMenuDropdown();
 });
+
+
+// This function fetches the season data and updates the HTML elements
+function fetchAndDisplaySeasonData() {
+    const seasonRef = firebase.database().ref('seasonData');
+    seasonRef.once('value', (snapshot) => {
+        const seasonData = snapshot.val();
+        if (seasonData) {
+            document.getElementById('seasonNumber').textContent = 'Season: ' + seasonData.seasonNumber;
+            document.getElementById('racingClass').textContent = 'Class: ' + seasonData.racingClass;
+        }
+    });
+}
+
+// This function fetches the driver data based on the user's UID and updates the HTML elements to reflect the individual user
+function fetchAndDisplayDriverData(uid) {
+    const driversRef = firebase.database().ref('drivers/' + uid);
+    driversRef.once('value', (snapshot) => {
+        const driverData = snapshot.val();
+        if (driverData) {
+            // Assuming you have elements with ID 'driverName', 'carName', and 'raceCarImage' in your HTML
+            document.getElementById('driverName').textContent = driverData.name || 'Unknown Driver';
+            document.getElementById('carName').textContent = driverData.carName || 'Unknown Car';
+            document.getElementById('raceCarImage').src = driverData.carImage || 'Logos_and_icons/racetracks/TBD.png';
+        }
+    });
+}
+
+// When the user's authentication state changes (i.e., they log in or out)
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // User is logged in, fetch and display their driver data
+        fetchAndDisplayDriverData(user.uid);
+    } else {
+        // User is not logged in, show default or guest data
+        document.getElementById('driverName').textContent = 'Guest';
+        document.getElementById('carName').textContent = 'Default Car';
+        document.getElementById('raceCarImage').src = 'Logos_and_icons/racetracks/TBD.png';
+    }
+});
+
+
 
 function fetchAndUpdateRaceInfo() {
     var databaseRef = firebase.database().ref();
@@ -100,7 +103,7 @@ function fetchAndUpdateRaceInfo() {
         document.querySelector('button[onclick*="race-availability"]').setAttribute('onclick', `openLink('${xoyondoLink}')`);
     });
 
-    // Check for user authentication and update the driver name and picture
+    /* // Check for user authentication and update the driver name and picture
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             // User is signed in
@@ -116,10 +119,12 @@ function fetchAndUpdateRaceInfo() {
             document.getElementById("raceCarImage").src = "default/car/image.png";
             document.getElementById("carName").innerText = "Default Car";
         }
-    });
+    }); */
     
 }
 fetchAndUpdateRaceInfo();
+
+
 
 function openLink(url) {
     window.open(url, '_blank');
