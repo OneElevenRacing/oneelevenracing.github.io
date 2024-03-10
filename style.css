@@ -35,6 +35,8 @@ header {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
+
+
 #logo {
     height: 60px; /* Adjust as needed */
     margin-bottom: 20px; /* Space between logo and title */
@@ -341,10 +343,12 @@ button:hover {
     left: 10px;
     background:white; /* Light grey background for visibility */
     color: black;
-    padding: 5px 10px; /* Adjust padding as needed */
+    padding: 8px 10px; /* Adjust padding as needed */
     border-radius: 5px; /* Rounded corners */
     cursor: pointer;
     text-decoration: none; /* Remove underline from text */
+    width: 15%;
+    font-size: 0.5em;
 }
 
 .back-button:hover {

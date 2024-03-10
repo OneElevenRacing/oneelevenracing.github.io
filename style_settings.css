@@ -25,3 +25,11 @@ body {
   padding: 10px;
   filter:brightness(0);
 }
+
+.weatherHeading {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Horizontally center the content in the div */
+  flex-grow: 1; /* Allow this div to take up the available space */
+  height: 60px;
+}
