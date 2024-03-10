@@ -4,20 +4,13 @@
     font-family: 'KeepCalm'; /* Give your custom font a name */
     src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
   }
-  
-/* Global Styles */
-body {
-  font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
-  margin: 0;
-}
 
 /* Header Styles */
 header {
-  background-color: black; /* Set the background color to black */
-  width: 100%; /* Make the header span the full width of the page */
-  height: 60px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+  position: fixed; /* Position the footer relative to the browser window */
+  top: 0; /* Align the footer to the bottom of the window */
 }
+
 
 header h1 {
   font-size: 24px; /* Adjust the font size as needed */
@@ -33,6 +26,11 @@ footer {
   width: 100%; /* Make the header span the full width of the page */
   height: 100px;
   box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
+/* Body Styles */
+body {
+  padding-top: 60px; /* Height of the header */
 }
 
 /* Footer Button Styles */

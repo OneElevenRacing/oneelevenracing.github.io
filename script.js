@@ -31,6 +31,10 @@ const driverData = {
         "carImage": "Logos_and_icons/Car_Thumbnails/Rob.jpg", 
         "carName": "Rob Racing"
     },
+    "Y4ZwDx17mxVM3wTmEI0XLfmcyvo2": { //Richard
+        "carImage": "Logos_and_icons/Car_Thumbnails/Richard.jpg", 
+        "carName": "Richard Racing"
+    },
     // ... copy paste for more driver car infos ...
 };
 
