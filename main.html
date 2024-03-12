@@ -10,7 +10,7 @@
     <link rel="icon" href="111_icon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>One Eleven App</title>
+    <title>One Eleven</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 
@@ -20,8 +20,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
     <script defer src="checkAuth.js"></script>
-    
-
     <script>
         var firebaseConfig = {
             apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
@@ -38,76 +36,96 @@
 
 
     <!-- Javascript initialisation -->
+    <script src="tracks.js"></script>
     <script src="script.js"></script>
     <script src="login.js"></script>
 
 </head>
 <body>
     <header>
-        <!-- One Eleven Logo-->
-        <img src="111_new_logo.png" alt="One Eleven" id="logo">
-    	
-        <!-- Dropdown menu for Admin and About pages -->
-        <div id="menu">
-            <i class="fa-solid fa-gear"></i>
-            <div id="dropdown" class="dropdown-content">
-                <a href="adminPassword.html">
-                    Admin
-                    <i class="fa-solid fa-user-shield"></i> <!-- Icon for Admin -->
-                </a>
-                <a href="about.html">
-                    About
-                    <i class="fa-solid fa-circle-info"></i> <!-- Icon for About -->
-                </a>
-                <a href="#" onclick="logoutUser()">
-                    Logout
-                    <i class="fa-solid fa-right-from-bracket"></i> <!-- Icon for Logout -->
-                </a>
-            </div>
-        </div>
+        <a href="javascript:void(0);">
+            <img src="Logos_and_icons/Web_App_Banner.png" alt="Logo" id="logo" onclick="navigateToHomePage()">
+        </a>
+
+        <a href="https://www.youtube.com/@oneeleven8681" id="ytube">
+            <img src="Logos_and_icons/ytube.png" alt="Youtube">
+        </a>
+
+        <a href="https://www.youtube.com/@oneeleven8681" id="discord">
+            <img src="Logos_and_icons/discord.png" alt="Discord">
+        </a>
         
+        <a href="https://drive.google.com/drive/folders/1-4teBtYmZvsqi-_nuRUsf9yQftbm5cFA" id="gdrive">
+            <img src="Logos_and_icons/gdrive.png" alt="Google Drive">
+        </a>       
     </header>
 
-    <main>
-	    <div id="raceInfo">	    	           
-            <!-- First Section: Race Location -->
-            <div class="info-section" id="location-section">
-                <p class="info-title_top">Next Race Location:</p>
-                <p class="info-value_top" id="raceLocation">Loading...</p>
-            </div>
 
-            <!-- Second Section: Race Date and Time -->
-            <div class="info-section" id="date-time-section">
-                <div>
-                    <p class="info-title_left">Next Race Date:</p>
-                    <p class="info-value_left" id="raceDate">Loading...</p>
+    <main class="main">
+        <div class="info-container">
+            <!-- Top Box: Season, Racing Class, Car Image, Driver and Car Name -->
+            <div class="top-box">
+                <div class="season-info">
+                    <span id="seasonNumber">Season: Loading...</span>
+                    <span id="racingClass">Class: Loading...</span>
                 </div>
-                <div>
-                    <p class="info-title_right">Next Race Time:</p>
-                    <p class="info-value_right" id="raceTime">Loading...</p>
+                <img src="Logos_and_icons/Car_Thumbnails/placeholder.png" alt="" id="raceCarImage">
+                <div class="driver-info">
+                    <p id="driverName">Loading...</p>
+                    <span>-</span> <!-- Dash between names -->
+                    <p id="carName">Loading...</p>
+                </div>
+            </div>        
+
+            <!-- Middle Box: Split into Left and Right -->
+            <div class="middle-box">
+                <!-- Left Box: Race Information -->
+                <div class="left-box">
+                    <p id="nextRace">Next Race</p>
+                    <p>Date: <span id="raceDate">Loading...</span></p>
+                    <p>Time: <span id="raceTime">Loading...</span></p>
+                    <p>Weather 1: <span id="weather1">Loading...</span></p>
+                    <p>Weather 2: <span id="weather2">Loading...</span></p>
+                </div>
+
+                <!-- Right Box: Next Track Name and Image -->
+                <div class="right-box">
+                    <p id="raceLocation">Next Race Track: <span>Loading...</span></p>
+                    <img src="Logos_and_icons/racetracks/TBD.png" alt="Race Track Image" id="raceTrackImage">
                 </div>
             </div>
+        </div>
 
-            <!-- Third Section: Weather 1 and Weather 2 -->
-            <div class="info-section" id="weather-section">
-                <div>
-                    <p class="info-title">Weather 1:</p>
-                    <p class="info-value_left" id="weather1">Loading...</p>
-                </div>
-                <div>
-                    <p class="info-title">Weather 2:</p>
-                    <p class="info-value_right" id="weather2">Loading...</p>
-                </div>
-            </div>
-		</div>
+        <!-- Bottom Box: Buttons -->
+        <div class="button-container">
+            <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
+            <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
+            <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
+            <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
+            <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
+            <button onclick="showAlert()">Other Polls and Forms</button> 
+        </div>
+    </main> 
+</div>
 
-        <button onclick="openLink('https://example.com/race-availability')">Next Race Availability</button>
-        <button onclick="openLink('https://docs.google.com/spreadsheets/d/1NGvPK4nF9ZWRyDEp6WSNsDTL9Jz27Ur5--ZXafntrrc/edit#gid=0')">Championship Standings</button>
-        <button onclick="navigateToWeatherGenerator()">Weather Generator</button>
-        <button onclick="openLink('https://drive.google.com/file/d/1578xi9mACCotNx7MUeJMpxelZQ3sBuGX/view')">Host Settings</button>
-        <button onclick="openLink('https://drive.google.com/file/d/1pYxNpsdXETbp_C6OmjpIOdu3Jz4McxtJ/view')">Tuning and Setups Guide</button>
-        <button onclick="showAlert()">Other Polls and Forms</button>
-    </main>
+    <!-- Footer Section -->
+    <footer>
+        <a href="javascript:void(0);" class="footerbutton1" id="settings" onclick="navigateToSettingsPage()">
+            <img src="Logos_and_icons/settings.png" alt="Settings">
+            SETTINGS
+        </a>
+
+        <a href="javascript:void(0);" class="footerbutton2" id="karting" onclick="navigateToKartingPage()">
+            <img src="Logos_and_icons/settings.png" alt="Karting">
+            KARTING
+        </a>
+
+        <a class="footerbuttonselected" id="simracing">
+            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            SIM RACING
+        </a>
+    </footer>
+
 
 </body>
 </html>

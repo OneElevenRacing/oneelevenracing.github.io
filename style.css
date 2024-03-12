@@ -1,22 +1,46 @@
-/* Define @font-face rule */
+/*
+Sections in this CSS:
+Fonts
+Main Page Header Styles
+Main Page Season Information Styles
+Main Page Dropdown Menu Styles
+Main Page Footer
+Generic Button Styles
+Main Page Race Info Styles
+Weather Page Styles
+Admin Page Styles
+About Page Styles
+Media Queries
+*/
+
+/* Fonts */
 @font-face {
     font-family: 'KeepCalm'; /* Give your custom font a name */
     src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
   }
   
-  /* Apply the custom font to elements */
-  body {
+/* Apply the custom font to elements */
+body {
     font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
-  }
-
-header {
-    text-align: center;
-    padding: 10px 0;
+    margin: 0;
+    padding: 0;
+    padding-bottom: 100px;
 }
 
+/* Main page header styles */
+header {
+    background-color: black; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 60px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
+
+
 #logo {
-    height: 20px; /* Adjust as needed */
-    margin-bottom: 50px; /* Space between logo and title */
+    height: 60px; /* Adjust as needed */
+    margin-bottom: 20px; /* Space between logo and title */
+    float: left; /* Align the logo to the left */
 }
 
 #menu {
@@ -25,6 +49,149 @@ header {
     right: 10px;
     font-size: 1.5em; /* Adjust size of the gear icon */
 }
+
+#gdrive img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+#discord img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+#ytube img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+/* Season Information Styles: Topbox, Middle Box (Left+Right) */
+.season-info {
+    display: flex;
+    justify-content: space-between;
+    width: 92%;
+    margin-bottom: 10px; /* Adjust as needed */
+}
+
+.season-info span {
+    margin: 0 0px; /* Adjust as needed */
+}
+
+#raceCarImage {
+    max-width: 85%; /* Ensures the image is responsive */
+    height: auto;
+    margin-bottom: 10px; /* Space below the image */
+}
+
+.driver-info {
+    display: flex;
+    justify-content: center; /* Center the content */
+    width: 92%;
+    font-size: 1em;
+}
+
+.driver-info p {
+    margin: 0 5px; /* Add some space around the paragraphs */
+}
+
+.top-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    position: relative; /* Added to position the pseudo-element */
+    padding-bottom: 10px; /* Padding at the bottom */
+    margin-bottom: 10px; /* Margin at the bottom */
+}
+
+.top-box::after {
+    content: ''; /* Required for pseudo-elements */
+    margin-top: 20px;
+    width: 100%; /* Width of the line */
+    height: 1.5px; /* Height of the line */
+    background-color: #ccc; /* Color of the line */
+}
+
+.middle-box {
+    display: flex;
+    justify-content: space-between; /* Space elements evenly */
+    margin-top: 0px;
+    margin-right: auto;
+    margin-bottom: 45px;
+    margin-left: auto;
+    width: 92%;
+    position: relative;
+}
+
+.middle-box::before { /* Vertical line between left and right box */
+    content: '';
+    position: absolute;
+    left: 50%; /* Position at the center of middle-box */
+    top: 0; /* Start from the top edge of the box */
+    bottom: 0; /* Extend to the bottom edge of the box */
+    width: 1.5px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+    transform: translateX(-50%); /* Center the line */
+}
+
+.middle-box::after { /* Horizontal line under the middle box */
+    content: '';
+    position: absolute;
+    left: 50%; /* Center the line */
+    transform: translateX(-50%); /* Shift the line back to center it */
+    bottom: -20px;
+    width: 100vw; /* Set width relative to the viewport width */
+    height: 1.5px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+}
+
+
+
+.left-box, .right-box {
+    flex: 1; /* Each box takes equal width */
+    position: relative;
+}
+
+.left-box {
+    line-height: 0.6;
+    font-size: 0.9em;
+}
+
+.right-box {
+    text-align: center;
+    padding-left: 30px;
+    padding-right: 0px;
+}
+
+#raceTrackImage {
+    max-width: 100%; /* Ensure the image doesn't exceed the container width */
+    height: auto; /* Maintain aspect ratio */
+}
+
+#nextRace {
+    font-size: 1.2em;
+    margin-top: 5px;
+}
+
+#raceLocation{
+    margin-bottom: 0px;
+    margin-top: 0px;
+}
+
+#raceDate, #raceTime, #weather1, #weather2, #raceLocation {
+    color: red;
+}
+
 
 /* Dropdown Menu Styles */
 #dropdown {
@@ -57,27 +224,166 @@ header {
 
 #dropdown a:hover {background-color: #f1f1f1;}
 
+/* Footer */
+footer {
+    position: fixed; /* Position the footer relative to the browser window */
+    bottom: 0; /* Align the footer to the bottom of the window */
+    background-color: white; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 100px;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+}
+
+.footerbutton1 {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #808080; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    float: right;
+}
+
+.footerbutton1:hover img {
+    filter: brightness(0);
+}
+
+.footerbutton1:hover {
+    color: #000000; /* Change text color on hover */
+}
+
+.footerbutton1 img {
+    vertical-align: middle; /* Align the image vertically */
+    width: 30px;
+    height: 30px;
+    margin-top: -10px;
+    padding: 10px;
+}
+
+.footerbutton2 {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #808080; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    float: right;
+}
+
+.footerbutton2:hover img {
+    filter: brightness(0);
+}
+
+.footerbutton2:hover {
+    color: #000000; /* Change text color on hover */
+}
+
+.footerbutton2 img {
+    vertical-align: middle; /* Align the image vertically */
+    width: 30px;
+    height: 30px;
+    margin-top: -10px;
+    padding: 10px;
+}
+
+.footerbuttonselected {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #000000; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    float: right;
+    cursor: default; /* Set cursor to default on hover */
+}
+
+.footerbuttonselected img {
+    vertical-align: middle; /* Align the image vertically */
+    width: 30px;
+    height: 30px;
+    margin-top: -10px;
+    padding: 10px;
+    filter:brightness(0);
+}
+
 /* Button styles */
 button {
     display: block;
     width: 80%;
-    margin: 10px auto;
-    padding: 10px;
+    margin: 15px auto;
+    padding: 15px;
     background-color: #000000;
     color: white;
     font-family: 'KeepCalm', Arial, sans-serif;
-    font-size: 0.7em;
+    font-size: 0.8em;
     text-transform: uppercase;
-    line-height: 2;
     border: none;
-    border-radius: 15px;
+    border-radius: 20px;
     cursor: pointer;
 }
 
 button:hover {
-    background-color: grey;
+    background-color: #808080;
 }
 
+.back-button {
+    position: absolute;
+    left: 10px;
+    background:white; /* Light grey background for visibility */
+    color: black;
+    padding: 8px 10px; /* Adjust padding as needed */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    text-decoration: none; /* Remove underline from text */
+    width: 15%;
+    font-size: 0.5em;
+}
+
+.back-button:hover {
+    background-color: white; /* Slightly darker on hover */
+    color: #0056b3; /* Change text color on hover */
+}
+
+/* Disable hover effects for disabled buttons */
+button:disabled, button:disabled:hover {
+    background-color: #cccccc; /* Keeps the background color for disabled state */
+    color: #666666; /* Keeps the text color for disabled state */
+    cursor: not-allowed; /* Keeps the cursor style for disabled state */
+}
+
+/* Specific disabled style for the red button, including hover */
+.red-button:disabled, .red-button:disabled:hover {
+    background-color: #ffcccc; /* Light red for disabled state */
+    color: #ffffff; /* Darker grey text for disabled state */
+}
+
+.red-button {
+    display: block;
+    width: 80%; /* Slightly larger */
+    margin: 15px auto;
+    padding: 15px; /* Slightly larger */
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+.red-button:hover {
+    background-color: darkred;
+}
 
 /* Race Info Styles */
 #raceInfo {
@@ -122,21 +428,21 @@ button:hover {
 }
 
 .info-value_top {
-    color: blue;
+    color: rgb(255, 0, 0);
     font-weight: bold;
     font-size: 0.9em;
     margin: 0;
 }
 
 .info-value_left {
-    color: blue;
+    color: rgb(255, 0, 0);
     text-align: left;
     font-size: 0.9em;
     margin: 0;
 }
 
 .info-value_right {
-    color: blue;
+    color: rgb(255, 0, 0);
     text-align: right;
     font-size: 0.9em;
     margin: 0;    
@@ -153,59 +459,6 @@ button:hover {
     font-size: 1.2em;
     text-align: center;
     margin: 0;
-}
-
-.back-button {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background:white; /* Light grey background for visibility */
-    color: black;
-    padding: 5px 10px; /* Adjust padding as needed */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer;
-    text-decoration: none; /* Remove underline from text */
-}
-
-.back-button:hover {
-    background-color: white; /* Slightly darker on hover */
-    color: #0056b3; /* Change text color on hover */
-}
-
-
-/* Existing button hover styles */
-button:hover {
-    background-color: grey;
-    /* other hover styles if any */
-}
-
-/* Disable hover effects for disabled buttons */
-button:disabled, button:disabled:hover {
-    background-color: #cccccc; /* Keeps the background color for disabled state */
-    color: #666666; /* Keeps the text color for disabled state */
-    cursor: not-allowed; /* Keeps the cursor style for disabled state */
-}
-
-/* Specific disabled style for the red button, including hover */
-.red-button:disabled, .red-button:disabled:hover {
-    background-color: #ffcccc; /* Light red for disabled state */
-    color: #666666; /* Darker grey text for disabled state */
-}
-
-.red-button {
-    display: block;
-    width: 85%; /* Slightly larger */
-    margin: 10px auto;
-    padding: 15px; /* Slightly larger */
-    background-color: red;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-.red-button:hover {
-    background-color: darkred;
 }
 
 /* Weather Page Styles */
@@ -327,44 +580,52 @@ input[type="text"], input[type="date"], input[type="time"], select {
 }
 
 
-/* Media query for larger screens (e.g., laptops) */
-@media (min-width: 768px) { /* Adjust the breakpoint as needed */
 
-    #raceInfo {
-        width: 25%; /* Narrower width for larger screens */
-        /* Additional styling adjustments for larger screens can go here */
-    }
-
-    button, .red-button {
-        width: 20%; /* Smaller width on larger screens */
-        /* Additional styling adjustments for larger screens can go here */
-    }
+/*Experimental*/
+/* Default styles for mobile view */
+.main {
+    /*display: flex;*/
+    flex-direction: column;
+    align-items: center;
 }
 
-@media (max-width: 1280px) {
-    .back-button {
-        left: 5px; /* Adjust left position for smaller screens */
-        padding: 4px 6px; /* Adjust padding for a smaller button */
-        font-size: 0.8em; /* Adjust font size for smaller screens */
-        width: auto; /* Allow button to size based on content */
-        min-width: unset; /* Remove the minimum width */
-        display: inline-block; /* Ensure button is only as wide as its content */
-        box-sizing: border-box; /* Include padding and border in the button's total width */
+.info-container, .button-container {
+    width: 100%; /* Full width on small screens */
+}
+
+.top-box, .middle-box {
+    /* Styles for top and middle box */
+}
+
+button {
+    /* Styles for buttons */
+    margin-bottom: 10px;
+    /* Other styles */
+}
+
+/* Media query for larger screens */
+@media screen and (min-width: 1024px) {
+    .main {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .info-container {
+        width: 45%; /* Adjust the width as needed */
+    }
+
+    .button-container {
+        width: 45%; /* Adjust the width as needed */
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
     }
 
     button {
-        width: auto; /* Allow button to size based on content */
-        min-width: 250px; /* Remove the minimum width */ 
-        font-size: 1em;
+        /* Adjust button styles for large screens */
     }
-    
-    .red-button, .red-button:disabled, .red-button:disabled:hover {
-        white-space: normal; /* Allow text to wrap inside the button */
-        width: auto; /* Allow button to size based on content */
-        min-width: unset; /* Remove the minimum width */
-        font-size: 0.8em;
-        box-sizing: border-box;
-        max-width: 200px;
-    }
-    
 }
+
+

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Page</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_settings.css">
+    
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script defer src="checkAuth.js"></script>
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <!-- Javascript initialisation -->
+    <script src="script.js"></script>
+
+</head>
+
+<body>
+    <!-- Header Section -->
+    <header>
+        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <h1>Settings</h1>
+    </header>
+
+    <!-- Main Content Section -->
+    <main>
+        <button onclick="window.location.href='adminPassword.html'">Admin</button>
+        <button onclick="window.location.href='about.html'">About</button>
+    </main>
+
+    <!-- Footer Section -->
+    <footer>
+        <a class="footerbuttonselected" id="settings"">
+            <img src="Logos_and_icons/settings.png" alt="Settings">
+            SETTINGS
+        </a>
+
+        <a href="javascript:void(0);" class="footerbutton2" id="karting" onclick="navigateToKartingPage()">
+            <img src="Logos_and_icons/settings.png" alt="Karting">
+            KARTING
+        </a>
+
+        <a href="javascript:void(0);" class="footerbutton1" id="simracing" onclick="window.location.href='main.html'">
+            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            SIM RACING
+        </a>
+    </footer>
+
+</body>
+</html>
