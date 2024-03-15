@@ -616,6 +616,18 @@ button {
         width: 45%; /* Adjust the width as needed */
     }
 
+    .top-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        width: 100%;
+        position: relative; /* Added to position the pseudo-element */
+        padding-bottom: 10px; /* Padding at the bottom */
+        margin-bottom: 10px; /* Margin at the bottom */
+        margin-top: 20px;
+    }
+
     .button-container {
         width: 45%; /* Adjust the width as needed */
         display: flex;
