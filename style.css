@@ -610,6 +610,7 @@ button {
         flex-direction: row;
         justify-content: space-between;
         align-items: flex-start;
+        width: 70% /* For some reason unless width 70% is specified the box moves to the right. Any more than this and it moves to the right, and above 86% also moves lower for some reason */
     }
 
     .info-container {
