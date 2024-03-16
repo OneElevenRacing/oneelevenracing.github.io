@@ -51,7 +51,7 @@ function getDaySuffix(day) {
 }
 
 function formatDate(date) {
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
     const formattedDate = date.toLocaleDateString('en-US', options);
     const [weekday, month, day] = formattedDate.split(' ');
 

@@ -272,7 +272,7 @@ function submitRaceDate() {
 // Converting the date to the correct style
 function formatDateToDayMonth(dateString) {
     var date = new Date(dateString);
-    var options = { weekday: 'long', month: 'long', day: 'numeric' };
+    var options = { weekday: 'short', month: 'short', day: 'numeric' };
     var formattedDate = date.toLocaleDateString('en-US', options);
 
     var parts = formattedDate.split(' ');

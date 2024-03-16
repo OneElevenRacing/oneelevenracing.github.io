@@ -163,7 +163,18 @@ header {
 }
 
 .left-box {
-    line-height: 0.6;
+    line-height: 1.2;
+    font-size: 0.9em;
+}
+
+.left-box p {
+    min-height: 1.5em; /* Adjust as needed */
+    margin: 0; /* Removes default margin */
+    padding: 0; /* Adjust padding as needed */
+}
+
+.left-box span {
+    line-height: 1.2; /* Adjusted line height for wrapped text */
     font-size: 0.9em;
 }
 
@@ -347,7 +358,7 @@ button:hover {
     border-radius: 5px; /* Rounded corners */
     cursor: pointer;
     text-decoration: none; /* Remove underline from text */
-    width: 15%;
+    width: 18%;
     font-size: 0.5em;
 }
 
@@ -631,13 +642,17 @@ button {
 
     .button-container {
         width: 45%; /* Adjust the width as needed */
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
+        padding-top: 10px;
     }
 
-    button {
-        /* Adjust button styles for large screens */
+    .middle-box::before{
+        top: -5px;
+        bottom: 10px;
+    }
+
+    .middle-box::after { /* Horizontal line under the middle box */
+        width: 108.6%; /* Set width relative to the viewport width */
+        height: 0px;
     }
 }
 

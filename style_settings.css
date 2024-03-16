@@ -33,3 +33,13 @@ body {
   flex-grow: 1; /* Allow this div to take up the available space */
   height: 60px;
 }
+
+@media screen and (min-width: 1024px) {
+  button {
+    width: 25%;
+  }
+
+  .red-button, .red-button:disabled, .red-button:disabled:hover {
+    width: 25%;
+  }
+}
