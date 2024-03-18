@@ -37,16 +37,16 @@
 </head>
 <body>
     <header>
-        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
-        <div>
-        </div>
+        <a href="javascript:void(0);">
+            <img src="Logos_and_icons/About_Banner.png" alt="About" id="logo" onclick="navigateToHomePage()">
+        </a>
     </header>
 
     <div class="about-container">
         <img src="one_eleven_logo_about.png" alt="One Eleven Logo" id="about-logo">
-        <h1>One Eleven WebApp</h1>
+        <h1>ONE ELEVEN</h1>
         <p>Version 1.0.0</p>
-        <button onclick="showPrivacyPolicy()">Privacy Policy</button>
+        <button onclick="showPrivacyPolicy()" class="about-button">Privacy Policy</button>
     </div>
 
     <!-- Privacy Policy Popup (Initially hidden) -->
@@ -71,5 +71,23 @@
             document.getElementById('privacyPolicyPopup').style.display = 'none';
         }
     </script>
+
+    <!-- Footer Section -->
+    <footer>
+        <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            SIM RACING
+        </a>
+
+        <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+            <img src="Logos_and_icons/settings.png" alt="Karting">
+            KARTING
+        </a>
+
+        <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+            <img src="Logos_and_icons/settings.png" alt="Settings">
+            SETTINGS
+        </a>
+    </footer>
 </body>
 </html>

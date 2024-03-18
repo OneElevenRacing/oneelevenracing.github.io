@@ -16,7 +16,7 @@
 
 
     <!-- Firebase Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <!-- <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
     <script defer src="checkAuth.js"></script>
@@ -32,7 +32,7 @@
         };
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-    </script>
+    </script> -->
 
 
     <!-- Javascript initialisation -->
@@ -110,20 +110,22 @@
 
     <!-- Footer Section -->
     <footer>
-        <a href="javascript:void(0);" class="footerbutton1" id="settings" onclick="navigateToSettingsPage()">
-            <img src="Logos_and_icons/settings.png" alt="Settings">
-            SETTINGS
-        </a>
-
-        <a href="javascript:void(0);" class="footerbutton2" id="karting" onclick="navigateToKartingPage()">
-            <img src="Logos_and_icons/settings.png" alt="Karting">
-            KARTING
-        </a>
-
-        <a class="footerbuttonselected" id="simracing">
-            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
-            SIM RACING
-        </a>
+        <footer>
+            <a href="javascript:void(0);" class="footerbuttonselected" id="simracing" onclick="window.location.href='main.html'">
+                <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+                SIM RACING
+            </a>
+    
+            <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+                <img src="Logos_and_icons/settings.png" alt="Karting">
+                KARTING
+            </a>
+    
+            <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+                <img src="Logos_and_icons/settings.png" alt="Settings">
+                SETTINGS
+            </a>
+        </footer>
     </footer>
 
 
