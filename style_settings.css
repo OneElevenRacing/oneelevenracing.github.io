@@ -6,9 +6,10 @@ header {
 }
 
 header h1 {
-  font-size: 24px; /* Adjust the font size as needed */
+  font-size: 18px; /* Adjust the font size as needed */
   color: #ffffff; /* Set the font color */
-  text-align: center; /* Align the text to the center */
+  text-align: start; /* Align the text to the center */
+  margin-top: 20px;
 }
 
 /* Body Styles */

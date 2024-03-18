@@ -230,11 +230,11 @@ footer {
     bottom: 0; /* Align the footer to the bottom of the window */
     background-color: white; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
-    height: 100px;
+    height: 75px;
     box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-.footerbutton1 {
+.footerbuttonnotselected {
     display: flex; /* Use flexbox to center content */
     align-items: center; /* Align items vertically */
     justify-content: center; /* Align items horizontally */
@@ -245,51 +245,22 @@ footer {
     border: none; /* Remove border */
     text-decoration: none; /* Remove default text decoration */
     flex-direction: column; /* Stack items vertically */
-    float: right;
+    font-size: 0.9em;
+    float: left;
 }
 
-.footerbutton1:hover img {
+.footerbuttonnotselected:hover img {
     filter: brightness(0);
 }
 
-.footerbutton1:hover {
+.footerbuttonnotselected:hover {
     color: #000000; /* Change text color on hover */
 }
 
-.footerbutton1 img {
+.footerbuttonnotselected img {
     vertical-align: middle; /* Align the image vertically */
-    width: 30px;
-    height: 30px;
-    margin-top: -10px;
-    padding: 10px;
-}
-
-.footerbutton2 {
-    display: flex; /* Use flexbox to center content */
-    align-items: center; /* Align items vertically */
-    justify-content: center; /* Align items horizontally */
-    width: 33.3%;
-    height: 100%;
-    background-color: #ffffff; /* Set background color */
-    color: #808080; /* Set text color */
-    border: none; /* Remove border */
-    text-decoration: none; /* Remove default text decoration */
-    flex-direction: column; /* Stack items vertically */
-    float: right;
-}
-
-.footerbutton2:hover img {
-    filter: brightness(0);
-}
-
-.footerbutton2:hover {
-    color: #000000; /* Change text color on hover */
-}
-
-.footerbutton2 img {
-    vertical-align: middle; /* Align the image vertically */
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     margin-top: -10px;
     padding: 10px;
 }
@@ -305,14 +276,15 @@ footer {
     border: none; /* Remove border */
     text-decoration: none; /* Remove default text decoration */
     flex-direction: column; /* Stack items vertically */
-    float: right;
+    float: left;
+    font-size: 0.9em;
     cursor: default; /* Set cursor to default on hover */
 }
 
 .footerbuttonselected img {
     vertical-align: middle; /* Align the image vertically */
-    width: 30px;
-    height: 30px;
+    width: 20px;
+    height: 20px;
     margin-top: -10px;
     padding: 10px;
     filter:brightness(0);
@@ -545,6 +517,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
 
 /* About page Styles */
 .about-container {
+    margin-top: 100px;
     text-align: center;
     padding: 20px;
 }
@@ -552,6 +525,19 @@ input[type="text"], input[type="date"], input[type="time"], select {
 #about-logo {
     max-width: 200px; /* Adjust as needed */
     margin-bottom: 20px;
+}
+
+.about-button {
+    display: block;
+    width: 80%; /* Slightly larger */
+    max-width: 400px;
+    margin: 24px auto;
+    padding: 15px; /* Slightly larger */
+    background-color: rgb(0, 0, 0);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
 }
 
 .popup-container {
