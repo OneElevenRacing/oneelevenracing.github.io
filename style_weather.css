@@ -1,0 +1,66 @@
+/*
+Sections in this CSS:
+Red Button Style
+Weather Display Style
+*/
+
+/* Red Button Style */
+.red-button {
+    display: block;
+    width: 80%; /* Slightly larger */
+    margin: 15px auto;
+    padding: 15px; /* Slightly larger */
+    background-color: red;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+.red-button:hover {
+    background-color: darkred;
+}
+
+.red-button:disabled, .red-button:disabled:hover { /* Specific disabled style for the red button */
+    background-color: #ffcccc; /* Light red for disabled state */
+    color: #ffffff; /* Darker grey text for disabled state */
+}
+
+
+
+/* Weather Display Style */
+#weatherDisplay {
+    text-align: center;
+}
+
+.weather-slot {
+    font-weight: bold;
+    font-size: 1em;
+    margin: 30px;
+}
+
+.weather-result {
+    color: blue;
+    font-size: 0.9em;
+    margin: 5px 0;
+    display: block; /* Make the weather result appear on a new line */
+}
+
+.weather-result-practice {
+    color: grey;
+}
+
+.weather-message {
+    text-align: center;
+    color: grey;
+    margin-top: 20px;
+    font-size: 1em;
+}
+
+.debug-info {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: #333;
+}
+

@@ -1,15 +1,10 @@
 /*
 Sections in this CSS:
 Fonts
-Main Page Header Styles
-Main Page Season Information Styles
-Main Page Dropdown Menu Styles
-Main Page Footer
-Generic Button Styles
-Main Page Race Info Styles
-Weather Page Styles
-Admin Page Styles
-About Page Styles
+Header Style
+Footer Style
+Default Button Style
+Back Button Style
 Media Queries
 */
 
@@ -23,11 +18,9 @@ Media Queries
 body {
     font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
     margin: 0;
-    padding: 0;
-    padding-bottom: 100px;
 }
 
-/* Main page header styles */
+/* Header */
 header {
     background-color: black; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
@@ -35,194 +28,6 @@ header {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-
-
-#logo {
-    height: 60px; /* Adjust as needed */
-    margin-bottom: 20px; /* Space between logo and title */
-    float: left; /* Align the logo to the left */
-}
-
-#menu {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 1.5em; /* Adjust size of the gear icon */
-}
-
-#gdrive img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-#discord img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-#ytube img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-/* Season Information Styles: Topbox, Middle Box (Left+Right) */
-.season-info {
-    display: flex;
-    justify-content: space-between;
-    width: 92%;
-    margin-bottom: 10px; /* Adjust as needed */
-}
-
-.season-info span {
-    margin: 0 0px; /* Adjust as needed */
-}
-
-#raceCarImage {
-    max-width: 85%; /* Ensures the image is responsive */
-    height: auto;
-    margin-bottom: 10px; /* Space below the image */
-}
-
-.driver-info {
-    display: flex;
-    justify-content: center; /* Center the content */
-    width: 92%;
-    font-size: 1em;
-}
-
-.driver-info p {
-    margin: 0 5px; /* Add some space around the paragraphs */
-}
-
-.top-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    width: 100%;
-    position: relative; /* Added to position the pseudo-element */
-    padding-bottom: 10px; /* Padding at the bottom */
-    margin-bottom: 10px; /* Margin at the bottom */
-}
-
-.top-box::after {
-    content: ''; /* Required for pseudo-elements */
-    margin-top: 20px;
-    width: 100%; /* Width of the line */
-    height: 1.5px; /* Height of the line */
-    background-color: #ccc; /* Color of the line */
-}
-
-.middle-box {
-    display: flex;
-    justify-content: space-between; /* Space elements evenly */
-    margin-top: 0px;
-    margin-right: auto;
-    margin-bottom: 45px;
-    margin-left: auto;
-    width: 92%;
-    position: relative;
-}
-
-.middle-box::before { /* Vertical line between left and right box */
-    content: '';
-    position: absolute;
-    left: 50%; /* Position at the center of middle-box */
-    top: 0; /* Start from the top edge of the box */
-    bottom: 0; /* Extend to the bottom edge of the box */
-    width: 1.5px; /* Thickness of the line */
-    background-color: #ccc; /* Color of the line */
-    transform: translateX(-50%); /* Center the line */
-}
-
-.middle-box::after { /* Horizontal line under the middle box */
-    content: '';
-    position: absolute;
-    left: 50%; /* Center the line */
-    transform: translateX(-50%); /* Shift the line back to center it */
-    bottom: -20px;
-    width: 100vw; /* Set width relative to the viewport width */
-    height: 1.5px; /* Thickness of the line */
-    background-color: #ccc; /* Color of the line */
-}
-
-
-
-.left-box, .right-box {
-    flex: 1; /* Each box takes equal width */
-    position: relative;
-}
-
-.left-box {
-    line-height: 0.6;
-    font-size: 0.9em;
-}
-
-.right-box {
-    text-align: center;
-    padding-left: 30px;
-    padding-right: 0px;
-}
-
-#raceTrackImage {
-    max-width: 100%; /* Ensure the image doesn't exceed the container width */
-    height: auto; /* Maintain aspect ratio */
-}
-
-#nextRace {
-    font-size: 1.2em;
-    margin-top: 5px;
-}
-
-#raceLocation{
-    margin-bottom: 0px;
-    margin-top: 0px;
-}
-
-#raceDate, #raceTime, #weather1, #weather2, #raceLocation {
-    color: red;
-}
-
-
-/* Dropdown Menu Styles */
-#dropdown {
-    display: none;
-    position: absolute;
-    right: 10px;
-    top: 10px;
-    background-color: #f9f9f9;
-    min-width: 200px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
-    border-radius: 10px; /* Rounded corners */
-    font-size: 0.6em; /* Adjust font size as needed */
-        text-align: left; /* Align text to the left */
-}
-
-#dropdown.show {
-    display: block;
-}
-
-#dropdown a {
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: flex; /* Use flexbox for layout */
-    align-items: center; /* Align icon and text */
-    justify-content: space-between; /* Space between text and icon */
-    border-bottom: 1px solid #ddd; /* Separator line */
-}
-
-#dropdown a:hover {background-color: #f1f1f1;}
 
 /* Footer */
 footer {
@@ -290,10 +95,11 @@ footer {
     filter:brightness(0);
 }
 
-/* Button styles */
+/* Default Button */
 button {
     display: block;
     width: 80%;
+    max-width: 400px;
     margin: 15px auto;
     padding: 15px;
     background-color: #000000;
@@ -310,6 +116,14 @@ button:hover {
     background-color: #808080;
 }
 
+button:disabled, button:disabled:hover {  /* Disable hover effects for disabled buttons */
+    background-color: #cccccc; /* Keeps the background color for disabled state */
+    color: #666666; /* Keeps the text color for disabled state */
+    cursor: not-allowed; /* Keeps the cursor style for disabled state */
+}
+
+
+/* Back Button */
 .back-button {
     position: absolute;
     left: 10px;
@@ -328,243 +142,6 @@ button:hover {
     color: #0056b3; /* Change text color on hover */
 }
 
-/* Disable hover effects for disabled buttons */
-button:disabled, button:disabled:hover {
-    background-color: #cccccc; /* Keeps the background color for disabled state */
-    color: #666666; /* Keeps the text color for disabled state */
-    cursor: not-allowed; /* Keeps the cursor style for disabled state */
-}
-
-/* Specific disabled style for the red button, including hover */
-.red-button:disabled, .red-button:disabled:hover {
-    background-color: #ffcccc; /* Light red for disabled state */
-    color: #ffffff; /* Darker grey text for disabled state */
-}
-
-.red-button {
-    display: block;
-    width: 80%; /* Slightly larger */
-    margin: 15px auto;
-    padding: 15px; /* Slightly larger */
-    background-color: red;
-    color: white;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-}
-
-.red-button:hover {
-    background-color: darkred;
-}
-
-/* Race Info Styles */
-#raceInfo {
-    width: 80%;
-    margin: auto;
-    padding: 10px;
-    text-align: center;
-}
-
-.info-section {
-    margin-bottom: 20px;
-}
-
-#date-time-section, #weather-section {
-    display: flex;
-    justify-content: space-between;
-}
-
-.info-title_top {
-    font-weight: bold;
-    font-size: 1.2em;
-    margin: 0;
-}
-
-.info-title {
-    font-weight: bold;
-    margin: 0;
-}
-
-.info-title_left {
-    font-weight: bold;
-    text-align: left;
-    margin: 0px;
-    margin-bottom: 2px;
-}
-
-.info-title_right {
-    font-weight: bold;
-    text-align: right;
-    margin: 0px;
-    margin-bottom: 2px;
-}
-
-.info-value_top {
-    color: rgb(255, 0, 0);
-    font-weight: bold;
-    font-size: 0.9em;
-    margin: 0;
-}
-
-.info-value_left {
-    color: rgb(255, 0, 0);
-    text-align: left;
-    font-size: 0.9em;
-    margin: 0;
-}
-
-.info-value_right {
-    color: rgb(255, 0, 0);
-    text-align: right;
-    font-size: 0.9em;
-    margin: 0;    
-}
-
-.info-title, .info-value {
-    text-align: center;
-    margin: 3px 0; /* Adjust spacing as needed */
-}
-
-
-.page-title {
-    font-weight: bold;
-    font-size: 1.2em;
-    text-align: center;
-    margin: 0;
-}
-
-/* Weather Page Styles */
-#weatherDisplay {
-    text-align: center;
-}
-
-.weather-slot {
-    font-weight: bold;
-    font-size: 1em;
-    margin: 30px;
-}
-
-.weather-result {
-    color: blue;
-    font-size: 0.9em;
-    margin: 5px 0;
-    display: block; /* Make the weather result appear on a new line */
-}
-
-.weather-result-practice {
-    color: grey;
-}
-
-.weather-message {
-    text-align: center;
-    color: grey;
-    margin-top: 20px;
-    font-size: 1em;
-}
-
-.debug-info {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 0.9em;
-    color: #333;
-}
-
-/* Admin Page Styles */
-
-.admin-container {
-    width: 80%;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.admin-field {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-input[type="text"], input[type="date"], input[type="time"], select {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-
-.admin-actions button {
-    margin-top: 20px;
-    margin-right: 10px;
-}
-
-
-.admin-login-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 50px; /* Adjust as needed */
-}
-
-.admin-login-container input,
-.admin-login-container button {
-    margin-bottom: 10px;
-    width: 200px; /* Set a specific width for these elements */
-    padding: 10px; /* Adjust padding as needed */
-}
-
-
-/* About page Styles */
-.about-container {
-    margin-top: 100px;
-    text-align: center;
-    padding: 20px;
-}
-
-#about-logo {
-    max-width: 200px; /* Adjust as needed */
-    margin-bottom: 20px;
-}
-
-.about-button {
-    display: block;
-    width: 80%; /* Slightly larger */
-    max-width: 400px;
-    margin: 24px auto;
-    padding: 15px; /* Slightly larger */
-    background-color: rgb(0, 0, 0);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-}
-
-.popup-container {
-    position: fixed;
-    top: 10px;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5); /* Semi-transparent background */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.popup-content {
-    background: white;
-    padding: 20px;
-    border-radius: 5px;
-    max-height: 80vh; /* Maximum height of the popup */
-    overflow-y: auto; /* Enable vertical scrolling */
-}
-
-.close-popup {
-    float: right;
-    font-size: 1.5em;
-    cursor: pointer;
-}
-
 
 
 /*Experimental*/
@@ -579,9 +156,6 @@ input[type="text"], input[type="date"], input[type="time"], select {
     width: 100%; /* Full width on small screens */
 }
 
-.top-box, .middle-box {
-    /* Styles for top and middle box */
-}
 
 button {
     /* Styles for buttons */
@@ -607,10 +181,6 @@ button {
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-    }
-
-    button {
-        /* Adjust button styles for large screens */
     }
 }
 
