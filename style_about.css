@@ -1,5 +1,41 @@
-@media screen and (min-width: 1024px) {
-    button {
-      width: 25%;
-    }
+/*
+Sections in this CSS:
+About Page Styles
+*/
+
+
+/* About page Styles */
+.about-container {
+  text-align: center;
+  padding: 100px;
+}
+
+#about-logo {
+  max-width: 150px; /* Adjust as needed */
+  margin-bottom: 20px;
+}
+
+.popup-container {
+  position: fixed;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5); /* Semi-transparent background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-content {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  max-height: 80vh; /* Maximum height of the popup */
+  overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.close-popup {
+  float: right;
+  font-size: 1.5em;
+  cursor: pointer;
 }

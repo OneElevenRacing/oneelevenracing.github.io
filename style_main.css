@@ -1,0 +1,255 @@
+/*
+Sections in this CSS:
+Logo and Header Actions
+Main Page Season Information Style
+Main Page Race Info Style
+*/
+
+/* Logo and Header Actions */
+#logo {
+    height: 60px; /* Adjust as needed */
+    margin-bottom: 20px; /* Space between logo and title */
+    float: left; /* Align the logo to the left */
+}
+
+#menu {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5em; /* Adjust size of the gear icon */
+}
+
+#gdrive img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+#discord img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+#ytube img {
+    width: 24px; /* Adjust the width of the icon as needed */
+    height: 24px; /* Adjust the height of the icon as needed */
+    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
+    margin-right: 20px;
+    float: right;
+}
+
+/* Season Information Styles: Topbox, Middle Box (Left+Right) */
+.season-info {
+    display: flex;
+    justify-content: space-between;
+    width: 92%;
+    margin-bottom: 10px; /* Adjust as needed */
+}
+
+.season-info span {
+    margin: 0 0px; /* Adjust as needed */
+}
+
+#raceCarImage {
+    max-width: 85%; /* Ensures the image is responsive */
+    height: auto;
+    margin-bottom: 10px; /* Space below the image */
+}
+
+.driver-info {
+    display: flex;
+    justify-content: center; /* Center the content */
+    width: 92%;
+    font-size: 1em;
+}
+
+.driver-info p {
+    margin: 0 5px; /* Add some space around the paragraphs */
+}
+
+.top-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+    position: relative; /* Added to position the pseudo-element */
+    padding-bottom: 10px; /* Padding at the bottom */
+    margin-bottom: 10px; /* Margin at the bottom */
+}
+
+.top-box::after {
+    content: ''; /* Required for pseudo-elements */
+    margin-top: 20px;
+    width: 100%; /* Width of the line */
+    height: 1.5px; /* Height of the line */
+    background-color: #ccc; /* Color of the line */
+}
+
+.middle-box {
+    display: flex;
+    justify-content: space-between; /* Space elements evenly */
+    margin-top: 0px;
+    margin-right: auto;
+    margin-bottom: 45px;
+    margin-left: auto;
+    width: 92%;
+    position: relative;
+}
+
+.middle-box::before { /* Vertical line between left and right box */
+    content: '';
+    position: absolute;
+    left: 50%; /* Position at the center of middle-box */
+    top: 0; /* Start from the top edge of the box */
+    bottom: 0; /* Extend to the bottom edge of the box */
+    width: 1.5px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+    transform: translateX(-50%); /* Center the line */
+}
+
+.middle-box::after { /* Horizontal line under the middle box */
+    content: '';
+    position: absolute;
+    left: 50%; /* Center the line */
+    transform: translateX(-50%); /* Shift the line back to center it */
+    bottom: -20px;
+    width: 100vw; /* Set width relative to the viewport width */
+    height: 1.5px; /* Thickness of the line */
+    background-color: #ccc; /* Color of the line */
+}
+
+
+
+.left-box, .right-box {
+    flex: 1; /* Each box takes equal width */
+    position: relative;
+}
+
+.left-box {
+    line-height: 1.2;
+    font-size: 0.9em;
+}
+
+.left-box p {
+    min-height: 1.5em; /* Adjust as needed */
+    margin: 0; /* Removes default margin */
+    padding: 0; /* Adjust padding as needed */
+}
+
+.left-box span {
+    line-height: 1.2; /* Adjusted line height for wrapped text */
+    font-size: 0.9em;
+}
+
+.right-box {
+    text-align: center;
+    padding-left: 30px;
+    padding-right: 0px;
+}
+
+#raceTrackImage {
+    max-width: 100%; /* Ensure the image doesn't exceed the container width */
+    height: auto; /* Maintain aspect ratio */
+}
+
+#nextRace {
+    font-size: 1.2em;
+    margin-top: 5px;
+}
+
+#raceLocation{
+    margin-bottom: 0px;
+    margin-top: 0px;
+}
+
+#raceDate, #raceTime, #weather1, #weather2, #raceLocation {
+    color: red;
+}
+
+
+
+/* Race Info Styles */
+#raceInfo {
+    width: 80%;
+    margin: auto;
+    padding: 10px;
+    text-align: center;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+#date-time-section, #weather-section {
+    display: flex;
+    justify-content: space-between;
+}
+
+.info-title_top {
+    font-weight: bold;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+.info-title {
+    font-weight: bold;
+    margin: 0;
+}
+
+.info-title_left {
+    font-weight: bold;
+    text-align: left;
+    margin: 0px;
+    margin-bottom: 2px;
+}
+
+.info-title_right {
+    font-weight: bold;
+    text-align: right;
+    margin: 0px;
+    margin-bottom: 2px;
+}
+
+.info-value_top {
+    color: rgb(255, 0, 0);
+    font-weight: bold;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.info-value_left {
+    color: rgb(255, 0, 0);
+    text-align: left;
+    font-size: 0.9em;
+    margin: 0;
+}
+
+.info-value_right {
+    color: rgb(255, 0, 0);
+    text-align: right;
+    font-size: 0.9em;
+    margin: 0;    
+}
+
+.info-title, .info-value {
+    text-align: center;
+    margin: 3px 0; /* Adjust spacing as needed */
+}
+
+
+.page-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    text-align: center;
+    margin: 0;
+}
+
+
+
+
