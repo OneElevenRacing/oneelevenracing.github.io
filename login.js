@@ -15,7 +15,7 @@ document.getElementById('signin-button').addEventListener('click', function() {
 function logoutUser() {
     firebase.auth().signOut().then(function() {
         // Sign-out successful, redirect to login page
-        window.location.href = 'index.html';
+        window.location.href = 'login.html';
     }).catch(function(error) {
         // An error happened during logout, handle it here
         console.error("Error during logout: ", error);
