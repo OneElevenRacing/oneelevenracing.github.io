@@ -27,8 +27,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#gdrive img:hover {
-    filter: brightness(80%);
+#gdrive:hover img {
+    content: url(Logos_and_icons/gdriveh.png);
 }
 
 #discord img {
@@ -39,8 +39,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#discord img:hover {
-    filter: brightness(80%);
+#discord:hover img {
+    content: url(Logos_and_icons/discordh.png);
 }
 
 #ytube img {
@@ -51,8 +51,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#ytube img:hover {
-    filter: brightness(80%);
+#ytube:hover img{
+    content: url(Logos_and_icons/ytubeh.png);
 }
 
 /* Season Information Styles: Topbox, Middle Box (Left+Right) */
@@ -100,7 +100,7 @@ Main Page Race Info Style
     margin-top: 20px;
     width: 100%; /* Width of the line */
     height: 1.5px; /* Height of the line */
-    background-color: #ccc; /* Color of the line */
+    background-color: #dbdbdb; /* Color of the line */
 }
 
 .middle-box {
@@ -121,7 +121,7 @@ Main Page Race Info Style
     top: 0; /* Start from the top edge of the box */
     bottom: 0; /* Extend to the bottom edge of the box */
     width: 1.5px; /* Thickness of the line */
-    background-color: #ccc; /* Color of the line */
+    background-color: #dbdbdb; /* Color of the line */
     transform: translateX(-50%); /* Center the line */
 }
 
@@ -133,19 +133,18 @@ Main Page Race Info Style
     bottom: -20px;
     width: 100vw; /* Set width relative to the viewport width */
     height: 1.5px; /* Thickness of the line */
-    background-color: #ccc; /* Color of the line */
+    background-color: #dbdbdb; /* Color of the line */
 }
 
 
 
 .left-box, .right-box {
     flex: 1; /* Each box takes equal width */
-    position: relative;
 }
 
 .left-box {
-    line-height: 1.2;
     font-size: 0.9em;
+
 }
 
 .left-box p {
@@ -262,6 +261,52 @@ Main Page Race Info Style
     margin: 0;
 }
 
+button {
+    max-width: none;
+}
+
+/* Media query for larger screens */
+@media screen and (min-width: 1024px) {
+    .main {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .info-container {
+        width: 50%; /* Adjust the width as needed */
+        height:auto;
+    }
+
+    .top-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        width: 100%;
+        position: relative; /* Added to position the pseudo-element */
+        padding-bottom: 10px; /* Padding at the bottom */
+        margin-bottom: 10px; /* Margin at the bottom */
+        margin-top: 20px;
+    }
+
+    .button-container {
+        width: 50%; /* Adjust the width as needed */
+        padding-top: 10px;
+    }
+
+    .middle-box::before{
+        top: -5px;
+        bottom: 10px;
+    }
+
+    .middle-box::after { /* Horizontal line under the middle box */
+        height: 0px;
+    }
+    
+}
 
 
 
