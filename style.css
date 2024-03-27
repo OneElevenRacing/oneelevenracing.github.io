@@ -36,7 +36,7 @@ footer {
     background-color: white; /* Set the background color to black */
     width: 100%; /* Make the header span the full width of the page */
     height: 75px;
-    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.079); /* Add a drop shadow */
 }
 
 .footerbuttonnotselected {
@@ -163,46 +163,6 @@ button {
     /* Other styles */
 }
 
-/* Media query for larger screens */
-@media screen and (min-width: 1024px) {
-    .main {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: flex-start;
-        width: 70% /* For some reason unless width 70% is specified the box moves to the right. Any more than this and it moves to the right, and above 86% also moves lower for some reason */
-    }
 
-    .info-container {
-        width: 45%; /* Adjust the width as needed */
-    }
-
-    .top-box {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        width: 100%;
-        position: relative; /* Added to position the pseudo-element */
-        padding-bottom: 10px; /* Padding at the bottom */
-        margin-bottom: 10px; /* Margin at the bottom */
-        margin-top: 20px;
-    }
-
-    .button-container {
-        width: 45%; /* Adjust the width as needed */
-        padding-top: 10px;
-    }
-
-    .middle-box::before{
-        top: -5px;
-        bottom: 10px;
-    }
-
-    .middle-box::after { /* Horizontal line under the middle box */
-        width: 108.6%; /* Set width relative to the viewport width */
-        height: 0px;
-    }
-}
 
 
