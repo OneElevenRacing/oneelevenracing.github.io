@@ -12,12 +12,6 @@ Main Page Race Info Style
     float: left; /* Align the logo to the left */
 }
 
-#menu {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 1.5em; /* Adjust size of the gear icon */
-}
 
 #gdrive img {
     width: 24px; /* Adjust the width of the icon as needed */
@@ -27,8 +21,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#gdrive:hover img {
-    content: url(Logos_and_icons/gdriveh.png);
+#gdrive img:hover {
+    filter: brightness(80%);
 }
 
 #discord img {
@@ -39,8 +33,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#discord:hover img {
-    content: url(Logos_and_icons/discordh.png);
+#discord img:hover {
+    filter: brightness(80%);
 }
 
 #ytube img {
@@ -51,8 +45,8 @@ Main Page Race Info Style
     float: right;
 }
 
-#ytube:hover img{
-    content: url(Logos_and_icons/ytubeh.png);
+#ytube img:hover {
+    filter: brightness(80%);
 }
 
 /* Season Information Styles: Topbox, Middle Box (Left+Right) */
@@ -68,7 +62,8 @@ Main Page Race Info Style
 }
 
 #raceCarImage {
-    max-width: 85%; /* Ensures the image is responsive */
+    width: 85%; /* Ensures the image is responsive */
+    max-width: 800px;
     height: auto;
     margin-bottom: 10px; /* Space below the image */
 }
@@ -271,7 +266,6 @@ button {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        align-items: flex-start;
         width: 100%;
     }
 
@@ -281,20 +275,11 @@ button {
     }
 
     .top-box {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        width: 100%;
-        position: relative; /* Added to position the pseudo-element */
-        padding-bottom: 10px; /* Padding at the bottom */
-        margin-bottom: 10px; /* Margin at the bottom */
         margin-top: 20px;
     }
 
     .button-container {
         width: 50%; /* Adjust the width as needed */
-        padding-top: 10px;
     }
 
     .middle-box::before{
