@@ -12,49 +12,6 @@ Main Page Race Info Style
     float: left; /* Align the logo to the left */
 }
 
-#menu {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 1.5em; /* Adjust size of the gear icon */
-}
-
-#gdrive img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-#gdrive:hover img {
-    content: url(Logos_and_icons/gdriveh.png);
-}
-
-#discord img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-#discord:hover img {
-    content: url(Logos_and_icons/discordh.png);
-}
-
-#ytube img {
-    width: 24px; /* Adjust the width of the icon as needed */
-    height: 24px; /* Adjust the height of the icon as needed */
-    margin-top: 15px; /* Adjust the top margin of the icon for spacing */
-    margin-right: 20px;
-    float: right;
-}
-
-#ytube:hover img{
-    content: url(Logos_and_icons/ytubeh.png);
-}
-
 /* Season Information Styles: Topbox, Middle Box (Left+Right) */
 .season-info {
     display: flex;
@@ -68,7 +25,8 @@ Main Page Race Info Style
 }
 
 #raceCarImage {
-    max-width: 85%; /* Ensures the image is responsive */
+    width: 85%; /* Ensures the image is responsive */
+    max-width: 800px;
     height: auto;
     margin-bottom: 10px; /* Space below the image */
 }
@@ -271,7 +229,6 @@ button {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
-        align-items: flex-start;
         width: 100%;
     }
 
@@ -281,20 +238,11 @@ button {
     }
 
     .top-box {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        width: 100%;
-        position: relative; /* Added to position the pseudo-element */
-        padding-bottom: 10px; /* Padding at the bottom */
-        margin-bottom: 10px; /* Margin at the bottom */
         margin-top: 20px;
     }
 
     .button-container {
         width: 50%; /* Adjust the width as needed */
-        padding-top: 10px;
     }
 
     .middle-box::before{

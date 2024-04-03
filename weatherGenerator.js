@@ -12,18 +12,19 @@ function generateRandomWeather() {
         "Thunderstorm": 0.024,
         "Fog": 0.024,
         "Fog with Rain": 0.016,
+        "Heavy Fog": 0.008,
         "Heavy Fog with Rain": 0.008,
         "Hazy": 0.008,
-        "Random": 0.014,
-        "Ian's Choice": 0.008,
-        "Richard's Choice": 0.008,
-        "Sam's Choice": 0.008,
-        "Chris' Choice": 0.008,
-        "Fabian's Choice": 0.008,
-        "Rob's Choice": 0.008,
-        "Jake's Choice": 0.008,
-        "James' Choice": 0.008,
-        "Tom's Choice": 0.008
+        "Random": 0.015,
+        "Ian's Choice": 0.007,
+        "Richard's Choice": 0.007,
+        "Sam's Choice": 0.007,
+        "Chris' Choice": 0.007,
+        "Fabian's Choice": 0.007,
+        "Rob's Choice": 0.007,
+        "Jake's Choice": 0.007,
+        "James' Choice": 0.007,
+        "Tom's Choice": 0.007
     };
 
     let totalWeight = Object.values(weathers).reduce((sum, weight) => sum + weight, 0);
