@@ -64,7 +64,6 @@ footer {
 
 .footerbuttonnotselected img {
     vertical-align: middle; /* Align the image vertically */
-    width: 20px;
     height: 20px;
     margin-top: -10px;
     padding: 10px;
@@ -88,7 +87,6 @@ footer {
 
 .footerbuttonselected img {
     vertical-align: middle; /* Align the image vertically */
-    width: 20px;
     height: 20px;
     margin-top: -10px;
     padding: 10px;
@@ -124,22 +122,15 @@ button:disabled, button:disabled:hover {
 
 
 /* Back Button */
-.back-button {
-    position: absolute;
-    left: 10px;
-    background:white; /* Light grey background for visibility */
-    color: black;
-    padding: 8px 8px; /* Adjust padding as needed */
-    border-radius: 5px; /* Rounded corners */
+.back-button img {
+    padding: 17px;
     cursor: pointer;
-    text-decoration: none; /* Remove underline from text */
-    width: 19%;
-    font-size: 0.5em;
+    width: 30px;
 }
 
-.back-button:hover {
-    background-color: white; /* Slightly darker on hover */
-    color: #0056b3; /* Change text color on hover */
+
+.back-button img:hover {
+    filter: brightness(80%);
 }
 
 

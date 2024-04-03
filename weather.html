@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <!-- WebApp bits for Apple, not sure for Android -->
-    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
 
-    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Weather Generator</title>
+    <title>One Eleven - Weather Generator</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="style_weather.css">
 
@@ -17,6 +17,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
     <script defer src="checkAuth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+
 
     <script>
         // Firebase config goes here
@@ -35,13 +37,17 @@
 
     <!-- Javascript Initialisation -->
     <script src="weatherGenerator.js" defer></script>
+    <script src="script.js" defer></script>
+
     
 </head>
     
 <body>
     <header>
-        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
-        <div class="weatherHeading">
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a>
+                <div class="weatherHeading">
         </div>
         <!-- Add an empty div if needed to balance the layout -->
         <div></div>
@@ -54,9 +60,10 @@
         <div id="weatherDisplay">
             <p class="weather-slot">Weather Slot 1: <span id="weather1" class="weather-result">Loading...</span></p>
             <p class="weather-slot">Weather Slot 2: <span id="weather2" class="weather-result">Loading</span></p>
+            <button id="screenshotandshare" onclick="takeScreenshot()">Screenshot and Save</button>
         </div>
         <p id="weatherMessage" class="weather-message"></p> 
-        
+
     </div>
 
     <!-- Use this for when you're trying to figure out which day it is and the app is ONCE AGAIN not behaving!
@@ -70,16 +77,16 @@
     <!-- Footer Section -->
     <footer>
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
-            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
             SIM RACING
         </a>
 
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
-            <img src="Logos_and_icons/settings.png" alt="Karting">
+            <img src="Logos_and_icons/karting.png" alt="Karting">
             KARTING
         </a>
 
-        <a href="javascript:void(0);" class="footerbuttonselected" id="settings" onclick="window.location.href='settings.html'">
+        <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
             <img src="Logos_and_icons/settings.png" alt="Settings">
             SETTINGS
         </a>

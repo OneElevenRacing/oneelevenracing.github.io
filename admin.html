@@ -2,14 +2,14 @@
 <html>
 <head>
     <!-- WebApp bits for Apple, not sure for Android -->
-    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
     
-    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Page</A></title>
+    <title>One Eleven - Admin</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="style_admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
@@ -37,13 +37,16 @@
 <!-- Which script to use -->
     <script src="tracks.js"></script>
     <script defer src="checkAuth.js"></script>
+    <script defer src="script.js"></script>
+
 
 </head>
 <body>
     <header>
-        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a>        
         <div>
-            <img src="111_new_logo.png" alt="One Eleven" id="logo">
         </div>
     </header>
     <!-- The four containers with the race data in them -->

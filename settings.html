@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings Page</title>
+    <title>One Eleven - Settings</title>
     <link rel="stylesheet" href="style.css">
     
 
@@ -35,24 +35,26 @@
 <body>
     <!-- Header Section -->
     <header>
-        <button class="back-button" onclick="window.location.href='main.html'">&#x2190; Back</button>
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a>        
     </header>
 
     <!-- Main Content Section -->
     <main>
-        <button onclick="window.location.href='adminPassword.html'">Admin</button>
+        <button onclick="authorizeAndRedirect('admin.html')">Admin</button>
         <button onclick="window.location.href='about.html'">About</button>
     </main>
 
     <!-- Footer Section -->
     <footer>
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
-            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
             SIM RACING
         </a>
 
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
-            <img src="Logos_and_icons/settings.png" alt="Karting">
+            <img src="Logos_and_icons/karting.png" alt="Karting">
             KARTING
         </a>
 

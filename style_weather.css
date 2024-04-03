@@ -35,14 +35,14 @@ Weather Display Style
 
 .weather-slot {
     font-weight: bold;
-    font-size: 1em;
-    margin: 30px;
+    font-size: 1.5em;
+    margin: 80px;
 }
 
 .weather-result {
     color: rgb(255, 0, 0);
     font-size: 0.9em;
-    margin: 5px 0;
+    margin: 50px 0;
     display: block; /* Make the weather result appear on a new line */
 }
 
@@ -53,7 +53,7 @@ Weather Display Style
 .weather-message {
     text-align: center;
     color: grey;
-    margin-top: 20px;
+    margin: 40px;
     font-size: 1em;
 }
 

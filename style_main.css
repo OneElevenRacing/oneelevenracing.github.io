@@ -229,6 +229,7 @@ button {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        align-items: flex-start;
         width: 100%;
     }
 
@@ -242,6 +243,7 @@ button {
     }
 
     .button-container {
+        padding: 0.5%;
         width: 50%; /* Adjust the width as needed */
     }
 
