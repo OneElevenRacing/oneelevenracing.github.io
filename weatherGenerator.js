@@ -129,7 +129,7 @@ function setupButtonEventListeners() {
                     weather1Display.textContent = weather1;
                     weather2Display.textContent = weather2;
 
-                    document.getElementById('weatherMessage').textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group. :)';
+                    document.getElementById('weatherMessage').textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group :)';
 
                 }
             } else {
@@ -138,6 +138,35 @@ function setupButtonEventListeners() {
         });
     });
 }
+
+function takeScreenshot() {
+    // Get the browser window dimensions
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+
+    // Capture the screenshot using html2canvas
+    html2canvas(document.body, {
+        width: width,
+        height: height,
+        onrendered: function(canvas) {
+            // Convert the canvas to a data URL
+            var screenshotUrl = canvas.toDataURL("image/png");
+
+            // Create a temporary link element
+            var link = document.createElement("a");
+            link.download = "Race Weather.png"; // Specify the filename for the downloaded image
+            link.href = screenshotUrl;
+
+            // Trigger a click event on the link to prompt download
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup: remove the link from the DOM
+            document.body.removeChild(link);
+        }
+    });
+}
+
 
 
 

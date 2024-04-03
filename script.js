@@ -53,6 +53,24 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
+function authorizeAndRedirect(targetUrl) {
+    // Get the currently authenticated user
+    var user = firebase.auth().currentUser;
+
+    // Specify the authorized user IDs
+    var authorizedUserIDs = ["bkfSQcOqCOchZY5xmr0dFc2ZRp43", "f88AuHLw82RPilJjY620yyc4POc2" /* Add more user IDs as needed */];
+
+    // Check if the user is authenticated and their UID is in the authorized list
+    if (user && authorizedUserIDs.includes(user.uid)) {
+        // User is authorized, redirect to the target URL
+        window.location.href = targetUrl;
+    } else {
+        // User is not authorized, show a message or handle it as needed
+        alert("Access Denied: You are not authorized to access this page.");
+    }
+}
+
+
 
 
 function fetchAndUpdateRaceInfo() {
@@ -149,6 +167,10 @@ function navigateToSettingsPage() {
     window.location.href = 'settings.html';
 }
 
+function goBack() {
+    window.history.back();
+}
+
 function showAlert() {
     alert('Coming Soon!');
 }
@@ -182,6 +204,9 @@ function setupMenuDropdown() {
         }
     };
 }
+
+
+
 
 document.querySelector('.fa-gear').addEventListener('click', function(event) {
     document.getElementById('dropdown').classList.toggle('show');

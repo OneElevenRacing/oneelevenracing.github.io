@@ -2,14 +2,14 @@
 <html>
 <head>
     <!-- WebApp bits for Apple, not sure for Android -->
-    <link rel="apple-touch-icon" sizes="180x180" href="111_icon180.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="111_icon152.png">
-    <link rel="apple-touch-icon" sizes="120x120" href="111_icon120.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
 
-    <link rel="icon" href="111_icon.ico" type="image/x-icon">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About - One Eleven WebApp</title>
+    <title>One Eleven - About</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="style_about.css">
 
@@ -33,10 +33,15 @@
     </script>
 
     <script defer src="checkAuth.js"></script>
+    <script defer src="script.js"></script>
+
 
 </head>
 <body>
     <header>
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a
     </header>
 
     <div class="about-container">
@@ -72,12 +77,12 @@
     <!-- Footer Section -->
     <footer>
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
-            <img src="Logos_and_icons/settings.png" alt="Sim Racing">
+            <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
             SIM RACING
         </a>
 
         <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
-            <img src="Logos_and_icons/settings.png" alt="Karting">
+            <img src="Logos_and_icons/karting.png" alt="Karting">
             KARTING
         </a>
 
