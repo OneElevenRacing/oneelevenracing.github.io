@@ -5,6 +5,7 @@ Main Page Season Information Style
 Main Page Race Info Style
 */
 
+
 /* Logo and Header Actions */
 #logo {
     height: 60px; /* Adjust as needed */
@@ -18,6 +19,7 @@ Main Page Race Info Style
     justify-content: space-between;
     width: 92%;
     margin-bottom: 10px; /* Adjust as needed */
+    font-size: 1em;
 }
 
 .season-info span {
@@ -50,7 +52,7 @@ Main Page Race Info Style
     width: 100%;
     position: relative; /* Added to position the pseudo-element */
     padding-bottom: 10px; /* Padding at the bottom */
-    margin-bottom: 10px; /* Margin at the bottom */
+    margin-bottom: 0px; /* Margin at the bottom */
 }
 
 .top-box::after {
@@ -88,7 +90,7 @@ Main Page Race Info Style
     position: absolute;
     left: 50%; /* Center the line */
     transform: translateX(-50%); /* Shift the line back to center it */
-    bottom: -20px;
+    bottom: -10px;
     width: 100vw; /* Set width relative to the viewport width */
     height: 1.5px; /* Thickness of the line */
     background-color: #dbdbdb; /* Color of the line */
@@ -101,25 +103,24 @@ Main Page Race Info Style
 }
 
 .left-box {
-    font-size: 0.9em;
-
+    padding: 1.5vw;
+    font-size: 3vw;
 }
 
 .left-box p {
     min-height: 1.5em; /* Adjust as needed */
     margin: 0; /* Removes default margin */
-    padding: 0; /* Adjust padding as needed */
 }
 
 .left-box span {
     line-height: 1.2; /* Adjusted line height for wrapped text */
-    font-size: 0.9em;
+    font-size: 2.7vw;
 }
 
 .right-box {
+    padding: 1.5vw;
     text-align: center;
-    padding-left: 30px;
-    padding-right: 0px;
+    font-size: 3vw;
 }
 
 #raceTrackImage {
@@ -212,16 +213,12 @@ Main Page Race Info Style
 }
 
 
-.page-title {
-    font-weight: bold;
-    font-size: 1.2em;
-    text-align: center;
-    margin: 0;
-}
+
 
 button {
     max-width: none;
 }
+
 
 /* Media query for larger screens */
 @media screen and (min-width: 1024px) {
@@ -240,6 +237,28 @@ button {
 
     .top-box {
         margin-top: 20px;
+    }
+
+    .season-info {
+        font-size: 1.2vw;
+    }
+    
+    .driver-info {
+        font-size: 1.2vw;
+    }
+
+    .left-box {
+        padding: 1vw;
+        font-size: 1.2vw;
+    }
+
+    .left-box span {
+        font-size: 1.2vw;
+    }
+    
+    .right-box {
+        padding: 1vw;
+        font-size: 1.2vw;
     }
 
     .button-container {
