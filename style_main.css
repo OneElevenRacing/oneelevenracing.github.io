@@ -18,6 +18,7 @@ Main Page Race Info Style
     display: flex;
     justify-content: space-between;
     width: 92%;
+    margin-top: 20px;
     margin-bottom: 10px; /* Adjust as needed */
     font-size: 1em;
 }
@@ -262,7 +263,7 @@ button {
     }
 
     .button-container {
-        padding: 0.5%;
+        margin-top: 20px;
         width: 50%; /* Adjust the width as needed */
     }
 

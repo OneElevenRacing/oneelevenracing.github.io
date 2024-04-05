@@ -1,7 +1,7 @@
 /* Admin Page Style */
 
 .admin-container {
-    width: 80%;
+    width: 92%;
     margin: auto;
     display: flex;
     flex-direction: column;
@@ -39,8 +39,7 @@ input[type="text"], input[type="date"], input[type="time"], select {
 
 /* Style for displaying current Firebase data */
 .current-data {
-    margin-top: 5px;
-    margin-bottom: 2px;
+    padding: 10px;
     font-size: 0.9em;
     color: rgb(255, 0, 0);
     text-align: center;
