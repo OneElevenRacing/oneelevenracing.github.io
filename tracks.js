@@ -358,6 +358,9 @@ function resetWeather() {
 function resetAll() {
     const resetValue = "TBD";
 
+    firebase.database().ref('race_location').set(resetValue).then(() => {
+        document.getElementById('currentRaceTrack').textContent = resetValue;
+    });
     firebase.database().ref('race_date').set(resetValue).then(() => {
         document.getElementById('currentRaceDate').textContent = resetValue;
     });
@@ -367,6 +370,17 @@ function resetAll() {
     firebase.database().ref('weather1').set(resetValue);
     firebase.database().ref('weather2').set(resetValue);
 }
+
+function setTrackTBD() {
+    const tbdValue = "TBD";
+
+    firebase.database().ref('race_location').set(tbdValue).then(() => {
+        document.getElementById('currentRaceTrack').textContent = tbdValue;
+    }).catch((error) => {
+        console.error("Error setting race date to TBD: ", error);
+    });
+}
+
 
 function setDateTBD() {
     const tbdValue = "TBD";
