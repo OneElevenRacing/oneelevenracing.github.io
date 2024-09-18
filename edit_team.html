@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Eleven - Edit Team</title>
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-storage.js"></script>
+    <script defer src="checkAuth.js"></script>
+
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+
+    <style>
+        /* Basic styling for the page */
+        .driver-container {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .driver-container img {
+            width: 100px;
+            height: auto;
+        }
+        .driver-container input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        .driver-container button {
+            margin-top: 10px;
+            padding: 8px 12px;
+        }
+        /* Debugging Line Styling */
+        #debugging {
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: red;
+        }
+        /* Optional: Styling for labels */
+        .driver-container label {
+            display: block;
+            margin-top: 10px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <!-- Header Section -->
+    <header>
+        <a href="settings.html" class="back-button">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a>
+    </header>
+
+    <!-- Main Content Section -->
+    <main>
+
+        <div id="content">
+            <!-- Content will be dynamically loaded here -->
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer>
+        <a href="main.html" class="footerbuttonnotselected">
+            <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+            SIM RACING
+        </a>
+
+        <a href="karting.html" class="footerbuttonnotselected">
+            <img src="Logos_and_icons/karting.png" alt="Karting">
+            KARTING
+        </a>
+
+        <a href="settings.html" class="footerbuttonselected">
+            <img src="Logos_and_icons/settings.png" alt="Settings">
+            SETTINGS
+        </a>
+    </footer>
+
+    <!-- JavaScript Section -->
+    <script>
+        // Initialize Firebase services
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        // Elements
+        const contentDiv = document.getElementById('content');
+
+        // Function to check if user is admin
+        function checkAdmin(userId) {
+            return database.ref('drivers/' + userId + '/isAdmin').once('value').then(snapshot => {
+                return snapshot.val() === true;
+            });
+        }
+
+        // Function to create a driver edit form
+        function createDriverForm(driverId, driverData, isAdmin, currentUserId) {
+            const container = document.createElement('div');
+            container.className = 'driver-container';
+
+            // Display User Name
+            const nameHeader = document.createElement('h3');
+            nameHeader.textContent = driverData.name;
+
+            // Car Image
+            const img = document.createElement('img');
+            img.src = driverData.carImage;
+            img.alt = driverData.carName;
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'header';  
+            headerDiv.appendChild(nameHeader);          
+            headerDiv.appendChild(img);
+            container.appendChild(headerDiv);
+
+            // Driver Name (editable if admin or own)
+            const driverNameLabel = document.createElement('label');
+            driverNameLabel.textContent = 'Driver Name: ';
+            container.appendChild(driverNameLabel);
+
+            const driverNameInput = document.createElement('input');
+            driverNameInput.type = 'text';
+            driverNameInput.value = driverData.name;
+            // Enable input if admin or editing own team
+            driverNameInput.disabled = !(isAdmin || driverId === currentUserId);
+            container.appendChild(driverNameInput);
+
+            // Car Name (editable if admin or own)
+            const carNameLabel = document.createElement('label');
+            carNameLabel.textContent = 'Team Name: ';
+            container.appendChild(carNameLabel);
+
+            const carNameInput = document.createElement('input');
+            carNameInput.type = 'text';
+            carNameInput.value = driverData.carName;
+            // Enable input if admin or editing own team
+            carNameInput.disabled = !(isAdmin || driverId === currentUserId);
+            container.appendChild(carNameInput);
+
+            // Save Button
+            // Only show save button if admin or editing own team
+            if (isAdmin || driverId === currentUserId) {
+                const saveButton = document.createElement('button');
+                saveButton.textContent = 'Save';
+                container.appendChild(saveButton);
+
+                // Event Listener for Save Button
+                saveButton.addEventListener('click', () => {
+                    const updatedName = carNameInput.value.trim();
+                    const updatedDriverName = driverNameInput.value.trim();
+
+                    if (updatedName === '') {
+                        alert('Team name cannot be empty.');
+                        return;
+                    }
+
+                    if (updatedDriverName === '') {
+                        alert('Driver name cannot be empty.');
+                        return;
+                    }
+
+                    // Update team name
+                    const updates = {
+                        carName: updatedName,
+                        name: updatedDriverName
+                    };
+
+                    database.ref('drivers/' + driverId).update(updates)
+                        .then(() => {
+                            alert('Team and driver name updated successfully.');
+                        })
+                        .catch(error => {
+                            console.error('Error updating team and driver name:', error);
+                            alert('Failed to update team and driver name.');
+                        });
+                });
+            }
+
+            return container;
+        }
+
+        let currentUserId = null;
+        let isUserAdmin = false;
+
+        // Function to load edit forms based on user role
+        function loadEditForms(user) {
+            currentUserId = user.uid;
+            checkAdmin(user.uid).then(isAdmin => {
+                isUserAdmin = isAdmin;
+                // Update the debugging line
+                console.log(`User ID: ${currentUserId}, Admin: ${isUserAdmin}`);
+
+                database.ref('drivers').once('value').then(snapshot => {
+                    const drivers = snapshot.val();
+                    contentDiv.innerHTML = ''; // Clear existing content
+
+                    for (let driverId in drivers) {
+                        const driverData = drivers[driverId];
+                        // If not admin, only allow editing own team
+                        if (!isUserAdmin && driverId !== currentUserId) {
+                            continue;
+                        }
+                        const form = createDriverForm(driverId, driverData, isUserAdmin, currentUserId);
+                        contentDiv.appendChild(form);
+                    }
+
+                    if (!isUserAdmin) {
+                        if (contentDiv.children.length === 0) {
+                            contentDiv.innerHTML = '<p>No team information available to edit.</p>';
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Error fetching drivers:', error);
+                    contentDiv.innerHTML = '<p>Error loading team information.</p>';
+                });
+            }).catch(error => {
+                console.error('Error checking admin status:', error);
+                contentDiv.innerHTML = '<p>Error determining user permissions.</p>';
+            });
+        }
+
+        // Authentication state observer
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loadEditForms(user);
+            } else {
+                // Redirect to login page or show a message
+                contentDiv.innerHTML = '<p>You need to be logged in to edit team information.</p>';
+            }
+        });
+    </script>
+
+</body>
+</html>
