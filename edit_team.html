@@ -31,35 +31,85 @@
     <style>
         /* Basic styling for the page */
         .driver-container {
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 5px;
+            margin: 20px auto;
+            border: 2px solid #333;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 500px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .driver-container h3 {
+            margin: 0;
+            font-size: 1.4em;
+        }
+
         .driver-container img {
-            width: 100px;
+            width: 120px;
             height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .driver-container input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            margin-top: 10px;
+            width: 70%;
+            padding: 10px;
+            margin: 8px 0;
             box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
         }
+
+        .driver-container input[type="text"]:focus {
+            border-color: #333;
+            outline: none;
+        }
+
+        .driver-container input[type="text"]:disabled {
+            background-color: #f5f5f5;
+            cursor: not-allowed;
+        }
+
         .driver-container button {
-            margin-top: 10px;
-            padding: 8px 12px;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
         }
-        /* Debugging Line Styling */
-        #debugging {
-            margin-bottom: 20px;
-            font-weight: bold;
-            color: red;
+
+        .driver-container button:hover {
+            background-color: #555;
         }
+
         /* Optional: Styling for labels */
         .driver-container label {
             display: block;
-            margin-top: 10px;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+
+        /* Form group styling */
+        .form-group {
+            margin-bottom: 15px;
         }
     </style>
 
