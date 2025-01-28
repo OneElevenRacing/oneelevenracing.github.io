@@ -20,13 +20,16 @@ function fetchAndDisplaySeasonData() {
     seasonRef.once('value', (snapshot) => {
         const seasonData = snapshot.val();
         if (seasonData) {
-            // Update the display text
-            document.getElementById('currentSeasonNumber').textContent = seasonData.seasonNumber;
-            document.getElementById('currentRacingClass').textContent = seasonData.racingClass;
+    // Update the display text
+    document.getElementById('seasonNumber').textContent = seasonData.seasonNumber;
+    document.getElementById('racingClass').textContent = seasonData.racingClass;
+    document.getElementById('currentSeasonNumber').textContent = seasonData.seasonNumber;
+    document.getElementById('currentRacingClass').textContent = seasonData.racingClass;
             
             // Populate the input fields with current values
             document.getElementById('seasonNumber').value = seasonData.seasonNumber;
             document.getElementById('racingClass').value = seasonData.racingClass;
+            
         }
     });
 }
