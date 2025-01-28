@@ -49,51 +49,92 @@
         <div>
         </div>
     </header>
-    <!-- The four containers with the race data in them -->
-    <div class="admin-container">
-        <div class="admin-field">
-            <label for="raceTrackSelect">Select Next Race Track:</label>
-            <select id="raceTrackSelect">
-            </select>
-            <p id="currentRaceTrack" class="current-data"></p>
-            <button onclick="setTrackTBD()">TBD</button>
+    <main>
+        <h2>Admin Page</h2>
+        <div class="admin-container">
+            <div class="admin-field">
+                <label for="raceTrackSelect">Next Race Track</label>
+                <select id="raceTrackSelect">
+                </select>
+                <p id="currentRaceTrack" class="current-data"></p>
+                <button onclick="setTrackTBD()">Set to TBD</button>
+            </div>
+
+            <div class="admin-field">
+                <label for="raceDate">Next Race Date</label>
+                <input type="date" id="raceDate">
+                <p id="currentRaceDate" class="current-data"></p>
+                <button onclick="setDateTBD()">Set to TBD</button>
+            </div>
+
+            <div class="admin-field">
+                <label for="raceTime">Next Race Time</label>
+                <input type="time" id="raceTime" value="19:00">
+                <p id="currentRaceTime" class="current-data"></p>
+                <button onclick="setTimeTBD()">Set to TBD</button>
+            </div>
+
+            <div class="admin-field">
+                <label for="xoyondoLink">Xoyondo Link</label>
+                <input type="text" id="xoyondoLink" placeholder="Enter Xoyondo URL">
+                <p id="currentXoyondoLink" class="current-data"></p>
+                <button onclick="submitXoyondoLink()">Update Link</button>
+            </div>
+
+            <div class="admin-actions">
+                <button onclick="submitRaceData()">Save Race Info</button>
+                <button onclick="resetWeather()">Reset Weather</button>
+                <button onclick="resetAll()">Reset All Data</button>
+            </div>
         </div>
 
-        <div class="admin-field">
-            <label for="raceDate">Select Next Race Date:</label>
-            <input type="date" id="raceDate">
-            <p id="currentRaceDate" class="current-data"></p>
-            <button onclick="setDateTBD()">TBD</button>
+        <div class="season-config">
+            <h2>Season Configuration</h2>
+            <form id="seasonForm">
+                <div class="admin-field">
+                    <label for="seasonNumber">Season Number</label>
+                    <div class="input-group">
+                        <input type="text" id="seasonNumber" required placeholder="Enter season number">
+                        <p id="currentSeasonNumber" class="current-data"></p>
+                    </div>
+                </div>
+                
+                <div class="admin-field">
+                    <label for="racingClass">Racing Class</label>
+                    <div class="input-group">
+                        <input type="text" id="racingClass" required placeholder="Enter racing class">
+                        <p id="currentRacingClass" class="current-data"></p>
+                    </div>
+                </div>
+                <button onclick="updateSeasonData()" class="season-update-btn">Update Season Configuration</button>
+            </form>
         </div>
-        
-
-        <div class="admin-field">
-            <label for="raceTime">Select Next Race Time:</label>
-            <input type="time" id="raceTime" value="19:00">
-            <p id="currentRaceTime" class="current-data"></p>
-            <button onclick="setTimeTBD()">TBD</button>
-        </div>
-
-        <div class="admin-field">
-            <label for="xoyondoLink">Update Xoyondo Link:</label>
-            <input type="text" id="xoyondoLink">
-            <p id="currentXoyondoLink" class="current-data"></p>
-            <button onclick="submitXoyondoLink()">Update Link</button>
-        </div>
-
-        <!-- The buttons at the bottom -->
-        <div class="admin-actions">
-            <button onclick="submitRaceData()">Submit Race Info</button>
-            <button onclick="resetWeather()">Reset Weather</button>
-            <button onclick="resetAll()">Reset All</button>
-
-
-        </div>
-    </div>
+    </main>
 
     <script>
         populateTrackOptions();
-        fetchCurrentData(); 
+        fetchCurrentData();
+
+        // Season configuration form submission
+        document.getElementById('seasonForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const seasonNumber = document.getElementById('seasonNumber').value;
+            const racingClass = document.getElementById('racingClass').value;
+            
+            const seasonRef = firebase.database().ref('seasonData');
+            seasonRef.set({
+                seasonNumber: seasonNumber,
+                racingClass: racingClass
+            }, function(error) {
+                if (error) {
+                    alert('Error updating season data: ' + error.message);
+                } else {
+                    alert('Season data updated successfully!');
+                    window.location.reload();
+                }
+            });
+        });
     </script>
 
 <footer>
