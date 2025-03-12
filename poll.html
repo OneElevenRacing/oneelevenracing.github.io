@@ -52,6 +52,12 @@
   <!-- Button + Paragraph -->
   <div id="adminControls" style="display: none;">
     <h2>Create a Poll</h2>
+    <label for="weekSelector">Choose a week:</label>
+      <select id="weekSelector">
+        <option value="0">This Week</option>        <!-- offset = 0 -->
+        <option value="1">Next Week</option>        <!-- offset = 1 -->
+        <option value="2">Week After Next</option>  <!-- offset = 2 -->
+      </select>
     <label for="pollTitle">Poll Title:</label>
     <input type="text" id="pollTitle" placeholder="Enter a title" />
     <label for="pollOptions">Options (comma-separated):</label>
@@ -86,51 +92,67 @@
 
 <!-- This is the script that submits the form request-->
 <script>
+  // Get references to the DOM elements
+  const weekSelector = document.getElementById('weekSelector');
+  const pollTitleInput = document.getElementById('pollTitle'); 
+  const pollOptionsInput = document.getElementById('pollOptions');
+
+  // When the week dropdown changes, update title and options
+  weekSelector.addEventListener('change', () => {
+    // 1. Get the selected week offset (0 = this week, 1 = next week, etc.)
+    const offset = parseInt(weekSelector.value, 10);
+    
+    // 2. Compute the start and end dates for that week
+    const { mondayDate, sundayDate, daysArray } = getWeekDates(offset);
+    
+    // 3. Compute the ISO week number
+    const weekNum = getWeekNumber(mondayDate);
+
+    // 4. Format the date range (DD.MM for Monday & Sunday)
+    const dd1 = String(mondayDate.getDate()).padStart(2,'0');
+    const mm1 = String(mondayDate.getMonth()+1).padStart(2,'0');
+    const dd2 = String(sundayDate.getDate()).padStart(2,'0');
+    const mm2 = String(sundayDate.getMonth()+1).padStart(2,'0');
+
+    // 5. Build the poll title in format: "YEAR Week XX Availability (DD.MM - DD.MM)"
+    const year = mondayDate.getFullYear();
+    const newTitle = `${year} Week ${weekNum} Availability (${dd1}.${mm1} - ${dd2}.${mm2})`;
+
+    // 6. Auto-fill the poll title
+    pollTitleInput.value = newTitle;
+
+    // 7. Auto-fill the poll options with days (or use in code later)
+    pollOptionsInput.value = daysArray.join(", ");
+  });
+
+  // This is the event listener for creating a poll
   document.getElementById('createPollBtn').addEventListener('click', async () => {
-    const pollTitleInput = document.getElementById('pollTitle');
-    const pollOptionsInput = document.getElementById('pollOptions');
-    const pollCreateStatus = document.getElementById('pollCreateStatus');
-
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      pollCreateStatus.textContent = "You must be signed in to create a poll.";
-      return;
-    }
-
-    // Check admin status before allowing poll creation
-    const adminCheck = await firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value");
-
-    if (!adminCheck.exists() || adminCheck.val() !== true) {
-      pollCreateStatus.textContent = "You do not have permission to create polls.";
-      console.warn("Unauthorized poll creation attempt by:", user.uid);
-      return;
-    }
-
     const title = pollTitleInput.value.trim();
-    const rawOptions = pollOptionsInput.value.trim();
+    const options = pollOptionsInput.value.trim().split(", ").map(opt => opt.trim());
+
     if (!title) {
-      pollCreateStatus.textContent = "Please enter a poll title.";
+      alert("Please select a week first.");
       return;
     }
-
-    let optionsArray = rawOptions ? rawOptions.split(",").map(opt => opt.trim()) : [];
 
     try {
       await db.collection("polls").add({
         title: title,
         createdAt: new Date(),
         active: true,
-        options: optionsArray
+        options: options
       });
-      pollCreateStatus.textContent = "Poll created!";
+
+      alert("Poll created successfully!");
       pollTitleInput.value = "";
       pollOptionsInput.value = "";
     } catch (err) {
       console.error("Error creating poll:", err);
-      pollCreateStatus.textContent = "Failed to create poll.";
+      alert("Failed to create poll.");
     }
   });
-  </script>
+</script>
+
 
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
@@ -258,7 +280,78 @@
   });
 }
 
-// This fills in the results
+// This function figures out which week we're in
+function getWeekNumber(dateObj) {
+  // Create a copy so we don’t mutate the original date
+  const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+  // Sunday=0 => set to Monday as first day of the week
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  // first day of this year
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  // calc full weeks to the nearest Thursday
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+  return weekNo;
+}
+
+
+// This function figures out which what days each week has
+function getWeekDates(weekOffset = 0) {
+  // 1) Figure out "today"
+  const now = new Date();
+
+  // 2) Start by finding the Monday of the current week
+  //    (Assuming Monday is day 1 in your locale
+  const dayOfWeek = now.getDay(); 
+  // In JS, Sunday=0, Monday=1, ..., Saturday=6
+
+  // We want Monday=1 to be a "special" reference
+  // If dayOfWeek === 0 (Sunday), we treat it as day 7 for math
+  const effectiveDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+  // Calculate how many days to go back to reach Monday
+  const daysFromMonday = effectiveDay - 1; // Monday=1 => 0 offset
+
+  // 3) The "current Monday" date:
+  const currentMonday = new Date(now);
+  currentMonday.setDate(now.getDate() - daysFromMonday);
+
+  // 4) If we have a weekOffset (1 = next week, 2 = week after), push Monday forward
+  const offsetDays = weekOffset * 7;
+  currentMonday.setDate(currentMonday.getDate() + offsetDays);
+
+  // 5) currentMonday is the Monday for that week
+  //    Sunday is Monday + 6 days
+  const thisSunday = new Date(currentMonday);
+  thisSunday.setDate(thisSunday.getDate() + 6);
+
+  // 6) Build an array of daily labels
+  //    We'll loop from Monday (0) to Sunday (6)
+  let daysArray = [];
+  for (let i = 0; i < 7; i++) {
+    const tempDate = new Date(currentMonday);
+    tempDate.setDate(currentMonday.getDate() + i);
+
+    // Convert day of week to string like "Mon", "Tue"
+    const dayShortNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const dayName = dayShortNames[tempDate.getDay()];
+
+    // Format the date as DD.MM
+    const dd = String(tempDate.getDate()).padStart(2, '0');
+    const mm = String(tempDate.getMonth() + 1).padStart(2, '0'); // months are 0-based
+
+    daysArray.push(`${dayName} ${dd}.${mm}`);
+  }
+
+  return {
+    mondayDate: currentMonday,  // Monday's Date object
+    sundayDate: thisSunday,     // Sunday's Date object
+    daysArray: daysArray        // e.g. ["Mon 17.03", "Tue 18.03", ...]
+  };
+}
+
+
+// This function fills in the poll results table
 function populateResponseTable(pollId, pollOptions) {
   db.collection("polls").doc(pollId).collection("responses")
     .onSnapshot((responseSnapshot) => {
@@ -332,7 +425,6 @@ function updateTotalsRow(totals, pollOptions) {
     totalsRow.appendChild(totalCell);
   });
 }
-
 
 // This function creates the table
 function updateTable(userName, selectedOptions) {
