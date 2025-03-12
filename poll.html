@@ -38,34 +38,11 @@
 
   <h2>Latest Poll</h2>
   <div id="latestPollContainer"></div>
-
-  <h2>All Polls</h2>
-  <ul id="pollsList"></ul>
-
-  <button id="testWriteBtn">Write Test Doc</button>
-  <p id="writeStatus"></p>
-
-  <h2>Existing Test Docs:</h2>
-  <ul id="testDocsList"></ul>
+  <h3>Results</h3>
+  <div id="pollResults"></div>
 
 
 
-  <!-- Put the click listener AFTER the button appears in HTML -->
-  <script>
-    document.getElementById('testWriteBtn').addEventListener('click', async () => {
-      const writeStatus = document.getElementById('writeStatus');
-      try {
-        await db.collection("testCollection").add({
-          message: "Hello from poll.html",
-          timestamp: new Date()
-        });
-        writeStatus.textContent = "Document written successfully!";
-      } catch (error) {
-        console.error("Error writing document:", error);
-        writeStatus.textContent = "Failed to write doc.";
-      }
-    });
-  </script>
 
 <!-- This is the script that submits the form request-->
 <script>
@@ -107,116 +84,115 @@
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
     db.collection("polls").orderBy("createdAt", "desc").limit(1)
-    .onSnapshot((snapshot) => {
-        const latestContainer = document.getElementById('latestPollContainer');
-        latestContainer.innerHTML = ""; // Clear old content
+  .onSnapshot((snapshot) => {
+    const latestContainer = document.getElementById('latestPollContainer');
+    const resultsContainer = document.getElementById('pollResults');
+    latestContainer.innerHTML = ""; // Clear old content
+    resultsContainer.innerHTML = ""; // Clear results
 
-        if (snapshot.empty) {
-        latestContainer.textContent = "No polls found.";
+    if (snapshot.empty) {
+      latestContainer.textContent = "No polls found.";
+      return;
+    }
+
+    const doc = snapshot.docs[0];
+    const poll = doc.data();
+    const pollId = doc.id;
+
+    // Create a heading for the poll
+    const heading = document.createElement('h3');
+    heading.textContent = poll.title || "Unnamed Poll";
+    latestContainer.appendChild(heading);
+
+    // If the poll has options, build a simple availability list
+    if (poll.options && poll.options.length > 0) {
+      poll.options.forEach(opt => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = "checkbox";
+        checkbox.value = opt;
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(" " + opt));
+        latestContainer.appendChild(label);
+        latestContainer.appendChild(document.createElement('br'));
+      });
+    }
+
+    // A 'Submit' button
+    const submitBtn = document.createElement('button');
+    submitBtn.textContent = "Submit Availability";
+    latestContainer.appendChild(submitBtn);
+
+    // A status paragraph
+    const statusP = document.createElement('p');
+    latestContainer.appendChild(statusP);
+
+    // Handle button click to store user selections
+    submitBtn.addEventListener('click', async () => {
+      const checkedOptions = [];
+      latestContainer.querySelectorAll('input[type="checkbox"]').forEach(box => {
+        if (box.checked) {
+          checkedOptions.push(box.value);
+        }
+      });
+
+      if (checkedOptions.length === 0) {
+        statusP.textContent = "Please select at least one option.";
         return;
-        }
+      }
 
-        const doc = snapshot.docs[0];
-        const poll = doc.data();
-        const pollId = doc.id;
+      try {
+        await db.collection("polls").doc(pollId)
+          .collection("responses")
+          .add({
+            submittedAt: new Date(),
+            selectedOptions: checkedOptions
+          });
 
-        // Create a heading for the poll
-        const heading = document.createElement('h3');
-        heading.textContent = poll.title || "Unnamed Poll";
-        latestContainer.appendChild(heading);
-
-        // If the poll has options, build a simple availability list
-        if (poll.options && poll.options.length > 0) {
-        poll.options.forEach(opt => {
-            const label = document.createElement('label');
-            const checkbox = document.createElement('input');
-            checkbox.type = "checkbox";
-            checkbox.value = opt;
-
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(" " + opt));
-            latestContainer.appendChild(label);
-            latestContainer.appendChild(document.createElement('br'));
-        });
-        }
-
-        // A 'Submit' button
-        const submitBtn = document.createElement('button');
-        submitBtn.textContent = "Submit Availability";
-        latestContainer.appendChild(submitBtn);
-
-        // A status paragraph
-        const statusP = document.createElement('p');
-        latestContainer.appendChild(statusP);
-
-        // Handle button click to store user selections
-        submitBtn.addEventListener('click', async () => {
-        // Gather all checked boxes
-        const checkedOptions = [];
-        latestContainer.querySelectorAll('input[type="checkbox"]').forEach(box => {
-            if (box.checked) {
-            checkedOptions.push(box.value);
-            }
-        });
-
-        if (checkedOptions.length === 0) {
-            statusP.textContent = "Please select at least one option.";
-            return;
-        }
-
-        try {
-            // Save responses in a subcollection 'responses'
-            await db.collection("polls").doc(pollId)
-            .collection("responses")
-            .add({
-                submittedAt: new Date(),
-                selectedOptions: checkedOptions
-            });
-
-            statusP.textContent = "Availability saved!";
-        } catch (error) {
-            console.error("Error saving availability:", error);
-            statusP.textContent = "Failed to save.";
-        }
-        });
-    }, (error) => {
-        console.error("Error fetching latest poll:", error);
+        statusP.textContent = "Availability saved!";
+      } catch (error) {
+        console.error("Error saving availability:", error);
+        statusP.textContent = "Failed to save.";
+      }
     });
+
+    // New Part: Real-time Aggregation of Results 
+    db.collection("polls").doc(pollId).collection("responses")
+      .onSnapshot((responseSnapshot) => {
+        resultsContainer.innerHTML = "";
+
+        const voteCounts = {}; // Store vote tallies
+
+        responseSnapshot.forEach(responseDoc => {
+          const responseData = responseDoc.data();
+          if (Array.isArray(responseData.selectedOptions)) {
+            responseData.selectedOptions.forEach(option => {
+              if (!voteCounts[option]) {
+                voteCounts[option] = 0;
+              }
+              voteCounts[option]++;
+            });
+          }
+        });
+
+        // Display aggregated results
+        for (let [option, count] of Object.entries(voteCounts)) {
+          const resultItem = document.createElement('p');
+          resultItem.textContent = `${option}: ${count} votes`;
+          resultsContainer.appendChild(resultItem);
+        }
+      }, (error) => {
+        console.error("Error fetching responses:", error);
+      });
+
+  }, (error) => {
+    console.error("Error fetching latest poll:", error);
+  });
+
 
 </script>
   
-
-<!-- I think this script is the one that fetches and displays the data -->
-  <script>
-    function testCollectionListener() {
-      const testDocsList = document.getElementById('testDocsList');
-      db.collection("testCollection").onSnapshot((snapshot) => {
-        testDocsList.innerHTML = ""; // Clear the list
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const li = document.createElement('li');
-
-            // Extract fields
-            const msg = data.message || "(no message)";
-            let dateString = "(no timestamp)";
-            if (data.timestamp) {
-                // Convert Firestore timestamp to a JS Date
-                const dateObj = data.timestamp.toDate();
-                dateString = dateObj.toLocaleString();
-            }
-
-            // Show them nicely
-            li.textContent = `Message: ${msg} | Timestamp: ${dateString}`;
-            testDocsList.appendChild(li);
-        });
-      }, (error) => {
-        console.error("Snapshot error:", error);
-      });
-    }
-  
-    // Call our listener once, right away
-    testCollectionListener();
-  </script>
 
 </body>
 </html>
