@@ -25,10 +25,23 @@
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         console.log("User signed in:", user.uid);
+
+        // Check if user is an admin
+        firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+          .then(snapshot => {
+            if (snapshot.exists() && snapshot.val() === true) {
+              console.log("User is an admin");
+              document.getElementById("adminControls").style.display = "block"; // Show poll creation form
+            } else {
+              console.log("User is NOT an admin");
+            }
+          })
+          .catch(error => console.error("Error checking admin status:", error));
+
       } else {
         console.log("No user signed in");
-    }
-});
+      }
+    });
   </script>
 </head>
 
@@ -36,67 +49,88 @@
   <h1>Poll Page Placeholder</h1>
 
   <!-- Button + Paragraph -->
+  <div id="adminControls" style="display: none;">
     <h2>Create a Poll</h2>
-  <label for="pollTitle">Poll Title:</label>
-  <input type="text" id="pollTitle" placeholder="Enter a title" />
-  <label for="pollOptions">Options (comma-separated):</label>
-  <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" />
-  <button id="createPollBtn">Create Poll</button>
-  <p id="pollCreateStatus"></p>
+    <label for="pollTitle">Poll Title:</label>
+    <input type="text" id="pollTitle" placeholder="Enter a title" />
+    <label for="pollOptions">Options (comma-separated):</label>
+    <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" />
+    <button id="createPollBtn">Create Poll</button>
+    <p id="pollCreateStatus"></p>
+  </div>
+  
 
   <h2>Latest Poll</h2>
   <div id="latestPollContainer"></div>
-  <h3>Results</h3>
-  <div id="pollResults"></div>
+
+<h3>Responses</h3>
+<table id="responsesTable" border="1">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Selections</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
 
 
 
 
 <!-- This is the script that submits the form request-->
 <script>
-    document.getElementById('createPollBtn').addEventListener('click', async () => {
-        const pollTitleInput = document.getElementById('pollTitle');
-        const pollOptionsInput = document.getElementById('pollOptions');
-        const pollCreateStatus = document.getElementById('pollCreateStatus');
+  document.getElementById('createPollBtn').addEventListener('click', async () => {
+    const pollTitleInput = document.getElementById('pollTitle');
+    const pollOptionsInput = document.getElementById('pollOptions');
+    const pollCreateStatus = document.getElementById('pollCreateStatus');
 
-        const title = pollTitleInput.value.trim();
-        const rawOptions = pollOptionsInput.value.trim();
-        if (!title) {
-            pollCreateStatus.textContent = "Please enter a poll title.";
-            return;
-        }
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      pollCreateStatus.textContent = "You must be signed in to create a poll.";
+      return;
+    }
 
-        // Convert comma-separated string into an array of trimmed items
-        let optionsArray = [];
-        if (rawOptions) {
-            optionsArray = rawOptions.split(",").map(opt => opt.trim());
-        }
+    // Check admin status before allowing poll creation
+    const adminCheck = await firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value");
 
-        try {
-            await db.collection("polls").add({
-            title: title,
-            createdAt: new Date(),
-            active: true,
-            options: optionsArray
-            });
-            pollCreateStatus.textContent = "Poll created!";
-            pollTitleInput.value = "";
-            pollOptionsInput.value = "";
-        } catch (err) {
-            console.error("Error creating poll:", err);
-            pollCreateStatus.textContent = "Failed to create poll.";
-        }
-    });
+    if (!adminCheck.exists() || adminCheck.val() !== true) {
+      pollCreateStatus.textContent = "You do not have permission to create polls.";
+      console.warn("Unauthorized poll creation attempt by:", user.uid);
+      return;
+    }
+
+    const title = pollTitleInput.value.trim();
+    const rawOptions = pollOptionsInput.value.trim();
+    if (!title) {
+      pollCreateStatus.textContent = "Please enter a poll title.";
+      return;
+    }
+
+    let optionsArray = rawOptions ? rawOptions.split(",").map(opt => opt.trim()) : [];
+
+    try {
+      await db.collection("polls").add({
+        title: title,
+        createdAt: new Date(),
+        active: true,
+        options: optionsArray
+      });
+      pollCreateStatus.textContent = "Poll created!";
+      pollTitleInput.value = "";
+      pollOptionsInput.value = "";
+    } catch (err) {
+      console.error("Error creating poll:", err);
+      pollCreateStatus.textContent = "Failed to create poll.";
+    }
+  });
   </script>
 
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
-    db.collection("polls").orderBy("createdAt", "desc").limit(1)
+  db.collection("polls").orderBy("createdAt", "desc").limit(1)
   .onSnapshot((snapshot) => {
     const latestContainer = document.getElementById('latestPollContainer');
-    const resultsContainer = document.getElementById('pollResults');
-    latestContainer.innerHTML = ""; // Clear old content
-    resultsContainer.innerHTML = ""; // Clear results
+    latestContainer.innerHTML = "";
 
     if (snapshot.empty) {
       latestContainer.textContent = "No polls found.";
@@ -105,20 +139,21 @@
 
     const doc = snapshot.docs[0];
     const poll = doc.data();
-    const pollId = doc.id;
+    const pollId = doc.id; // ✅ Now pollId is properly defined!
 
-    // Create a heading for the poll
+    // Display poll title
     const heading = document.createElement('h3');
     heading.textContent = poll.title || "Unnamed Poll";
     latestContainer.appendChild(heading);
 
-    // If the poll has options, build a simple availability list
+    // If the poll has options, build checkboxes
     if (poll.options && poll.options.length > 0) {
       poll.options.forEach(opt => {
         const label = document.createElement('label');
         const checkbox = document.createElement('input');
         checkbox.type = "checkbox";
         checkbox.value = opt;
+        checkbox.classList.add("availability-option");
 
         label.appendChild(checkbox);
         label.appendChild(document.createTextNode(" " + opt));
@@ -127,16 +162,16 @@
       });
     }
 
-    // A 'Submit' button
+    // Submit button
     const submitBtn = document.createElement('button');
     submitBtn.textContent = "Submit Availability";
     latestContainer.appendChild(submitBtn);
 
-    // A status paragraph
+    // Status message
     const statusP = document.createElement('p');
     latestContainer.appendChild(statusP);
 
-    // Handle button click to store user selections
+    // Handle Submit Click
     submitBtn.addEventListener('click', async () => {
       const user = firebase.auth().currentUser;
       if (!user) {
@@ -145,7 +180,7 @@
       }
 
       const checkedOptions = [];
-      latestContainer.querySelectorAll('input[type="checkbox"]').forEach(box => {
+      latestContainer.querySelectorAll('.availability-option').forEach(box => {
         if (box.checked) {
           checkedOptions.push(box.value);
         }
@@ -157,14 +192,12 @@
       }
 
       try {
-        const userResponseRef = db.collection("polls").doc(pollId)
-          .collection("responses").doc(user.uid);
-
-        // Update or create a response using the authenticated UID
-        await userResponseRef.set({
-          submittedAt: new Date(),
-          selectedOptions: checkedOptions
-        });
+        await db.collection("polls").doc(pollId)
+          .collection("responses").doc(user.uid)
+          .set({
+            submittedAt: new Date(),
+            selectedOptions: checkedOptions
+          });
 
         statusP.textContent = "Availability updated!";
       } catch (error) {
@@ -173,42 +206,61 @@
       }
     });
 
-    // New Part: Real-time Aggregation of Results 
-    db.collection("polls").doc(pollId).collection("responses")
-      .onSnapshot((responseSnapshot) => {
-        resultsContainer.innerHTML = "";
-
-        const voteCounts = {}; // Store vote tallies
-
-        responseSnapshot.forEach(responseDoc => {
-          const responseData = responseDoc.data();
-          if (Array.isArray(responseData.selectedOptions)) {
-            responseData.selectedOptions.forEach(option => {
-              if (!voteCounts[option]) {
-                voteCounts[option] = 0;
-              }
-              voteCounts[option]++;
-            });
-          }
-        });
-
-        // Display aggregated results
-        for (let [option, count] of Object.entries(voteCounts)) {
-          const resultItem = document.createElement('p');
-          resultItem.textContent = `${option}: ${count} votes`;
-          resultsContainer.appendChild(resultItem);
-        }
-      }, (error) => {
-        console.error("Error fetching responses:", error);
-      });
-
-  }, (error) => {
-    console.error("Error fetching latest poll:", error);
+    // ✅ Also fetch and display responses in the table
+    fetchResponses(pollId);
   });
 
+  function fetchResponses(pollId) {
+  db.collection("polls").doc(pollId).collection("responses")
+    .onSnapshot((responseSnapshot) => {
+      const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
+      responsesTable.innerHTML = ""; // Clear old results
+
+      responseSnapshot.forEach(responseDoc => {
+        const responseData = responseDoc.data();
+        const userId = responseDoc.id; // Firebase UID
+        
+        // Query the Realtime Database for the driver's name
+        firebase.database().ref(`drivers/${userId}/name`).once("value")
+          .then(snapshot => {
+            if (snapshot.exists()) {
+              const userName = snapshot.val();
+              updateTable(userName, responseData.selectedOptions);
+            } else {
+              updateTable(userId, responseData.selectedOptions);
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching driver name:", error);
+            updateTable(userId, responseData.selectedOptions);
+          });
+      });
+    });
+  }
+
+function updateTable(userName, selectedOptions) {
+  const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
+  const row = responsesTable.insertRow();
+  const cellName = row.insertCell(0);
+  const cellSelections = row.insertCell(1);
+
+  cellName.textContent = userName;
+  cellSelections.textContent = selectedOptions ? selectedOptions.join(", ") : "No selection";
+}
+
+  function updateTable(userName, selectedOptions) {
+    const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
+    const row = responsesTable.insertRow();
+    const cellName = row.insertCell(0);
+    const cellSelections = row.insertCell(1);
+
+    cellName.textContent = userName;
+    cellSelections.textContent = selectedOptions ? selectedOptions.join(", ") : "No selection";
+  }
 
 </script>
-  
+
+
 
 </body>
 </html>
