@@ -22,6 +22,7 @@
     firebase.initializeApp(firebaseConfig);
     var db = firebase.firestore();
 
+    // This checks user sign ins
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         console.log("User signed in:", user.uid);
@@ -46,7 +47,7 @@
 </head>
 
 <body>
-  <h1>Poll Page Placeholder</h1>
+  <h1>Poll Page</h1>
 
   <!-- Button + Paragraph -->
   <div id="adminControls" style="display: none;">
@@ -63,16 +64,16 @@
   <h2>Latest Poll</h2>
   <div id="latestPollContainer"></div>
 
-<h3>Responses</h3>
-<table id="responsesTable" border="1">
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Selections</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+  <h3>Responses</h3>
+  <table id="responsesTable" border="1">
+      <thead>
+          <tr id="pollOptionsHeader"> 
+              <th>Name</th> <!-- This stays fixed for the user column -->
+          </tr>
+      </thead>
+      <tbody></tbody>
+  </table>
+  
 
 
 
@@ -211,32 +212,58 @@
   });
 
   function fetchResponses(pollId) {
+  db.collection("polls").doc(pollId).get().then((pollDoc) => {
+    if (!pollDoc.exists) return;
+    
+    const pollData = pollDoc.data();
+    const pollOptions = pollData.options || [];
+
+    const headerRow = document.getElementById("pollOptionsHeader");
+    headerRow.innerHTML = "<th>Name</th>"; // Reset header, keep 'Name' column
+
+    // Create table headers for each poll option (date)
+    pollOptions.forEach(option => {
+      const th = document.createElement("th");
+      th.textContent = option;
+      headerRow.appendChild(th);
+    });
+
+    // Now fetch the responses
+    populateResponseTable(pollId, pollOptions);
+  });
+}
+
+function populateResponseTable(pollId, pollOptions) {
   db.collection("polls").doc(pollId).collection("responses")
     .onSnapshot((responseSnapshot) => {
-      const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
-      responsesTable.innerHTML = ""; // Clear old results
+      const responsesTable = document.getElementById("responsesTable").getElementsByTagName("tbody")[0];
+      responsesTable.innerHTML = ""; // Clear old rows
 
       responseSnapshot.forEach(responseDoc => {
         const responseData = responseDoc.data();
-        const userId = responseDoc.id; // Firebase UID
-        
-        // Query the Realtime Database for the driver's name
-        firebase.database().ref(`drivers/${userId}/name`).once("value")
-          .then(snapshot => {
-            if (snapshot.exists()) {
-              const userName = snapshot.val();
-              updateTable(userName, responseData.selectedOptions);
-            } else {
-              updateTable(userId, responseData.selectedOptions);
-            }
-          })
-          .catch(error => {
-            console.error("Error fetching driver name:", error);
-            updateTable(userId, responseData.selectedOptions);
+        const userId = responseDoc.id; 
+
+        // Query user name from Realtime Database
+        firebase.database().ref(`drivers/${userId}/name`).once("value").then(snapshot => {
+          const userName = snapshot.exists() ? snapshot.val() : userId; 
+
+          // Create a new row
+          const row = responsesTable.insertRow();
+          const nameCell = row.insertCell(0);
+          nameCell.textContent = userName;
+
+          // Create a cell for each poll option
+          pollOptions.forEach(option => {
+            const cell = row.insertCell(-1);
+            const isAvailable = responseData.selectedOptions.includes(option);
+            cell.textContent = isAvailable ? "✅" : "❌";
+            cell.style.backgroundColor = isAvailable ? "lightgreen" : "lightcoral";
           });
+        });
       });
     });
-  }
+}
+
 
 function updateTable(userName, selectedOptions) {
   const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
