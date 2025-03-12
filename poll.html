@@ -62,17 +62,23 @@
   
 
   <h2>Latest Poll</h2>
-  <div id="latestPollContainer"></div>
+  
 
-  <h3>Responses</h3>
   <table id="responsesTable" border="1">
-      <thead>
-          <tr id="pollOptionsHeader"> 
-              <th>Name</th> <!-- This stays fixed for the user column -->
-          </tr>
-      </thead>
-      <tbody></tbody>
-  </table>
+    <thead>
+        <tr id="pollOptionsHeader"> 
+            <th>Name</th> <!-- Name stays fixed -->
+        </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+        <tr id="totalsRow">
+            <th>Total</th> <!-- First column for totals label -->
+        </tr>
+    </tfoot>
+</table>
+
+<div id="latestPollContainer"></div>
   
 
 
@@ -149,19 +155,35 @@
 
     // If the poll has options, build checkboxes
     if (poll.options && poll.options.length > 0) {
-      poll.options.forEach(opt => {
-        const label = document.createElement('label');
-        const checkbox = document.createElement('input');
-        checkbox.type = "checkbox";
-        checkbox.value = opt;
-        checkbox.classList.add("availability-option");
+  poll.options.forEach(option => {
+    const optionContainer = document.createElement('div');
 
-        label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(" " + opt));
-        latestContainer.appendChild(label);
-        latestContainer.appendChild(document.createElement('br'));
-      });
-    }
+    // Create a label or heading for the day
+    const optionLabel = document.createElement('strong');
+    optionLabel.textContent = option + ": ";
+    optionContainer.appendChild(optionLabel);
+
+    // Radio button values we'll allow
+    const statuses = ["yes", "no", "maybe"];
+
+    statuses.forEach(statusValue => {
+      const radio = document.createElement('input');
+      radio.type = "radio";
+      radio.name = `option_${option}`;  // ensures only one selection per day
+      radio.value = statusValue;
+
+      // Add a text label
+      const label = document.createElement('label');
+      label.textContent = statusValue.charAt(0).toUpperCase() + statusValue.slice(1);
+
+      optionContainer.appendChild(radio);
+      optionContainer.appendChild(label);
+      optionContainer.appendChild(document.createTextNode("  ")); // spacing
+    });
+
+    latestContainer.appendChild(optionContainer);
+  });
+}
 
     // Submit button
     const submitBtn = document.createElement('button');
@@ -180,24 +202,29 @@
         return;
       }
 
-      const checkedOptions = [];
-      latestContainer.querySelectorAll('.availability-option').forEach(box => {
-        if (box.checked) {
-          checkedOptions.push(box.value);
-        }
-      });
+      // We’ll build a dictionary: day → yes/no/maybe
+      const dayResponses = {};
 
-      if (checkedOptions.length === 0) {
-        statusP.textContent = "Please select at least one option.";
-        return;
-      }
+      // For each day in the poll
+      (poll.options || []).forEach(option => {
+        const radios = latestContainer.querySelectorAll(`input[name="option_${option}"]`);
+        let selectedValue = null;
+        radios.forEach(radio => {
+          if (radio.checked) {
+            selectedValue = radio.value; // "yes", "no", or "maybe"
+          }
+        });
+
+        // If user didn't pick anything for that day, let's default to "no" or store null
+        dayResponses[option] = selectedValue || "no";
+      });
 
       try {
         await db.collection("polls").doc(pollId)
           .collection("responses").doc(user.uid)
           .set({
             submittedAt: new Date(),
-            selectedOptions: checkedOptions
+            dayResponses: dayResponses // <-- store our dictionary
           });
 
         statusP.textContent = "Availability updated!";
@@ -206,8 +233,6 @@
         statusP.textContent = "Failed to save.";
       }
     });
-
-    // ✅ Also fetch and display responses in the table
     fetchResponses(pollId);
   });
 
@@ -233,15 +258,26 @@
   });
 }
 
+// This fills in the results
 function populateResponseTable(pollId, pollOptions) {
   db.collection("polls").doc(pollId).collection("responses")
     .onSnapshot((responseSnapshot) => {
       const responsesTable = document.getElementById("responsesTable").getElementsByTagName("tbody")[0];
       responsesTable.innerHTML = ""; // Clear old rows
 
+      // Initialize totals as a nested object, one for each day
+      // We'll store counts like totals["Mon"] = { yes: 0, no: 0, maybe: 0 };
+      let totals = {};
+      pollOptions.forEach(opt => {
+        totals[opt] = { yes: 0, no: 0, maybe: 0 };
+      });
+
       responseSnapshot.forEach(responseDoc => {
         const responseData = responseDoc.data();
         const userId = responseDoc.id; 
+
+        // dayResponses is your new dictionary of day -> yes/no/maybe
+        const dayResponses = responseData.dayResponses || {};
 
         // Query user name from Realtime Database
         firebase.database().ref(`drivers/${userId}/name`).once("value").then(snapshot => {
@@ -252,19 +288,53 @@ function populateResponseTable(pollId, pollOptions) {
           const nameCell = row.insertCell(0);
           nameCell.textContent = userName;
 
-          // Create a cell for each poll option
+          // For each day, show the person's choice
           pollOptions.forEach(option => {
+            const choice = dayResponses[option] || "no"; // fallback to "no" if missing
             const cell = row.insertCell(-1);
-            const isAvailable = responseData.selectedOptions.includes(option);
-            cell.textContent = isAvailable ? "✅" : "❌";
-            cell.style.backgroundColor = isAvailable ? "lightgreen" : "lightcoral";
+
+            if (choice === "yes") {
+              cell.textContent = "Yes";
+              cell.style.backgroundColor = "lightgreen";
+            } else if (choice === "maybe") {
+              cell.textContent = "Maybe";
+              cell.style.backgroundColor = "khaki"; // or some other color
+            } else {
+              cell.textContent = "No";
+              cell.style.backgroundColor = "lightcoral";
+            }
+
+            // Increment totals
+            if (choice === "yes") totals[option].yes++;
+            else if (choice === "maybe") totals[option].maybe++;
+            else totals[option].no++;
           });
+
+          // Finally, update the totals row
+          updateTotalsRow(totals, pollOptions);
         });
       });
     });
 }
 
 
+// This writes the totals per day
+function updateTotalsRow(totals, pollOptions) {
+  const totalsRow = document.getElementById("totalsRow");
+  totalsRow.innerHTML = "<th>Total</th>"; // Keep first column for label
+
+  pollOptions.forEach(option => {
+    const totalCell = document.createElement("th");
+    const dayTotals = totals[option]; // { yes: number, maybe: number, no: number }
+
+    // Format: "YesCount (+MaybeCount)", e.g., "4 (+2)"
+    totalCell.textContent = `${dayTotals.yes} (+${dayTotals.maybe})`;
+    totalsRow.appendChild(totalCell);
+  });
+}
+
+
+// This function creates the table
 function updateTable(userName, selectedOptions) {
   const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
   const row = responsesTable.insertRow();
@@ -275,15 +345,6 @@ function updateTable(userName, selectedOptions) {
   cellSelections.textContent = selectedOptions ? selectedOptions.join(", ") : "No selection";
 }
 
-  function updateTable(userName, selectedOptions) {
-    const responsesTable = document.getElementById('responsesTable').getElementsByTagName('tbody')[0];
-    const row = responsesTable.insertRow();
-    const cellName = row.insertCell(0);
-    const cellSelections = row.insertCell(1);
-
-    cellName.textContent = userName;
-    cellSelections.textContent = selectedOptions ? selectedOptions.join(", ") : "No selection";
-  }
 
 </script>
 
