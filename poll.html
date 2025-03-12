@@ -21,6 +21,14 @@
         };
     firebase.initializeApp(firebaseConfig);
     var db = firebase.firestore();
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        console.log("User signed in:", user.uid);
+      } else {
+        console.log("No user signed in");
+    }
+});
   </script>
 </head>
 
@@ -130,6 +138,12 @@
 
     // Handle button click to store user selections
     submitBtn.addEventListener('click', async () => {
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        statusP.textContent = "You must be signed in to submit availability.";
+        return;
+      }
+
       const checkedOptions = [];
       latestContainer.querySelectorAll('input[type="checkbox"]').forEach(box => {
         if (box.checked) {
@@ -143,14 +157,16 @@
       }
 
       try {
-        await db.collection("polls").doc(pollId)
-          .collection("responses")
-          .add({
-            submittedAt: new Date(),
-            selectedOptions: checkedOptions
-          });
+        const userResponseRef = db.collection("polls").doc(pollId)
+          .collection("responses").doc(user.uid);
 
-        statusP.textContent = "Availability saved!";
+        // Update or create a response using the authenticated UID
+        await userResponseRef.set({
+          submittedAt: new Date(),
+          selectedOptions: checkedOptions
+        });
+
+        statusP.textContent = "Availability updated!";
       } catch (error) {
         console.error("Error saving availability:", error);
         statusP.textContent = "Failed to save.";
