@@ -36,6 +36,9 @@
   <button id="createPollBtn">Create Poll</button>
   <p id="pollCreateStatus"></p>
 
+  <h2>Latest Poll</h2>
+  <div id="latestPollContainer"></div>
+
   <h2>All Polls</h2>
   <ul id="pollsList"></ul>
 
@@ -103,26 +106,83 @@
 
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
-    db.collection("polls").orderBy("createdAt", "desc")
-        .onSnapshot((snapshot) => {
-        const pollsList = document.getElementById('pollsList');
-        pollsList.innerHTML = "";
-        snapshot.forEach(doc => {
-        const poll = doc.data();
-        const li = document.createElement('li');
+    db.collection("polls").orderBy("createdAt", "desc").limit(1)
+    .onSnapshot((snapshot) => {
+        const latestContainer = document.getElementById('latestPollContainer');
+        latestContainer.innerHTML = ""; // Clear old content
 
-        // Basic info
-        let createdAt = poll.createdAt ? poll.createdAt.toDate().toLocaleString() : "(no date)";
-        let optionsText = "(no options)";
-        if (poll.options && poll.options.length > 0) {
-            optionsText = poll.options.join(", ");
+        if (snapshot.empty) {
+        latestContainer.textContent = "No polls found.";
+        return;
         }
 
-        li.textContent = `Title: ${poll.title} | Created: ${createdAt} | Active: ${poll.active} | Options: ${optionsText}`;
+        const doc = snapshot.docs[0];
+        const poll = doc.data();
+        const pollId = doc.id;
 
-        pollsList.appendChild(li);
+        // Create a heading for the poll
+        const heading = document.createElement('h3');
+        heading.textContent = poll.title || "Unnamed Poll";
+        latestContainer.appendChild(heading);
+
+        // If the poll has options, build a simple availability list
+        if (poll.options && poll.options.length > 0) {
+        poll.options.forEach(opt => {
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = "checkbox";
+            checkbox.value = opt;
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(" " + opt));
+            latestContainer.appendChild(label);
+            latestContainer.appendChild(document.createElement('br'));
         });
+        }
+
+        // A 'Submit' button
+        const submitBtn = document.createElement('button');
+        submitBtn.textContent = "Submit Availability";
+        latestContainer.appendChild(submitBtn);
+
+        // A status paragraph
+        const statusP = document.createElement('p');
+        latestContainer.appendChild(statusP);
+
+        // Handle button click to store user selections
+        submitBtn.addEventListener('click', async () => {
+        // Gather all checked boxes
+        const checkedOptions = [];
+        latestContainer.querySelectorAll('input[type="checkbox"]').forEach(box => {
+            if (box.checked) {
+            checkedOptions.push(box.value);
+            }
+        });
+
+        if (checkedOptions.length === 0) {
+            statusP.textContent = "Please select at least one option.";
+            return;
+        }
+
+        try {
+            // Save responses in a subcollection 'responses'
+            await db.collection("polls").doc(pollId)
+            .collection("responses")
+            .add({
+                submittedAt: new Date(),
+                selectedOptions: checkedOptions
+            });
+
+            statusP.textContent = "Availability saved!";
+        } catch (error) {
+            console.error("Error saving availability:", error);
+            statusP.textContent = "Failed to save.";
+        }
+        });
+    }, (error) => {
+        console.error("Error fetching latest poll:", error);
     });
+
 </script>
   
 
