@@ -31,6 +31,8 @@
     <h2>Create a Poll</h2>
   <label for="pollTitle">Poll Title:</label>
   <input type="text" id="pollTitle" placeholder="Enter a title" />
+  <label for="pollOptions">Options (comma-separated):</label>
+  <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" />
   <button id="createPollBtn">Create Poll</button>
   <p id="pollCreateStatus"></p>
 
@@ -65,52 +67,61 @@
 <!-- This is the script that submits the form request-->
 <script>
     document.getElementById('createPollBtn').addEventListener('click', async () => {
-      const pollTitleInput = document.getElementById('pollTitle');
-      const pollCreateStatus = document.getElementById('pollCreateStatus');
-  
-      const title = pollTitleInput.value.trim();
-      if (!title) {
-        pollCreateStatus.textContent = "Please enter a poll title.";
-        return;
-      }
-  
-      try {
-        await db.collection("polls").add({
-          title: title,
-          createdAt: new Date(),
-          active: true
-          // We’ll add more fields (like options) later
-        });
-        pollCreateStatus.textContent = "Poll created!";
-        pollTitleInput.value = ""; // Clear the input
-      } catch (err) {
-        console.error("Error creating poll:", err);
-        pollCreateStatus.textContent = "Failed to create poll.";
-      }
+        const pollTitleInput = document.getElementById('pollTitle');
+        const pollOptionsInput = document.getElementById('pollOptions');
+        const pollCreateStatus = document.getElementById('pollCreateStatus');
+
+        const title = pollTitleInput.value.trim();
+        const rawOptions = pollOptionsInput.value.trim();
+        if (!title) {
+            pollCreateStatus.textContent = "Please enter a poll title.";
+            return;
+        }
+
+        // Convert comma-separated string into an array of trimmed items
+        let optionsArray = [];
+        if (rawOptions) {
+            optionsArray = rawOptions.split(",").map(opt => opt.trim());
+        }
+
+        try {
+            await db.collection("polls").add({
+            title: title,
+            createdAt: new Date(),
+            active: true,
+            options: optionsArray
+            });
+            pollCreateStatus.textContent = "Poll created!";
+            pollTitleInput.value = "";
+            pollOptionsInput.value = "";
+        } catch (err) {
+            console.error("Error creating poll:", err);
+            pollCreateStatus.textContent = "Failed to create poll.";
+        }
     });
   </script>
 
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
-    db.collection("polls").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
-      const pollsList = document.getElementById('pollsList');
-      pollsList.innerHTML = ""; // Clear old items
-      snapshot.forEach(doc => {
+    db.collection("polls").orderBy("createdAt", "desc")
+        .onSnapshot((snapshot) => {
+        const pollsList = document.getElementById('pollsList');
+        pollsList.innerHTML = "";
+        snapshot.forEach(doc => {
         const poll = doc.data();
         const li = document.createElement('li');
-  
-        // Format poll data
-        const title = poll.title || "(no title)";
-        let createdAt = "(no date)";
-        if (poll.createdAt) {
-          createdAt = poll.createdAt.toDate().toLocaleString();
+
+        // Basic info
+        let createdAt = poll.createdAt ? poll.createdAt.toDate().toLocaleString() : "(no date)";
+        let optionsText = "(no options)";
+        if (poll.options && poll.options.length > 0) {
+            optionsText = poll.options.join(", ");
         }
-  
-        li.textContent = `Title: ${title} | Created: ${createdAt} | Active: ${poll.active}`;
+
+        li.textContent = `Title: ${poll.title} | Created: ${createdAt} | Active: ${poll.active} | Options: ${optionsText}`;
+
         pollsList.appendChild(li);
-      });
-    }, (error) => {
-      console.error("Error fetching polls:", error);
+        });
     });
 </script>
   
