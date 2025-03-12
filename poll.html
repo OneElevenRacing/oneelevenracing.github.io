@@ -28,11 +28,22 @@
   <h1>Poll Page Placeholder</h1>
 
   <!-- Button + Paragraph -->
+    <h2>Create a Poll</h2>
+  <label for="pollTitle">Poll Title:</label>
+  <input type="text" id="pollTitle" placeholder="Enter a title" />
+  <button id="createPollBtn">Create Poll</button>
+  <p id="pollCreateStatus"></p>
+
+  <h2>All Polls</h2>
+  <ul id="pollsList"></ul>
+
   <button id="testWriteBtn">Write Test Doc</button>
   <p id="writeStatus"></p>
 
   <h2>Existing Test Docs:</h2>
   <ul id="testDocsList"></ul>
+
+
 
   <!-- Put the click listener AFTER the button appears in HTML -->
   <script>
@@ -51,29 +62,60 @@
     });
   </script>
 
-<!-- This function is from earlier testing for single downloads of the database data-->
-<!-- <script>
-    async function fetchTestDocs() {
-      const testDocsList = document.getElementById('testDocsList');
-      testDocsList.innerHTML = ""; // Clear the list first
-      try {
-        const snapshot = await db.collection("testCollection").get();
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          // Create a list item
-          const li = document.createElement('li');
-          li.textContent = JSON.stringify(data);
-          testDocsList.appendChild(li);
-        });
-      } catch (error) {
-        console.error("Error fetching documents:", error);
-      }
-    }
+<!-- This is the script that submits the form request-->
+<script>
+    document.getElementById('createPollBtn').addEventListener('click', async () => {
+      const pollTitleInput = document.getElementById('pollTitle');
+      const pollCreateStatus = document.getElementById('pollCreateStatus');
   
-    // Call it once when the page loads
-    fetchTestDocs();
-  </script> -->
+      const title = pollTitleInput.value.trim();
+      if (!title) {
+        pollCreateStatus.textContent = "Please enter a poll title.";
+        return;
+      }
+  
+      try {
+        await db.collection("polls").add({
+          title: title,
+          createdAt: new Date(),
+          active: true
+          // We’ll add more fields (like options) later
+        });
+        pollCreateStatus.textContent = "Poll created!";
+        pollTitleInput.value = ""; // Clear the input
+      } catch (err) {
+        console.error("Error creating poll:", err);
+        pollCreateStatus.textContent = "Failed to create poll.";
+      }
+    });
+  </script>
 
+<!-- This is the script that fetches the poll data and displays it -->
+<script>
+    db.collection("polls").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+      const pollsList = document.getElementById('pollsList');
+      pollsList.innerHTML = ""; // Clear old items
+      snapshot.forEach(doc => {
+        const poll = doc.data();
+        const li = document.createElement('li');
+  
+        // Format poll data
+        const title = poll.title || "(no title)";
+        let createdAt = "(no date)";
+        if (poll.createdAt) {
+          createdAt = poll.createdAt.toDate().toLocaleString();
+        }
+  
+        li.textContent = `Title: ${title} | Created: ${createdAt} | Active: ${poll.active}`;
+        pollsList.appendChild(li);
+      });
+    }, (error) => {
+      console.error("Error fetching polls:", error);
+    });
+</script>
+  
+
+<!-- I think this script is the one that fetches and displays the data -->
   <script>
     function testCollectionListener() {
       const testDocsList = document.getElementById('testDocsList');
