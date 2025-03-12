@@ -31,6 +31,9 @@
   <button id="testWriteBtn">Write Test Doc</button>
   <p id="writeStatus"></p>
 
+  <h2>Existing Test Docs:</h2>
+  <ul id="testDocsList"></ul>
+
   <!-- Put the click listener AFTER the button appears in HTML -->
   <script>
     document.getElementById('testWriteBtn').addEventListener('click', async () => {
@@ -46,6 +49,60 @@
         writeStatus.textContent = "Failed to write doc.";
       }
     });
+  </script>
+
+<!-- This function is from earlier testing for single downloads of the database data-->
+<!-- <script>
+    async function fetchTestDocs() {
+      const testDocsList = document.getElementById('testDocsList');
+      testDocsList.innerHTML = ""; // Clear the list first
+      try {
+        const snapshot = await db.collection("testCollection").get();
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          // Create a list item
+          const li = document.createElement('li');
+          li.textContent = JSON.stringify(data);
+          testDocsList.appendChild(li);
+        });
+      } catch (error) {
+        console.error("Error fetching documents:", error);
+      }
+    }
+  
+    // Call it once when the page loads
+    fetchTestDocs();
+  </script> -->
+
+  <script>
+    function testCollectionListener() {
+      const testDocsList = document.getElementById('testDocsList');
+      db.collection("testCollection").onSnapshot((snapshot) => {
+        testDocsList.innerHTML = ""; // Clear the list
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const li = document.createElement('li');
+
+            // Extract fields
+            const msg = data.message || "(no message)";
+            let dateString = "(no timestamp)";
+            if (data.timestamp) {
+                // Convert Firestore timestamp to a JS Date
+                const dateObj = data.timestamp.toDate();
+                dateString = dateObj.toLocaleString();
+            }
+
+            // Show them nicely
+            li.textContent = `Message: ${msg} | Timestamp: ${dateString}`;
+            testDocsList.appendChild(li);
+        });
+      }, (error) => {
+        console.error("Snapshot error:", error);
+      });
+    }
+  
+    // Call our listener once, right away
+    testCollectionListener();
   </script>
 
 </body>
