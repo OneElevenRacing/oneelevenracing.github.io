@@ -38,6 +38,30 @@
       if (user) {
         console.log("User signed in:", user.uid);
 
+          // Check if user exists in the Realtime Database `/drivers/`
+          firebase.database().ref(`drivers/${user.uid}`).once("value")
+            .then(snapshot => {
+              if (snapshot.exists()) {
+                console.log("User is authorized for Firestore:", user.uid);
+                
+                // Proceed with Firestore operations
+                db.collection("polls").get()
+                  .then(snapshot => {
+                    snapshot.forEach(doc => {
+                      console.log("Fetched poll:", doc.data());
+                    });
+                  })
+                  .catch(error => console.error("Error fetching polls:", error));
+
+              } else {
+                console.log("User is NOT authorized.");
+                alert("Access denied: You are not authorized.");
+              }
+            })
+            .catch(error => {
+              console.error("Error checking authorization:", error);
+            });
+
         // Check if user is an admin
         firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
           .then(snapshot => {
