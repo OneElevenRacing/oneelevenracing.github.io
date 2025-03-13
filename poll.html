@@ -166,6 +166,7 @@
           // If the poll has options, add them as rows
           if (poll.options && poll.options.length > 0) {
             const statuses = ["yes", "no", "maybe"];
+            
 
             poll.options.forEach(option => {
               // Create a row for this day
@@ -317,14 +318,25 @@
               const cell = row.insertCell(-1);
 
               if (choice === "yes") {
-                cell.textContent = "Yes";
+                // cell.textContent = "Yes"; This is the cell text
+                cell.textContent = "✓";
                 cell.style.backgroundColor = "lightgreen";
+                cell.style.color = "#2d6b2d"; 
+                cell.style.fontWeight = "bold";
+
               } else if (choice === "maybe") {
-                cell.textContent = "Maybe";
+                //cell.textContent = "Maybe"; This is the text in the cell
+                cell.textContent = "o";
                 cell.style.backgroundColor = "khaki";
+                cell.style.color = "#625a2e";
+                cell.style.fontWeight = "bold";
+
               } else {
-                cell.textContent = "No";
+                // cell.textContent = "No"; This is the cell text
+                cell.textContent = "x";
                 cell.style.backgroundColor = "lightcoral";
+                cell.style.color = "#752f2f";
+                cell.style.fontWeight = "bold";
               }
 
               // Increment totals
