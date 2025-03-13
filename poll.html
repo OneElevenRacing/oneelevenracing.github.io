@@ -151,7 +151,7 @@
             previousResponses = {};
           }
 
-          // 2) NOW Build the table, after we've retrieved `previousResponses`
+          // Build the table, after we've retrieved `previousResponses`
 
           // Create a table for yes/no/maybe
           const selectionTable = document.createElement('table');
@@ -212,7 +212,7 @@
           // Append the table to the page
           latestContainer.appendChild(selectionTable);
 
-          // 3) Create the SUBMIT button
+          // Create the SUBMIT button
           const submitBtn = document.createElement('button');
           submitBtn.textContent = "Submit Availability";
           latestContainer.appendChild(submitBtn);
@@ -384,6 +384,7 @@
 
 <style>
 
+/* These are the response table styles */
   #responsesTable {
     border-collapse: collapse; /* unify table borders */
     margin: 0 auto; /* center horizontally */
@@ -413,6 +414,43 @@
   #responsesTable tfoot tr {
   background-color: #f2f2f2;
   font-weight: bold;
+}
+
+/*These are the radio butten styles*/
+/* Style the radio buttons */
+input[type="radio"] {
+    appearance: none;  /* Remove default styling */
+    -webkit-appearance: none; /* Safari support */
+    -moz-appearance: none; /* Firefox support */
+    width: 16px;
+    height: 16px;
+    border: 1px solid grey;  /* Border color of the circle */
+    border-radius: 50%; /* Make it circular */
+    outline: none;
+    background-color: white; /* Default unselected color */
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+}
+
+/* When selected (checked), fill the circle with red */
+input[type="radio"]:checked {
+    background-color: red;  /* Fill color when selected */
+    border-color: red; /* Keep border color red */
+}
+
+/* Optional: Add a little animation effect */
+input[type="radio"]:checked::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background-color: white; /* Inner dot color */
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
 }
 
 </style>
