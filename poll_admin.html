@@ -1,9 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Poll Admin</title>
-  <!-- Include same Firebase scripts -->
+<link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
+
+<link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta charset="UTF-8">
+<title>Poll Admin</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style_about.css">
+
+<!-- Include same Firebase scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
@@ -51,131 +61,157 @@
 </head>
 
 <body>
-  <h1>Poll Admin Page</h1>
 
-  <button onclick="window.location.href='poll.html'">← Back to Poll Page</button>
+    <header>
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="window.location.href='poll.html'" style="display: block; text-align: left;">
+            <img src="Logos_and_icons/back.png" alt="Back">
+        </a>
+      </header>
 
-  <div id="adminControls" style="display:none;">
-    <h2>Create a Poll</h2>
+    <div class="about-container" id="adminControls" style="display:none; margin-top: 50px;">
+        <h2>Create a Poll</h2>
 
-    <label for="weekSelector">Choose a week:</label>
-    <select id="weekSelector">
-      <option value="0">This Week</option>
-      <option value="1">Next Week</option>
-      <option value="2">Week After Next</option>
-    </select>
+        <label for="weekSelector">Choose a week:</label>
+        <select id="weekSelector" >
+        <option value="0">This Week</option>
+        <option value="1">Next Week</option>
+        <option value="2">Week After Next</option>
+        </select>
 
-    <label for="pollTitle">Poll Title:</label>
-    <input type="text" id="pollTitle" placeholder="Enter a title" />
+        <br><br>
 
-    <label for="pollOptions">Options (comma-separated):</label>
-    <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" />
+        <label for="pollTitle">Poll Title:</label>
+        <input type="text" id="pollTitle" placeholder="Enter a title" class="poll-input" />
 
-    <button id="createPollBtn">Create Poll</button>
-    <p id="pollCreateStatus"></p>
-  </div>
+        <br>
 
-  <script>
+        <label for="pollOptions">Options:</label>
+        <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" class="poll-input" />
 
-    // 1) Get Week Number
-    function getWeekNumber(dateObj) {
-      const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
-      const dayNum = d.getUTCDay() || 7;  // Sunday=0 => 7
-      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-    }
+        <br>
 
-    // 2) Get Monday-Sunday array
-    function getWeekDates(weekOffset = 0) {
-      const now = new Date();
-      const dayOfWeek = now.getDay();  // Sunday=0, Monday=1...
-      const effectiveDay = dayOfWeek === 0 ? 7 : dayOfWeek;
-      const daysFromMonday = effectiveDay - 1; // Monday=1 => offset=0
+        <button id="createPollBtn">Create Poll</button>
+        <p id="pollCreateStatus"></p>
+    </div>
 
-      const currentMonday = new Date(now);
-      currentMonday.setDate(now.getDate() - daysFromMonday);
+    <script>
 
-      // Add the offset (0=This Week, 1=Next Week, etc.)
-      currentMonday.setDate(currentMonday.getDate() + (weekOffset * 7));
+        // 1) Get Week Number
+        function getWeekNumber(dateObj) {
+        const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+        const dayNum = d.getUTCDay() || 7;  // Sunday=0 => 7
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        }
 
-      // Sunday is Monday+6
-      const thisSunday = new Date(currentMonday);
-      thisSunday.setDate(thisSunday.getDate() + 6);
+        // 2) Get Monday-Sunday array
+        function getWeekDates(weekOffset = 0) {
+        const now = new Date();
+        const dayOfWeek = now.getDay();  // Sunday=0, Monday=1...
+        const effectiveDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+        const daysFromMonday = effectiveDay - 1; // Monday=1 => offset=0
 
-      const daysArray = [];
-      for (let i = 0; i < 7; i++) {
-        const tempDate = new Date(currentMonday);
-        tempDate.setDate(currentMonday.getDate() + i);
+        const currentMonday = new Date(now);
+        currentMonday.setDate(now.getDate() - daysFromMonday);
 
-        const dayShortNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-        const dayName = dayShortNames[tempDate.getDay()];
+        // Add the offset (0=This Week, 1=Next Week, etc.)
+        currentMonday.setDate(currentMonday.getDate() + (weekOffset * 7));
 
-        const dd = String(tempDate.getDate()).padStart(2, '0');
-        const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
+        // Sunday is Monday+6
+        const thisSunday = new Date(currentMonday);
+        thisSunday.setDate(thisSunday.getDate() + 6);
 
-        daysArray.push(`${dayName} ${dd}.${mm}`);
-      }
+        const daysArray = [];
+        for (let i = 0; i < 7; i++) {
+            const tempDate = new Date(currentMonday);
+            tempDate.setDate(currentMonday.getDate() + i);
 
-      return {
-        mondayDate: currentMonday,
-        sundayDate: thisSunday,
-        daysArray: daysArray
-      };
-    }
+            const dayShortNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+            const dayName = dayShortNames[tempDate.getDay()];
 
-    // 3) Autopopulate Title & Options when week changes
-    const weekSelector = document.getElementById('weekSelector');
-    const pollTitleInput = document.getElementById('pollTitle');
-    const pollOptionsInput = document.getElementById('pollOptions');
+            const dd = String(tempDate.getDate()).padStart(2, '0');
+            const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
 
-    weekSelector.addEventListener('change', () => {
-      const offset = parseInt(weekSelector.value, 10);
-      const { mondayDate, sundayDate, daysArray } = getWeekDates(offset);
-      const weekNum = getWeekNumber(mondayDate);
+            daysArray.push(`${dayName} ${dd}.${mm}`);
+        }
 
-      const dd1 = String(mondayDate.getDate()).padStart(2,'0');
-      const mm1 = String(mondayDate.getMonth()+1).padStart(2,'0');
-      const dd2 = String(sundayDate.getDate()).padStart(2,'0');
-      const mm2 = String(sundayDate.getMonth()+1).padStart(2,'0');
+        return {
+            mondayDate: currentMonday,
+            sundayDate: thisSunday,
+            daysArray: daysArray
+        };
+        }
 
-      const year = mondayDate.getFullYear();
-      const newTitle = `${year} Week ${weekNum} Availability (${dd1}.${mm1} - ${dd2}.${mm2})`;
+        // 3) Autopopulate Title & Options when week changes
+        const weekSelector = document.getElementById('weekSelector');
+        const pollTitleInput = document.getElementById('pollTitle');
+        const pollOptionsInput = document.getElementById('pollOptions');
 
-      // Fill in the fields
-      pollTitleInput.value = newTitle;
-      pollOptionsInput.value = daysArray.join(", ");
-    });
+        weekSelector.addEventListener('change', () => {
+        const offset = parseInt(weekSelector.value, 10);
+        const { mondayDate, sundayDate, daysArray } = getWeekDates(offset);
+        const weekNum = getWeekNumber(mondayDate);
 
-    // 4) Create Poll in Firestore
-    document.getElementById('createPollBtn').addEventListener('click', async () => {
-      const pollCreateStatus = document.getElementById('pollCreateStatus');
+        const dd1 = String(mondayDate.getDate()).padStart(2,'0');
+        const mm1 = String(mondayDate.getMonth()+1).padStart(2,'0');
+        const dd2 = String(sundayDate.getDate()).padStart(2,'0');
+        const mm2 = String(sundayDate.getMonth()+1).padStart(2,'0');
 
-      const title = pollTitleInput.value.trim();
-      const options = pollOptionsInput.value.trim().split(",").map(opt => opt.trim());
+        const year = mondayDate.getFullYear();
+        const newTitle = `${year} Week ${weekNum} Availability (${dd1}.${mm1} - ${dd2}.${mm2})`;
 
-      if (!title) {
-        pollCreateStatus.textContent = "Please select a week first.";
-        return;
-      }
-
-      try {
-        await db.collection("polls").add({
-          title: title,
-          createdAt: new Date(),
-          active: true,
-          options: options
+        // Fill in the fields
+        pollTitleInput.value = newTitle;
+        pollOptionsInput.value = daysArray.join(", ");
         });
 
-        pollCreateStatus.textContent = "Poll created successfully!";
-        pollTitleInput.value = "";
-        pollOptionsInput.value = "";
-      } catch (err) {
-        console.error("Error creating poll:", err);
-        pollCreateStatus.textContent = "Failed to create poll.";
-      }
-    });
-  </script>
+        // 4) Create Poll in Firestore
+        document.getElementById('createPollBtn').addEventListener('click', async () => {
+        const pollCreateStatus = document.getElementById('pollCreateStatus');
 
+        const title = pollTitleInput.value.trim();
+        const options = pollOptionsInput.value.trim().split(",").map(opt => opt.trim());
+
+        if (!title) {
+            pollCreateStatus.textContent = "Please select a week first.";
+            return;
+        }
+
+        try {
+            await db.collection("polls").add({
+            title: title,
+            createdAt: new Date(),
+            active: true,
+            options: options
+            });
+
+            pollCreateStatus.textContent = "Poll created successfully!";
+            pollTitleInput.value = "";
+            pollOptionsInput.value = "";
+        } catch (err) {
+            console.error("Error creating poll:", err);
+            pollCreateStatus.textContent = "Failed to create poll.";
+        }
+        });
+    </script>
 </body>
+
+<footer>
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+        <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+        SIM RACING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+        <img src="Logos_and_icons/karting.png" alt="Karting">
+        KARTING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+        <img src="Logos_and_icons/settings.png" alt="Settings">
+        SETTINGS
+    </a>
+  </footer>
+
 </html>
