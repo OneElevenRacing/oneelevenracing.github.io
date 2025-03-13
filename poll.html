@@ -190,14 +190,22 @@
           console.log("Header row complete.");
 
           // 3) Create a row for each status (Yes, Maybe, No)
-          const statuses = ["yes", "maybe", "no"];
-          statuses.forEach(statusValue => {
-            console.log(`Building row for: ${statusValue}`);
+          const statuses = [
+            { value: "yes", symbol: "✓", color: "lightgreen", textColor: "#2d6b2d" },
+            { value: "maybe", symbol: "o", color: "khaki", textColor: "#625a2e" },
+            { value: "no", symbol: "x", color: "lightcoral", textColor: "#752f2f" }
+          ];
+          statuses.forEach(({ value, symbol, color, textColor }) => {
             const row = document.createElement('tr');
 
             // First cell = row label
             const rowLabelCell = document.createElement('td');
-            rowLabelCell.textContent = statusValue.charAt(0).toUpperCase() + statusValue.slice(1);
+            rowLabelCell.textContent = symbol; 
+            rowLabelCell.style.backgroundColor = color; // Set background color
+            rowLabelCell.style.color = textColor; // Darker text color for contrast
+            rowLabelCell.style.fontWeight = "bold"; // Make it bold
+            rowLabelCell.style.textAlign = "center"; // Center the symbol
+            rowLabelCell.style.width = "60px"; // Adjust width
             row.appendChild(rowLabelCell);
 
             // For each day, add a radio cell
@@ -207,10 +215,10 @@
               const radio = document.createElement('input');
               radio.type = 'radio';
               radio.name = `option_${day}`; 
-              radio.value = statusValue;
+              radio.value = value;
 
               // If user previously responded
-              if (previousResponses[day] === statusValue) {
+              if (previousResponses[day] === value) {
                 radio.checked = true;
               }
 
@@ -221,7 +229,6 @@
             selectionTable.appendChild(row);
           });
 
-          console.log("Table build complete, appending to page.");
           latestContainer.appendChild(selectionTable);
 
           // Create the SUBMIT button
