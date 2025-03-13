@@ -1,8 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
+
+  <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <meta charset="UTF-8">
   <title>Poll Page</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style_about.css">
+
+
+
   <!-- Firebase scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
@@ -49,29 +61,33 @@
   </script>
 </head>
 
-<body>
-  <h1>Poll Page</h1>
+<div class="about-container" style="margin-top: 0px;">
+  <body>
+    <header>
+      <a href="javascript:void(0);" class="back-button" id="back" onclick="window.location.href='main.html'" style="display: block; text-align: left;">
+          <img src="Logos_and_icons/back.png" alt="Back">
+      </a>
+    </header>
 
-  <!-- Button + Paragraph -->  
-  <button onclick="window.location.href='index.html'">← Back to Main Page</button>
-  <h2>Latest Poll</h2>
+        <!-- Button + Paragraph -->  
+    <h2>Latest Poll</h2>
 
-  <table id="responsesTable" border="1">
-    <thead>
-        <tr id="pollOptionsHeader"> 
-            <th>Name</th> <!-- Name stays fixed -->
-        </tr>
-    </thead>
-    <tbody></tbody>
-    <tfoot>
-        <tr id="totalsRow">
-            <th>Total</th> <!-- First column for totals label -->
-        </tr>
-    </tfoot>
-</table>
-
-<div id="latestPollContainer"></div>
-  
+    <table id="responsesTable" border="1" style="display: table; margin-left: auto; margin-right: auto;">
+      <thead>
+          <tr id="pollOptionsHeader"> 
+              <th>Name</th> <!-- Name stays fixed -->
+          </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+          <tr id="totalsRow">
+              <th>Total</th> <!-- First column for totals label -->
+          </tr>
+      </tfoot>
+    </table>
+    <div id="latestPollContainer"></div>
+  </body>
+</div>
 
 <!-- This is the script that fetches the poll data and displays it -->
 <script>
@@ -290,7 +306,23 @@ function updateTable(userName, selectedOptions) {
 
 </script>
 
+<footer>
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+      <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+      SIM RACING
+  </a>
+
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+      <img src="Logos_and_icons/karting.png" alt="Karting">
+      KARTING
+  </a>
+
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+      <img src="Logos_and_icons/settings.png" alt="Settings">
+      SETTINGS
+  </a>
+</footer>
 
 
-</body>
+
 </html>
