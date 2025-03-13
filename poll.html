@@ -93,7 +93,7 @@
       </a>
     </header>
 
-    <h2 id="pollTitleHeader" style="font-size: 1.2em;">Latest Poll </h2>
+    <h2 id="pollTitleHeader" style="font-size: 1.2em; margin-top: 35px;">Latest Poll </h2>
 
     <!-- Poll table for results -->
     <table id="responsesTable" border="1" style="display: table; margin-left: auto; margin-right: auto;">
@@ -110,7 +110,7 @@
       </tfoot>
     </table>
 
-    <div id="latestPollContainer" style="margin: 15px"></div>
+    <div id="latestPollContainer" style="margin: 15px";></div>
   </body>
 </div>
 
@@ -371,15 +371,38 @@
 </footer>
 
 <style>
+
+  #responsesTable {
+    border-collapse: collapse; /* unify table borders */
+    margin: 0 auto; /* center horizontally */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  }
+
   #responsesTable th, #responsesTable td {
     padding: 3px; /* Some space inside cells */
     font-size: 0.8em;
+  }
+
+  #responsesTable tbody tr:hover {
+  background-color: #e9e9e9;
   }
 
   #latestPollContainer th, #latestPollContainer td {
     padding: 3px; /* Some space inside cells */
     font-size: 0.8em;
   }
+
+  #responsesTable thead tr {
+  background-color: #f2f2f2; /* light gray */
+  font-weight: bold;
+  text-transform: uppercase; /* optional: all caps */
+  }
+
+  #responsesTable tfoot tr {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
 </style>
 
 </html>
