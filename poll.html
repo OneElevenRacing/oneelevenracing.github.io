@@ -62,7 +62,9 @@
 <div class="about-container" style="margin-top: 0px;">
   <body>
     <header>
-      <a href="javascript:void(0);" class="back-button" id="back" onclick="window.location.href='main.html'" style="display: block; text-align: left;">
+      <a href="javascript:void(0);" class="back-button" id="back"
+         onclick="window.location.href='main.html'"
+         style="display: block; text-align: left;">
           <img src="Logos_and_icons/back.png" alt="Back">
       </a>
     </header>
@@ -100,115 +102,142 @@
         return;
       }
 
+      // The single poll doc
       const doc = snapshot.docs[0];
       const poll = doc.data();
       const pollId = doc.id;
 
+      // If user isn't signed in, do nothing
+      const user = firebase.auth().currentUser;
+      if (!user) return;
+
       // Update the header with the poll title
       document.getElementById('pollTitleHeader').textContent = poll.title || "No poll available";
 
-      // 1) Create a table (for yes/no/maybe selection)
-      const selectionTable = document.createElement('table');
-      selectionTable.style.margin = "auto"; // center it
-      selectionTable.border = "1";
+      // Predefine previousResponses for availability
+      let previousResponses = {};
 
-      // 2) Create table header
-      const headerRow = document.createElement('tr');
-      headerRow.innerHTML = "<th>Day</th><th>Yes</th><th>No</th><th>Maybe</th>";
-      selectionTable.appendChild(headerRow);
+      // 1) Fetch the user's previous responses
+      db.collection("polls").doc(pollId).collection("responses").doc(user.uid)
+        .get()
+        .then(docSnapshot => {
+          if (docSnapshot.exists) {
+            previousResponses = docSnapshot.data().dayResponses || {};
+          } else {
+            previousResponses = {};
+          }
 
-      // 3) If the poll has options, add them as rows
-      if (poll.options && poll.options.length > 0) {
-        // We'll store statuses once here
-        const statuses = ["yes", "no", "maybe"];
+          // 2) NOW Build the table, after we've retrieved `previousResponses`
 
-        poll.options.forEach(option => {
+          // Create a table for yes/no/maybe
+          const selectionTable = document.createElement('table');
+          selectionTable.style.margin = "auto"; // center it
+          selectionTable.border = "1";
 
-          // Create a row for this day
-          const row = document.createElement('tr');
+          // Create table header
+          const headerRow = document.createElement('tr');
+          headerRow.innerHTML = "<th>Day</th><th>Yes</th><th>No</th><th>Maybe</th>";
+          selectionTable.appendChild(headerRow);
 
-          // Day cell
-          const dayCell = document.createElement('td');
-          dayCell.textContent = option;
-          row.appendChild(dayCell);
+          // If the poll has options, add them as rows
+          if (poll.options && poll.options.length > 0) {
+            const statuses = ["yes", "no", "maybe"];
 
-          // Create 3 cells for Yes/No/Maybe radio buttons
-          statuses.forEach(statusValue => {
-            const cell = document.createElement('td');
+            poll.options.forEach(option => {
+              // Create a row for this day
+              const row = document.createElement('tr');
 
-            // Create the radio button
-            const radio = document.createElement('input');
-            radio.type = "radio";
-            radio.name = `option_${option}`; // ensures only one selection per day
-            radio.value = statusValue;
+              // Day cell
+              const dayCell = document.createElement('td');
+              dayCell.textContent = option;
+              row.appendChild(dayCell);
 
-            // Create a label for the radio
-            const label = document.createElement('label');
-            label.textContent = statusValue.charAt(0).toUpperCase() + statusValue.slice(1);
+              // Create 3 cells for Yes/No/Maybe radio buttons
+              statuses.forEach(statusValue => {
+                const cell = document.createElement('td');
 
-            // Add them to the cell
-            cell.appendChild(radio);
-            cell.appendChild(document.createTextNode(" ")); // small spacing
-            cell.appendChild(label);
+                // Create the radio button
+                const radio = document.createElement('input');
+                radio.type = "radio";
+                radio.name = `option_${option}`;
+                radio.value = statusValue;
 
-            row.appendChild(cell);
-          });
+                // Check if this option was previously selected
+                if (previousResponses[option] === statusValue) {
+                  radio.checked = true; 
+                }
 
-          // Finally, add this row to the table
-          selectionTable.appendChild(row);
-        });
-      }
+                // Create a label for the radio
+                const label = document.createElement('label');
+                label.textContent = statusValue.charAt(0).toUpperCase() + statusValue.slice(1);
 
-      // 4) Append the entire selection table to the page
-      latestContainer.appendChild(selectionTable);
+                // Add them to the cell
+                cell.appendChild(radio);
+                cell.appendChild(document.createTextNode(" "));
+                cell.appendChild(label);
 
-      // SUBMIT button
-      const submitBtn = document.createElement('button');
-      submitBtn.textContent = "Submit Availability";
-      latestContainer.appendChild(submitBtn);
+                row.appendChild(cell);
+              });
 
-      // Status paragraph
-      const statusP = document.createElement('p');
-      latestContainer.appendChild(statusP);
+              // Finally, add this row to the table
+              selectionTable.appendChild(row);
+            });
+          }
 
-      // Submit click
-      submitBtn.addEventListener('click', async () => {
-        const user = firebase.auth().currentUser;
-        if (!user) {
-          statusP.textContent = "You must be signed in to submit availability.";
-          return;
-        }
+          // Append the table to the page
+          latestContainer.appendChild(selectionTable);
 
-        const dayResponses = {};
+          // 3) Create the SUBMIT button
+          const submitBtn = document.createElement('button');
+          submitBtn.textContent = "Submit Availability";
+          latestContainer.appendChild(submitBtn);
 
-        // For each day in the poll, gather the radio button choice
-        (poll.options || []).forEach(option => {
-          const radios = latestContainer.querySelectorAll(`input[name="option_${option}"]`);
-          let selectedValue = null;
-          radios.forEach(radio => {
-            if (radio.checked) {
-              selectedValue = radio.value;
+          // Status paragraph
+          const statusP = document.createElement('p');
+          latestContainer.appendChild(statusP);
+
+          // Submit logic
+          submitBtn.addEventListener('click', async () => {
+            const user = firebase.auth().currentUser;
+            if (!user) {
+              statusP.textContent = "You must be signed in to submit availability.";
+              return;
+            }
+
+            const dayResponses = {};
+
+            // For each day in the poll, gather the radio button choice
+            (poll.options || []).forEach(option => {
+              const radios = latestContainer.querySelectorAll(`input[name="option_${option}"]`);
+              let selectedValue = null;
+              radios.forEach(radio => {
+                if (radio.checked) {
+                  selectedValue = radio.value;
+                }
+              });
+              dayResponses[option] = selectedValue || "no";
+            });
+
+            try {
+              await db.collection("polls").doc(pollId)
+                .collection("responses").doc(user.uid)
+                .set({
+                  submittedAt: new Date(),
+                  dayResponses: dayResponses
+                });
+              statusP.textContent = "Availability updated!";
+            } catch (error) {
+              console.error("Error saving availability:", error);
+              statusP.textContent = "Failed to save.";
             }
           });
-          dayResponses[option] = selectedValue || "no";
+
+          // 4) Now load existing responses for the bottom table
+          fetchResponses(pollId);
+        })
+        .catch(error => {
+          console.error("Error fetching previous responses:", error);
         });
-
-        try {
-          await db.collection("polls").doc(pollId)
-            .collection("responses").doc(user.uid)
-            .set({
-              submittedAt: new Date(),
-              dayResponses: dayResponses
-            });
-          statusP.textContent = "Availability updated!";
-        } catch (error) {
-          console.error("Error saving availability:", error);
-          statusP.textContent = "Failed to save.";
-        }
-      });
-
-      // Now load existing responses
-      fetchResponses(pollId);
     });
 
   function fetchResponses(pollId) {
@@ -247,7 +276,6 @@
         responseSnapshot.forEach(responseDoc => {
           const responseData = responseDoc.data();
           const userId = responseDoc.id; 
-
           const dayResponses = responseData.dayResponses || {};
 
           // Query user name from Realtime Database
@@ -261,7 +289,7 @@
 
             // For each day, show the person's choice
             pollOptions.forEach(option => {
-              const choice = dayResponses[option] || "no"; // fallback to "no"
+              const choice = dayResponses[option] || "no"; 
               const cell = row.insertCell(-1);
 
               if (choice === "yes") {
@@ -317,4 +345,12 @@
       SETTINGS
   </a>
 </footer>
+
+<style>
+  #responsesTable th, #responsesTable td {
+    padding: 3px; /* Some space inside cells */
+    font-size: 0.8em;
+  }
+</style>
+
 </html>
