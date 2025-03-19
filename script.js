@@ -1,5 +1,3 @@
-var xoyondoLink = "";
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded and parsed");
 
@@ -142,13 +140,6 @@ function fetchAndUpdateRaceInfo() {
     // Fetch and update weather2
     databaseRef.child("weather2").on('value', function(snapshot) {
         document.getElementById("weather2").innerText = (snapshot.val() || "No data");
-    });
-
-    // Fetch and update Xoyondo link
-    databaseRef.child("xoyondo_link").once('value', function(snapshot) {
-        xoyondoLink = snapshot.val() || "https://example.com/race-availability";
-        // Update the button's onclick attribute with the fetched link
-        document.querySelector('button[onclick*="race-availability"]').setAttribute('onclick', `openLink('${xoyondoLink}')`);
     });
 }
 

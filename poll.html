@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
+
+  <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+
+  <title>Poll Page</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style_about.css">
+
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+
+  <script>
+    // Your Firebase config
+    var firebaseConfig = {
+        apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+        authDomain: "one-eleven-app-7f282.firebaseapp.com",
+        databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "one-eleven-app-7f282",
+        storageBucket: "one-eleven-app-7f282.appspot.com",
+        messagingSenderId: "503866403242",
+        appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+
+    // Check user sign in
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        console.log("User signed in:", user.uid);
+
+          // Check if user exists in the Realtime Database `/drivers/`
+          firebase.database().ref(`drivers/${user.uid}`).once("value")
+            .then(snapshot => {
+              if (snapshot.exists()) {
+                console.log("User is authorized for Firestore:", user.uid);
+                
+                // Proceed with Firestore operations
+                db.collection("polls").get()
+                  .then(snapshot => {
+                    snapshot.forEach(doc => {
+                      console.log("Fetched poll:", doc.data());
+                    });
+                  })
+                  .catch(error => console.error("Error fetching polls:", error));
+
+              } else {
+                console.log("User is NOT authorized.");
+                alert("Access denied: You are not authorized.");
+              }
+            })
+            .catch(error => {
+              console.error("Error checking authorization:", error);
+            });
+
+        // Check if user is an admin
+        firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+          .then(snapshot => {
+            if (snapshot.exists() && snapshot.val() === true) {
+              console.log("User is an admin");
+              const adminButton = document.createElement('button');
+              adminButton.textContent = "Go to Poll Admin Page";
+              adminButton.addEventListener('click', () => {
+                window.location.href = "poll_admin.html";
+              });
+              document.body.appendChild(adminButton);
+            }
+          })
+          .catch(error => console.error("Error checking admin status:", error));
+      } else {
+        console.log("No user signed in");
+      }
+    });
+  </script>
+</head>
+
+<div class="about-container" style="margin-top: 0px;">
+  <body>
+    <header>
+      <a href="javascript:void(0);" class="back-button" id="back"
+         onclick="window.location.href='main.html'"
+         style="display: block; text-align: left;">
+          <img src="Logos_and_icons/back.png" alt="Back">
+      </a>
+    </header>
+
+    <h2 id="pollTitleHeader" style="font-size: 1.2em; margin-top: 35px;">Latest Poll </h2>
+
+    <!-- Poll table for results -->
+    <div class="table-container">
+     <table id="responsesTable" border="1" style="display: table; margin-left: auto; margin-right: auto;">
+        <thead>
+          <tr id="pollOptionsHeader"> 
+            <th>Name</th> <!-- Name stays fixed -->
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr id="totalsRow">
+            <th>Total</th> <!-- First column for totals label -->
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <h2 style="font-size: 1.2em; margin-top: 20px">Your Availability</h2>
+
+    <div id="latestPollContainer" style="margin: 15px";></div>
+  </body>
+</div>
+
+<!-- Main script: fetch poll data and display it -->
+<script>
+  console.log("Fetching latest poll...");
+  db.collection("polls").orderBy("createdAt", "desc").limit(1)
+    .onSnapshot((snapshot) => {
+      console.log("Snapshot received");
+      const latestContainer = document.getElementById('latestPollContainer');
+      latestContainer.innerHTML = "";
+
+      if (snapshot.empty) {
+        console.log("No polls found.");
+        latestContainer.textContent = "No polls found.";
+        return;
+      }
+
+      // The single poll doc
+      const doc = snapshot.docs[0];
+      const poll = doc.data();
+      const pollId = doc.id;
+      console.log("Poll ID:", pollId, "Data:", poll);
+
+      // If user isn't signed in, do nothing
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        console.log("User not signed in, aborting.");
+        return;
+      }
+
+      console.log("User signed in:", user.uid);
+
+      // Update the header with the poll title
+      document.getElementById('pollTitleHeader').textContent = poll.title || "No poll available";
+
+      // Predefine previousResponses for availability
+      let previousResponses = {};
+
+      console.log("Fetching user's previous responses...");
+      // 1) Fetch the user's previous responses
+      db.collection("polls").doc(pollId).collection("responses").doc(user.uid)
+        .get()
+        .then(docSnapshot => {
+          if (docSnapshot.exists) {
+            console.log("User has previous responses:", docSnapshot.data().dayResponses);
+            previousResponses = docSnapshot.data().dayResponses || {};
+          } else {
+            console.log("User has no previous responses.");
+            previousResponses = {};
+          }
+
+          console.log("Building new table layout...");
+          // 1) Create the table
+          const selectionTable = document.createElement('table');
+          selectionTable.classList.add("poll-table");
+          selectionTable.style.margin = "auto";
+          selectionTable.border = "1";
+
+          // 2) Build the header row
+          const headerRow = document.createElement('tr');
+          headerRow.appendChild(document.createElement('th')); 
+          console.log("Created header row");
+
+          // Next cells: each day
+          (poll.options || []).forEach(day => {
+            const th = document.createElement('th');
+            th.textContent = day;
+            headerRow.appendChild(th);
+          });
+
+          selectionTable.appendChild(headerRow);
+          console.log("Header row complete.");
+
+          // 3) Create a row for each status (Yes, Maybe, No)
+          const statuses = [
+            { value: "yes", symbol: "✓", color: "lightgreen", textColor: "#2d6b2d" },
+            { value: "maybe", symbol: "o", color: "khaki", textColor: "#625a2e" },
+            { value: "no", symbol: "x", color: "lightcoral", textColor: "#752f2f" }
+          ];
+          statuses.forEach(({ value, symbol, color, textColor }) => {
+            const row = document.createElement('tr');
+
+            // First cell = row label
+            const rowLabelCell = document.createElement('td');
+            rowLabelCell.textContent = symbol; 
+            rowLabelCell.style.backgroundColor = color; // Set background color
+            rowLabelCell.style.color = textColor; // Darker text color for contrast
+            rowLabelCell.style.fontWeight = "bold"; // Make it bold
+            rowLabelCell.style.textAlign = "center"; // Center the symbol
+            rowLabelCell.style.width = "60px"; // Adjust width
+            row.appendChild(rowLabelCell);
+
+            // For each day, add a radio cell
+            (poll.options || []).forEach(day => {
+              const cell = document.createElement('td');
+
+              const radio = document.createElement('input');
+              radio.type = 'radio';
+              radio.name = `option_${day}`; 
+              radio.value = value;
+
+              // If user previously responded
+              if (previousResponses[day] === value) {
+                radio.checked = true;
+              }
+
+              cell.appendChild(radio);
+              row.appendChild(cell);
+            });
+
+            selectionTable.appendChild(row);
+          });
+
+          latestContainer.appendChild(selectionTable);
+
+          // Create the SUBMIT button
+          const submitBtn = document.createElement('button');
+          submitBtn.textContent = "Submit Availability";
+          latestContainer.appendChild(submitBtn);
+
+          // Status paragraph
+          const statusP = document.createElement('p');
+          latestContainer.appendChild(statusP);
+
+          console.log("Submit button added, setting up event listener...");
+          submitBtn.addEventListener('click', async () => {
+            console.log("Submit clicked");
+            const user = firebase.auth().currentUser;
+            if (!user) {
+              console.log("User not signed in, submission aborted.");
+              statusP.textContent = "You must be signed in to submit availability.";
+              return;
+            }
+
+            const dayResponses = {};
+
+            (poll.options || []).forEach(option => {
+              const radios = latestContainer.querySelectorAll(`input[name="option_${option}"]`);
+              let selectedValue = null;
+              radios.forEach(radio => {
+                if (radio.checked) {
+                  selectedValue = radio.value;
+                }
+              });
+              dayResponses[option] = selectedValue || "no";
+            });
+
+            try {
+              console.log("Saving responses:", dayResponses);
+              await db.collection("polls").doc(pollId)
+                .collection("responses").doc(user.uid)
+                .set({
+                  submittedAt: new Date(),
+                  dayResponses: dayResponses
+                });
+              console.log("Responses saved.");
+              statusP.textContent = "Availability updated!";
+            } catch (error) {
+              console.error("Error saving availability:", error);
+              statusP.textContent = "Failed to save.";
+            }
+          });
+
+          console.log("Now loading existing responses...");
+          fetchResponses(pollId);
+        })
+        .catch(error => {
+          console.error("Error fetching previous responses:", error);
+        });
+    });
+
+  function fetchResponses(pollId) {
+    db.collection("polls").doc(pollId).get().then((pollDoc) => {
+      if (!pollDoc.exists) return;
+      
+      const pollData = pollDoc.data();
+      const pollOptions = pollData.options || [];
+
+      const headerRow = document.getElementById("pollOptionsHeader");
+      headerRow.innerHTML = "<th>Name</th>"; // Reset header, keep 'Name' column
+
+      // Create table headers for each poll option (date)
+      pollOptions.forEach(option => {
+        const th = document.createElement("th");
+        th.textContent = option;
+        headerRow.appendChild(th);
+      });
+
+      // Now fetch the responses
+      populateResponseTable(pollId, pollOptions);
+    });
+  }
+
+  function populateResponseTable(pollId, pollOptions) {
+    db.collection("polls").doc(pollId).collection("responses")
+      .onSnapshot((responseSnapshot) => {
+        const responsesTable = document.getElementById("responsesTable").getElementsByTagName("tbody")[0];
+        responsesTable.innerHTML = ""; // Clear old rows
+
+        let totals = {};
+        pollOptions.forEach(opt => {
+          totals[opt] = { yes: 0, no: 0, maybe: 0 };
+        });
+
+        responseSnapshot.forEach(responseDoc => {
+          const responseData = responseDoc.data();
+          const userId = responseDoc.id; 
+          const dayResponses = responseData.dayResponses || {};
+
+          // Query user name from Realtime Database
+          firebase.database().ref(`drivers/${userId}/name`).once("value").then(snapshot => {
+            const userName = snapshot.exists() ? snapshot.val() : userId; 
+
+            // Create a new row
+            const row = responsesTable.insertRow();
+            const nameCell = row.insertCell(0);
+            nameCell.textContent = userName;
+
+            // For each day, show the person's choice
+            pollOptions.forEach(option => {
+              const choice = dayResponses[option] || "no"; 
+              const cell = row.insertCell(-1);
+
+              if (choice === "yes") {
+                // cell.textContent = "Yes"; This is the cell text
+                cell.textContent = "✓";
+                cell.style.backgroundColor = "lightgreen";
+                cell.style.color = "#2d6b2d"; 
+                cell.style.fontWeight = "bold";
+
+              } else if (choice === "maybe") {
+                //cell.textContent = "Maybe"; This is the text in the cell
+                cell.textContent = "o";
+                cell.style.backgroundColor = "khaki";
+                cell.style.color = "#625a2e";
+                cell.style.fontWeight = "bold";
+
+              } else {
+                // cell.textContent = "No"; This is the cell text
+                cell.textContent = "x";
+                cell.style.backgroundColor = "lightcoral";
+                cell.style.color = "#752f2f";
+                cell.style.fontWeight = "bold";
+              }
+
+              // Increment totals
+              if (choice === "yes") totals[option].yes++;
+              else if (choice === "maybe") totals[option].maybe++;
+              else totals[option].no++;
+            });
+
+            // Finally, update the totals row
+            updateTotalsRow(totals, pollOptions);
+          });
+        });
+      });
+  }
+
+  function updateTotalsRow(totals, pollOptions) {
+    const totalsRow = document.getElementById("totalsRow");
+    totalsRow.innerHTML = "<th>Total</th>";
+
+    pollOptions.forEach(option => {
+      const totalCell = document.createElement("th");
+      const dayTotals = totals[option];
+      totalCell.textContent = `${dayTotals.yes} (+${dayTotals.maybe})`;
+      totalsRow.appendChild(totalCell);
+    });
+  }
+</script>
+
+<footer>
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+      <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+      SIM RACING
+  </a>
+
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+      <img src="Logos_and_icons/karting.png" alt="Karting">
+      KARTING
+  </a>
+
+  <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+      <img src="Logos_and_icons/settings.png" alt="Settings">
+      SETTINGS
+  </a>
+</footer>
+
+<style>
+
+  /* These are the response table styles */
+  /* This will wrap the table and provide space around it */
+  .table-container {
+      padding: 10px; /* ✅ Adds space inside the container */
+      max-width: 90%; /* ✅ Prevents it from going full width */
+      margin: 0 auto; /* ✅ Centers it properly */
+  }
+
+  #responsesTable {
+    border-collapse: collapse; /* unify table borders */
+    margin: 0 auto; /* center horizontally */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  }
+
+  .poll-table {
+    /* border-collapse: collapse; /* unify table borders */
+    margin: 0 auto; /* center horizontally */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    width: 40%;
+  }
+
+  #responsesTable th, #responsesTable td {
+    padding: 3px; /* Some space inside cells */
+    font-size: 0.8em;
+  }
+
+  #responsesTable tbody tr:hover {
+  background-color: #e9e9e9;
+  }
+
+  #latestPollContainer th, #latestPollContainer td {
+    padding: 3px; /* Some space inside cells */
+    font-size: 0.8em;
+  }
+
+  #responsesTable thead tr {
+  background-color: #f2f2f2; /* light gray */
+  font-weight: bold;
+  text-transform: uppercase; /* optional: all caps */
+  }
+
+  #responsesTable tfoot tr {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+
+
+
+/*These are the radio butten styles*/
+/* Style the radio buttons */
+input[type="radio"] {
+    appearance: none;  /* Remove default styling */
+    -webkit-appearance: none; /* Safari support */
+    -moz-appearance: none; /* Firefox support */
+    width: 16px;
+    height: 16px;
+    border: 1px solid grey;  /* Border color of the circle */
+    border-radius: 50%; /* Make it circular */
+    outline: none;
+    background-color: white; /* Default unselected color */
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+}
+
+/* When selected (checked), fill the circle with red */
+input[type="radio"]:checked {
+    background-color: red;  /* Fill color when selected */
+    border-color: red; /* Keep border color red */
+}
+
+/* Optional: Add a little animation effect */
+input[type="radio"]:checked::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background-color: white; /* Inner dot color */
+    display: block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+}
+
+</style>
+
+</html>
