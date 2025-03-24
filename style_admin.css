@@ -1,54 +1,227 @@
 /* Admin Page Style */
+main {
+    padding: 20px 0;
+}
 
-.admin-container {
+main h2 {
+    color: #000;
+    text-align: center;
+    font-size: 1.8em;
+    margin-bottom: 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.admin-container, .season-config {
     width: 92%;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 25px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .admin-field {
-    margin: 30px;
+    margin: 20px 0;
+    width: 100%;
 }
 
-.admin-field input, .admin-field select {
-    border: 1px solid #ccc; /* Add border */
-    border-radius: 20px;
-    background-color: #f9f9f9; /* Light grey background */
-    text-align: center;
+.admin-field label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #000;
 }
 
-label, .current-data {
-    display: block; /* Make label and current data block elements */
-    margin: auto; /* Auto margins for horizontal centering */
-    width: fit-content; /* Adjust width to fit the content */
+.admin-field input,
+.admin-field select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #000;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
-input[type="text"], input[type="date"], input[type="time"], select {
-    width: calc(100% - 20px); /* Adjust width to account for padding */
-    padding: 8px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    display: block; /* Make input/select block elements */
-    margin-left: auto; /* Auto margins for horizontal centering */
-    margin-right: auto;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+.admin-field input:focus,
+.admin-field select:focus {
+    outline: none;
+    border-color: #000;
+    background-color: #fff;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
 }
-
 
 /* Style for displaying current Firebase data */
 .current-data {
     padding: 10px;
+    margin-top: 8px;
     font-size: 0.9em;
     color: rgb(255, 0, 0);
     text-align: center;
+    width: 100%;
+}
+
+/* Button Styling */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background-color: #000;
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background-color: #333;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+.admin-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Season Configuration Section */
+.season-config {
+    margin-top: 40px;
+    padding: 35px 25px;
+}
+
+.season-config h2 {
+    color: #000;
+    font-size: 1.5em;
+    margin-bottom: 35px;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.season-config h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background-color: #000;
+    border-radius: 2px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.input-group input {
+    width: 100%;
+}
+
+.input-group .current-data {
+    width: 100%;
+    text-align: center;
+    margin: 5px 0 15px;
+}
+
+/* Season config specific styles */
+.season-config .admin-field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0 30px;
+}
+
+.season-config .admin-field:last-child {
+    margin-bottom: 0;
+}
+
+.season-update-btn {
+    margin: 20px auto 0;
+    min-width: 250px;
+    display: block;
+    padding: 12px 25px;
+    font-size: 1em;
+}
+
+/* TBD Buttons */
+.admin-field button {
+    margin-top: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    font-size: 0.9em;
+}
+
+/* Placeholder styling */
+input::placeholder {
+    color: rgba(0, 0, 0, 0.5);
 }
 
 /* Media query for larger screens */
-@media screen and (min-width: 1024px) {
+@media screen and (min-width: 768px) {
     .admin-container {
-        flex-direction: row;  
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
     }
 
+    .admin-actions {
+        grid-column: 1 / -1;
+        justify-content: center;
+    }
+}
+
+@media screen and (min-width: 1024px) {
+    .admin-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Responsive adjustments for small screens */
+@media screen and (max-width: 480px) {
+    .admin-container, .season-config {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .admin-field {
+        padding: 0 10px;
+        box-sizing: border-box;
+    }
+
+    .input-group {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .input-group input {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .input-group .current-data {
+        margin-left: 0 !important;
+        text-align: center;
+        width: 100%;
+    }
+
+    button {
+        width: 100%;
+    }
 }

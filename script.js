@@ -1,5 +1,3 @@
-var xoyondoLink = "";
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM fully loaded and parsed");
 
@@ -20,8 +18,42 @@ function fetchAndDisplaySeasonData() {
     seasonRef.once('value', (snapshot) => {
         const seasonData = snapshot.val();
         if (seasonData) {
-            document.getElementById('seasonNumber').textContent = 'Season: ' + seasonData.seasonNumber;
-            document.getElementById('racingClass').textContent = 'Class: ' + seasonData.racingClass;
+    // Update the display text
+    document.getElementById('seasonNumber').textContent = seasonData.seasonNumber;
+    document.getElementById('racingClass').textContent = seasonData.racingClass;
+    document.getElementById('currentSeasonNumber').textContent = seasonData.seasonNumber;
+    document.getElementById('currentRacingClass').textContent = seasonData.racingClass;
+            
+            // Populate the input fields with current values
+            document.getElementById('seasonNumber').value = seasonData.seasonNumber;
+            document.getElementById('racingClass').value = seasonData.racingClass;
+            
+        }
+    });
+}
+
+// Function to update season data
+function updateSeasonData() {
+    event.preventDefault();
+    
+    const seasonNumber = document.getElementById('seasonNumber').value;
+    const racingClass = document.getElementById('racingClass').value;
+    
+    if (!seasonNumber || !racingClass) {
+        alert('Please fill in both Season Number and Racing Class');
+        return;
+    }
+    
+    const seasonRef = firebase.database().ref('seasonData');
+    seasonRef.set({
+        seasonNumber: seasonNumber,
+        racingClass: racingClass
+    }, function(error) {
+        if (error) {
+            alert('Error updating season data: ' + error.message);
+        } else {
+            alert('Season data updated successfully!');
+            window.location.reload();
         }
     });
 }
@@ -70,9 +102,6 @@ function authorizeAndRedirect(targetUrl) {
     }
 }
 
-
-
-
 function fetchAndUpdateRaceInfo() {
     var databaseRef = firebase.database().ref();
 
@@ -98,7 +127,6 @@ function fetchAndUpdateRaceInfo() {
         }
     });
 
-
     // Fetch and update race time
     databaseRef.child("race_time").on('value', function(snapshot) {
         document.getElementById("raceTime").innerText = (snapshot.val() || "No data");
@@ -113,54 +141,24 @@ function fetchAndUpdateRaceInfo() {
     databaseRef.child("weather2").on('value', function(snapshot) {
         document.getElementById("weather2").innerText = (snapshot.val() || "No data");
     });
-
-    // Fetch and update Xoyondo link
-    databaseRef.child("xoyondo_link").once('value', function(snapshot) {
-        xoyondoLink = snapshot.val() || "https://example.com/race-availability";
-        // Update the button's onclick attribute with the fetched link
-        document.querySelector('button[onclick*="race-availability"]').setAttribute('onclick', `openLink('${xoyondoLink}')`);
-    });
-
-    /* // Check for user authentication and update the driver name and picture
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            // User is signed in
-            const userName = user.displayName || "Anonymous User";
-            const userData = driverData[user.uid] || { "carImage": "default/car/image.png", "carName": "Default Car" };
-            
-            document.getElementById("driverName").innerText = userName;
-            document.getElementById("raceCarImage").src = userData.carImage;
-            document.getElementById("carName").innerText = userData.carName;
-        } else {
-            // No user is signed in
-            document.getElementById("driverName").innerText = "Guest";
-            document.getElementById("raceCarImage").src = "default/car/image.png";
-            document.getElementById("carName").innerText = "Default Car";
-        }
-    }); */
-    
 }
+
 fetchAndUpdateRaceInfo();
-
-
 
 function openLink(url) {
     window.open(url, '_blank');
 }
 
 function navigateToHomePage() {
-    // Navigate to Home Page
     window.location.href = 'main.html'; 
 }
 
 function navigateToKartingPage() {
-    // Navigate to Karting Page
     window.location.href = 'main.html'; 
 }
 
 function navigateToWeatherGenerator() {
-    // Navigate to Weather Generator Page
-    window.location.href = 'weather.html'; // Adjust as per your weather generator page
+    window.location.href = 'weather.html';
 }
 
 function navigateToSettingsPage() {
@@ -183,45 +181,21 @@ function setupMenuDropdown() {
         gearIcon.addEventListener('click', function(event) {
             console.log("Gear icon clicked");
             document.getElementById('dropdown').classList.toggle('show');
-            event.stopPropagation(); // Prevent immediate closing
+            event.stopPropagation();
         });
     } else {
         console.log("Gear icon not found");
     }
 
-    // Close dropdown when clicking outside
     window.onclick = function(event) {
-        console.log("Window clicked");
         if (!event.target.matches('.fa-gear')) {
             var dropdowns = document.getElementsByClassName("dropdown-content");
             for (var i = 0; i < dropdowns.length; i++) {
                 var openDropdown = dropdowns[i];
                 if (openDropdown.classList.contains('show')) {
-                    console.log("Closing dropdown");
                     openDropdown.classList.remove('show');
                 }
             }
         }
     };
 }
-
-
-
-
-document.querySelector('.fa-gear').addEventListener('click', function(event) {
-    document.getElementById('dropdown').classList.toggle('show');
-    event.stopPropagation(); // Prevents the window.onclick from immediately hiding the menu
-});
-
-// Close the dropdown if clicked outside of it
-window.onclick = function(event) {
-    if (!event.target.matches('.fa-gear')) {
-        var dropdowns = document.getElementsByClassName("dropdown-content");
-        for (var i = 0; i < dropdowns.length; i++) {
-            var openDropdown = dropdowns[i];
-            if (openDropdown.classList.contains('show')) {
-                openDropdown.classList.remove('show');
-            }
-        }
-    }
-};
