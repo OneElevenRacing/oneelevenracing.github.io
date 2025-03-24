@@ -13,6 +13,7 @@ Main Page Race Info Style
     float: left; /* Align the logo to the left */
 }
 
+
 /* Season Information Styles: Topbox, Middle Box (Left+Right) */
 .season-info {
     display: flex;

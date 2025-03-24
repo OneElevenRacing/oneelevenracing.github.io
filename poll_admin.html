@@ -58,15 +58,22 @@
         });
     });
   </script>
+
+  <!-- Javascript Initialisation -->
+<script src="script.js" defer></script>
+
 </head>
 
 <body>
 
-    <header>
-        <a href="javascript:void(0);" class="back-button" id="back" onclick="window.location.href='poll.html'" style="display: block; text-align: left;">
-            <img src="Logos_and_icons/back.png" alt="Back">
-        </a>
-      </header>
+  <header>
+    <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+        <img src="Logos_and_icons/back.png" alt="Back">
+    </a>
+    <a href="javascript:void(0);" class="headerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+        <img src="Logos_and_icons/settings.png" alt="Settings">
+    </a>
+</header>
 
     <div class="about-container" id="adminControls" style="display:none; margin-top: 50px;">
         <h2>Create a Poll</h2>
@@ -196,22 +203,5 @@
         });
     </script>
 </body>
-
-<footer>
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
-        <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
-        SIM RACING
-    </a>
-  
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
-        <img src="Logos_and_icons/karting.png" alt="Karting">
-        KARTING
-    </a>
-  
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
-        <img src="Logos_and_icons/settings.png" alt="Settings">
-        SETTINGS
-    </a>
-  </footer>
 
 </html>
