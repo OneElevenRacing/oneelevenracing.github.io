@@ -249,6 +249,25 @@
                         const uid = input.dataset.uid;
                         input.value = race2Results[uid] || '';
                     });
+
+                    // Load bonus driver dropdowns if present
+                    const bonusFields = [
+                    { id: 'polePositionDriver', key: 'polePositionDriver' },
+                    { id: 'fastestLapDriverR1', key: 'fastestLapDriverR1' },
+                    { id: 'fastestLapOffPodiumDriverR1', key: 'fastestLapOffPodiumDriverR1' },
+                    { id: 'fastestLapDriverR2', key: 'fastestLapDriverR2' },
+                    { id: 'fastestLapOffPodiumDriverR2', key: 'fastestLapOffPodiumDriverR2' }
+                    ];
+
+                    bonusFields.forEach(field => {
+                    const dropdown = document.getElementById(field.id);
+                    if (!dropdown) return; // Safety check
+
+                    const savedValue = raceData[field.key] || '';
+                    dropdown.value = savedValue;
+                    });
+
+
                     })
                     .catch(error => {
                     console.error("Error loading race results:", error);
