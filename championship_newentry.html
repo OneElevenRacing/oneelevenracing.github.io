@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Enter Race Results - One Eleven Racing</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+  <script src="tracks.js"></script>
+
+  <script>
+    var firebaseConfig = {
+      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+      authDomain: "one-eleven-app-7f282.firebaseapp.com",
+      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "one-eleven-app-7f282",
+      storageBucket: "one-eleven-app-7f282.appspot.com",
+      messagingSenderId: "503866403242",
+      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+  </script>
+</head>
+
+<body>
+  <header>
+    <h1>New Race Result Entry</h1>
+    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
+  </header>
+
+  <section>
+    <h2 id="seasonName">Loading current season...</h2>
+    <p id="seasonStatusMessage"></p>
+  </section>
+
+  <!-- Placeholder for future dropdown and race entry UI -->
+
+  <script>
+    // Check if user is signed in
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        document.body.innerHTML = "<h2>You must be signed in to access this page.</h2>";
+        return;
+      }
+
+      // Load active season
+      firebase.firestore().collection('championships')
+        .where('isActive', '==', true)
+        .limit(1)
+        .get()
+        .then(snapshot => {
+            if (snapshot.empty) {
+                document.getElementById('seasonName').textContent = "No active season found.";
+                return;
+            }
+
+            const seasonDoc = snapshot.docs[0];
+            const data = seasonDoc.data();
+            document.getElementById('seasonName').textContent = `Current Season: ${data.seasonName}`;
+            document.getElementById('seasonName').dataset.seasonId = seasonDoc.id;
+            const raceSelectContainer = document.createElement('div');
+            raceSelectContainer.innerHTML = `
+            <label for="raceSelect">Select a race:</label>
+            <select id="raceSelect">
+                <option value="">Loading races...</option>
+            </select>
+            <p id="raceSelectionStatus"></p>
+            `;
+            document.body.appendChild(raceSelectContainer);
+
+            const races = data.races; // races is an object: race1, race2, etc.
+            const raceSelect = document.getElementById('raceSelect');
+            raceSelect.innerHTML = ''; // clear the "Loading..." option
+
+            let firstIncompleteRaceKey = null;
+            let index = 1;
+
+            const sortedRaceKeys = Object.keys(races).sort((a, b) => {
+            const numA = parseInt(a.replace('race', ''));
+            const numB = parseInt(b.replace('race', ''));
+            return numA - numB;
+            });
+
+            sortedRaceKeys.forEach((raceKey, i) => {
+            const raceInfo = races[raceKey];
+            const option = document.createElement('option');
+            option.value = raceKey;
+            option.textContent = `Race ${i + 1}: ${raceInfo.trackName}`;
+
+            if (!firstIncompleteRaceKey) {
+                firstIncompleteRaceKey = raceKey;
+                option.selected = true;
+            }
+
+            raceSelect.appendChild(option);
+            });
+
+            document.getElementById('raceSelectionStatus').textContent = 
+            `Selected: ${firstIncompleteRaceKey} (to be replaced later by first unfilled race)`;
+
+            // Step: Fetch driver list from Realtime Database
+            firebase.database().ref('drivers').once('value')
+            .then(snapshot => {
+                const driversData = snapshot.val();
+                if (!driversData) {
+                const warning = document.createElement('p');
+                warning.textContent = "⚠️ No drivers found in the database.";
+                document.body.appendChild(warning);
+                return;
+                }
+
+                // Create a section for displaying drivers
+                const driverListContainer = document.createElement('section');
+                driverListContainer.innerHTML = `<h3>Drivers in this season:</h3>`;
+                const ul = document.createElement('ul');
+
+                Object.entries(driversData).forEach(([uid, driver]) => {
+                if (!driver.active) return; // ❌ Skip inactive drivers
+
+                const li = document.createElement('li');
+                li.textContent = driver.name || `Unnamed Driver (${uid})`;
+                ul.appendChild(li);
+                });
+
+                driverListContainer.appendChild(ul);
+                document.body.appendChild(driverListContainer);
+
+                // Create the race results table section
+                const resultsSection = document.createElement('section');
+                resultsSection.innerHTML = `<h3>Enter Race Results</h3>`;
+
+                // Create the table
+                const table = document.createElement('table');
+                table.setAttribute('id', 'raceResultsTable');
+                table.style.borderCollapse = 'collapse';
+                table.style.width = '100%';
+
+                // Table header
+                const headerRow = document.createElement('tr');
+
+                ['Driver', 'Race 1 Position', 'Race 2 Position'].forEach(colName => {
+                const th = document.createElement('th');
+                th.textContent = colName;
+                th.style.border = '1px solid #ccc';
+                th.style.padding = '6px';
+                headerRow.appendChild(th);
+                });
+
+                table.appendChild(headerRow);
+                resultsSection.appendChild(table);
+                document.body.appendChild(resultsSection);
+
+                // Add rows for each active driver (names only for now)
+                Object.entries(driversData).forEach(([uid, driver]) => {
+                if (!driver.active) return;
+
+                const row = document.createElement('tr');
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = driver.name || `Unnamed Driver (${uid})`;
+                nameCell.style.border = '1px solid #ccc';
+                nameCell.style.padding = '6px';
+
+                const race1Cell = document.createElement('td');
+                race1Cell.style.border = '1px solid #ccc';
+                race1Cell.style.padding = '6px';
+                const race1Input = document.createElement('input');
+                race1Input.type = 'number';
+                race1Input.min = '1';
+                race1Input.max = '10';
+                race1Input.placeholder = 'Position';
+                race1Input.style.width = '100px';
+                race1Input.dataset.uid = uid;
+                race1Input.dataset.race = 'race1';
+                race1Cell.appendChild(race1Input);
+
+                const race2Cell = document.createElement('td');
+                race2Cell.style.border = '1px solid #ccc';
+                race2Cell.style.padding = '6px';
+                const race2Input = document.createElement('input');
+                race2Input.type = 'number';
+                race2Input.min = '1';
+                race2Input.max = '10';
+                race2Input.placeholder = 'Position';
+                race2Input.style.width = '100px';
+                race2Input.dataset.uid = uid;
+                race2Input.dataset.race = 'race2';
+                race2Cell.appendChild(race2Input);
+
+
+                row.appendChild(nameCell);
+                row.appendChild(race1Cell);
+                row.appendChild(race2Cell);
+
+                table.appendChild(row);
+                });
+
+                const buttonSection = document.createElement('section');
+                buttonSection.style.marginTop = '20px';
+
+                const race1Submit = document.createElement('button');
+                race1Submit.textContent = 'Submit Race 1 Results';
+                race1Submit.style.marginRight = '10px';
+
+                const race2Submit = document.createElement('button');
+                race2Submit.textContent = 'Submit Race 2 Results';
+
+                buttonSection.appendChild(race1Submit);
+                buttonSection.appendChild(race2Submit);
+                document.body.appendChild(buttonSection);
+
+                race1Submit.addEventListener('click', async () => {
+                const seasonId = document.getElementById('seasonName').dataset.seasonId;
+                const raceKey = document.getElementById('raceSelect').value;
+                const inputs = document.querySelectorAll('input[data-race="race1"]');
+
+                const results = {};
+                inputs.forEach(input => {
+                    const uid = input.dataset.uid;
+                    const pos = parseInt(input.value);
+                    if (!isNaN(pos)) {
+                    results[uid] = pos;
+                    }
+                });
+
+                try {
+                    await firebase.firestore()
+                    .collection('championships')
+                    .doc(seasonId)
+                    .update({
+                        [`races.${raceKey}.resultsRace1`]: results
+                    });
+
+                    alert("✅ Race 1 results saved to Firestore!");
+                } catch (error) {
+                    console.error("❌ Error saving Race 1 results:", error);
+                    alert("❌ Failed to save Race 1 results.");
+                }
+                });
+
+
+                race2Submit.addEventListener('click', async () => {
+                const seasonId = document.getElementById('seasonName').dataset.seasonId;
+                const raceKey = document.getElementById('raceSelect').value;
+                const inputs = document.querySelectorAll('input[data-race="race2"]');
+
+                const results = {};
+                inputs.forEach(input => {
+                    const uid = input.dataset.uid;
+                    const pos = parseInt(input.value);
+                    if (!isNaN(pos)) {
+                    results[uid] = pos;
+                    }
+                });
+
+                try {
+                    await firebase.firestore()
+                    .collection('championships')
+                    .doc(seasonId)
+                    .update({
+                        [`races.${raceKey}.resultsRace2`]: results
+                    });
+
+                    alert("✅ Race 2 results saved to Firestore!");
+                } catch (error) {
+                    console.error("❌ Error saving Race 2 results:", error);
+                    alert("❌ Failed to save Race 2 results.");
+                }
+                });
+
+
+            })
+            .catch(error => {
+                console.error("Error loading drivers:", error);
+                const errorMsg = document.createElement('p');
+                errorMsg.textContent = "❌ Failed to load driver list.";
+                document.body.appendChild(errorMsg);
+            });
+
+
+        })
+        .catch(error => {
+          console.error("Error loading active season:", error);
+          document.getElementById('seasonStatusMessage').textContent = "❌ Failed to load active season.";
+        });
+    });
+  </script>
+</body>
+</html>
