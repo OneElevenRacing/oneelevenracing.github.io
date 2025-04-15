@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
+
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+
+    <title>One Eleven Racing - Championship Admin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_about.css">
+
+    <!-- Firebase scripts -->
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+    <script src="tracks.js"></script>
+
+    <script>
+        // Your Firebase config
+        var firebaseConfig = {
+            apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+            authDomain: "one-eleven-app-7f282.firebaseapp.com",
+            databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "one-eleven-app-7f282",
+            storageBucket: "one-eleven-app-7f282.appspot.com",
+            messagingSenderId: "503866403242",
+            appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+        };
+    
+        firebase.initializeApp(firebaseConfig);
+        var db = firebase.firestore();
+    
+        // Check if user is signed in & isAdmin
+        firebase.auth().onAuthStateChanged(user => {
+            if (!user) {
+                // If not signed in at all, redirect back to poll.html or show a message
+                document.body.innerHTML = "<h2>You must be signed in as admin to view this page.</h2>";
+                return;
+            }
+            // If user is signed in, nothing else to do yet — proceed to page load
+        });
+    </script>
+</head>
+
+<body>
+
+  <header>
+    <h1>Championship Admin</h1>
+  </header>
+
+  <!-- Navigation / Return to main site -->
+  <section style="margin-bottom: 20px;">
+    <button onclick="window.location.href='championship.html';">
+      Back to Championship Page
+    </button>
+  </section>
+
+  <!-- 1) Season Creation Area -->
+  <section id="season-creation">
+    <form id="seasonForm">
+        <label for="year">Year:</label>
+        <select id="year" required>
+          <option value="">Select year</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        </select>
+      
+        <label for="quarter">Quarter:</label>
+        <select id="quarter" required>
+          <option value="">Select quarter</option>
+          <option value="Q1">Q1</option>
+          <option value="Q2">Q2</option>
+          <option value="Q3">Q3</option>
+          <option value="Q4">Q4</option>
+        </select>
+      
+        <label for="carClass">Car Class:</label>
+        <input type="text" id="carClass" placeholder="e.g. GTE" required />
+      
+        <h3>Race Locations</h3>
+        <div id="trackSelectors"></div>
+      
+        <button type="submit">Create Season</button>
+      </form>
+      
+      <p id="seasonStatusMessage"></p>
+  </section>
+
+  <!-- 2) Area for Editing Race Results / Standings -->
+  <section id="edit-current-season">
+    <h2>Edit Current Season's Results</h2>
+    <!-- Placeholder: future interface for selecting a race, editing finishing positions, points, etc. -->
+    <p>(Form/table for editing race results, driver standings, etc.)</p>
+  </section>
+
+  <!-- 3) Area for Selecting Active Season -->
+  <section id="select-active-season">
+    <h2>Select Active Season</h2>
+    <!-- Placeholder: future dropdown or radio buttons to choose which season is the "active" season. -->
+    <p>(Interface to mark one season as active, so the public page knows which season's data to show by default.)</p>
+  </section>
+
+</body>
+
+<!-- Creating the track choice dropdown menus -->
+<script> 
+document.addEventListener('DOMContentLoaded', function () {
+  const trackSelectorsDiv = document.getElementById('trackSelectors');
+
+  // Create 12 dropdowns for each race
+  for (let i = 1; i <= 12; i++) {
+    const label = document.createElement('label');
+    label.textContent = `Race ${i}: `;
+    const select = document.createElement('select');
+    select.name = `race${i}`;
+    select.id = `race${i}`;
+    select.required = true;
+
+    // Populate dropdown options from trackData
+    trackData.forEach(track => {
+      const option = document.createElement('option');
+      option.value = track.name;
+      option.textContent = track.name;
+      select.appendChild(option);
+    });
+
+    trackSelectorsDiv.appendChild(label);
+    trackSelectorsDiv.appendChild(select);
+    trackSelectorsDiv.appendChild(document.createElement('br'));
+  }
+});
+
+<!-- Handle Form Submission to Firestore -->
+const seasonForm = document.getElementById('seasonForm');
+  seasonForm.addEventListener('submit', function (e) {
+    e.preventDefault(); // Prevent page reload
+
+    const year = document.getElementById('year').value;
+    const quarter = document.getElementById('quarter').value;
+    const carClass = document.getElementById('carClass').value;
+    const seasonId = `${year}${quarter}`; // e.g. "2025Q2"
+
+    // Gather races
+    const races = {};
+    for (let i = 1; i <= 12; i++) {
+      const trackName = document.getElementById(`race${i}`).value;
+      races[`race${i}`] = {
+        trackName: trackName
+      };
+    }
+
+    // Write to Firestore
+    firebase.firestore().collection('championships').doc(seasonId).set({
+        seasonName: `${year} ${quarter}`,
+        seasonCode: seasonId,
+        carClass: carClass,
+        isActive: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        races: races
+        })
+    .then(() => {
+    document.getElementById('seasonStatusMessage').textContent =
+        `✅ Season "${seasonId}" created successfully.`;
+    })
+    .catch((error) => {
+    console.error("❌ Error creating season:", error);
+    document.getElementById('seasonStatusMessage').textContent =
+        `❌ Error creating season: ${error.message}`;
+    });
+  });
+</script>
+
+
+</html>

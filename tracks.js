@@ -1,7 +1,11 @@
-document.addEventListener('DOMContentLoaded', function() {
-    populateTrackOptions();
-    // ... other initialization code ...
-});
+document.addEventListener('DOMContentLoaded', function () {
+    const currentPage = window.location.pathname;
+  
+    // Only call populateTrackOptions() on pages that need it
+    if (currentPage.includes("poll_admin.html") || currentPage.includes("main.html")) {
+      populateTrackOptions();
+    }
+  });
 
 // the list of tracks with their corresponding image locations, stored as an array
 const trackData = [
@@ -156,6 +160,11 @@ const trackData = [
 function populateTrackOptions() {
     let selectElement = document.getElementById('raceTrackSelect');
 
+    if (!selectElement) {
+        console.warn("populateTrackOptions: #raceTrackSelect not found on this page.");
+        return;
+    }
+
     // Clear existing options to make sure the track selector menu is empty before populating it
     selectElement.innerHTML = '';
 
@@ -170,6 +179,17 @@ function populateTrackOptions() {
 
 
 function fetchCurrentData() {
+    // Guard clause: only run if required elements are on the page
+    const trackEl = document.getElementById('raceTrackSelect');
+    const dateEl = document.getElementById('raceDate');
+    const timeEl = document.getElementById('raceTime');
+    const xoyondoEl = document.getElementById('xoyondoLink');
+
+    if (!trackEl || !dateEl || !timeEl || !xoyondoEl) {
+        console.warn("fetchCurrentData: Some required elements are missing on this page. Skipping fetch.");
+        return;
+    }
+
     // Fetch and display current race location
     firebase.database().ref('race_location').once('value').then(snapshot => {
         const currentTrack = snapshot.val() || 'TBD';
