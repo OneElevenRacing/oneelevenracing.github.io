@@ -102,79 +102,133 @@
   <!-- 3) Area for Selecting Active Season -->
   <section id="select-active-season">
     <h2>Select Active Season</h2>
-    <!-- Placeholder: future dropdown or radio buttons to choose which season is the "active" season. -->
-    <p>(Interface to mark one season as active, so the public page knows which season's data to show by default.)</p>
+    <select id="seasonSelectDropdown">
+        <option value="">-- Loading seasons... --</option>
+      </select>
+      <p id="activeSeasonMessage"></p>
+    <br>
+    <button id="setActiveBtn">Set as Active Season</button>
+    <p id="setActiveStatusMessage"></p>
   </section>
 
 </body>
 
-<!-- Creating the track choice dropdown menus -->
-<script> 
-document.addEventListener('DOMContentLoaded', function () {
-  const trackSelectorsDiv = document.getElementById('trackSelectors');
-
-  // Create 12 dropdowns for each race
-  for (let i = 1; i <= 12; i++) {
-    const label = document.createElement('label');
-    label.textContent = `Race ${i}: `;
-    const select = document.createElement('select');
-    select.name = `race${i}`;
-    select.id = `race${i}`;
-    select.required = true;
-
-    // Populate dropdown options from trackData
-    trackData.forEach(track => {
-      const option = document.createElement('option');
-      option.value = track.name;
-      option.textContent = track.name;
-      select.appendChild(option);
-    });
-
-    trackSelectorsDiv.appendChild(label);
-    trackSelectorsDiv.appendChild(select);
-    trackSelectorsDiv.appendChild(document.createElement('br'));
-  }
-});
-
-<!-- Handle Form Submission to Firestore -->
-const seasonForm = document.getElementById('seasonForm');
-  seasonForm.addEventListener('submit', function (e) {
-    e.preventDefault(); // Prevent page reload
-
-    const year = document.getElementById('year').value;
-    const quarter = document.getElementById('quarter').value;
-    const carClass = document.getElementById('carClass').value;
-    const seasonId = `${year}${quarter}`; // e.g. "2025Q2"
-
-    // Gather races
-    const races = {};
-    for (let i = 1; i <= 12; i++) {
-      const trackName = document.getElementById(`race${i}`).value;
-      races[`race${i}`] = {
-        trackName: trackName
-      };
-    }
-
-    // Write to Firestore
-    firebase.firestore().collection('championships').doc(seasonId).set({
-        seasonName: `${year} ${quarter}`,
-        seasonCode: seasonId,
-        carClass: carClass,
-        isActive: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        races: races
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1. Create track dropdowns
+      const trackSelectorsDiv = document.getElementById('trackSelectors');
+    
+      for (let i = 1; i <= 12; i++) {
+        const label = document.createElement('label');
+        label.textContent = `Race ${i}: `;
+        const select = document.createElement('select');
+        select.name = `race${i}`;
+        select.id = `race${i}`;
+        select.required = true;
+    
+        trackData.forEach(track => {
+          const option = document.createElement('option');
+          option.value = track.name;
+          option.textContent = track.name;
+          select.appendChild(option);
+        });
+    
+        trackSelectorsDiv.appendChild(label);
+        trackSelectorsDiv.appendChild(select);
+        trackSelectorsDiv.appendChild(document.createElement('br'));
+      }
+    
+      // 2. Populate season dropdown
+      const dropdown = document.getElementById('seasonSelectDropdown');
+      const message = document.getElementById('activeSeasonMessage');
+    
+      firebase.firestore().collection('championships').get()
+        .then(snapshot => {
+          dropdown.innerHTML = '<option value="">-- Select a season --</option>';
+    
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${data.seasonName} (${doc.id})` + (data.isActive ? ' ✅' : '');
+            dropdown.appendChild(option);
+          });
+    
+          message.textContent = "✅ Seasons loaded successfully.";
         })
-    .then(() => {
-    document.getElementById('seasonStatusMessage').textContent =
-        `✅ Season "${seasonId}" created successfully.`;
-    })
-    .catch((error) => {
-    console.error("❌ Error creating season:", error);
-    document.getElementById('seasonStatusMessage').textContent =
-        `❌ Error creating season: ${error.message}`;
+        .catch(error => {
+          console.error("Error loading seasons:", error);
+          message.textContent = "❌ Could not load seasons.";
+        });
+    
+      // 3. Add listener for setting active season
+      document.getElementById('setActiveBtn').addEventListener('click', async () => {
+        const selectedSeasonId = dropdown.value;
+        const statusMsg = document.getElementById('setActiveStatusMessage');
+    
+        if (!selectedSeasonId) {
+          statusMsg.textContent = "⚠️ Please select a season first.";
+          return;
+        }
+    
+        try {
+          const championshipsRef = firebase.firestore().collection('championships');
+          const snapshot = await championshipsRef.get();
+          const batch = firebase.firestore().batch();
+    
+          snapshot.forEach(doc => {
+            const isSelected = doc.id === selectedSeasonId;
+            batch.update(championshipsRef.doc(doc.id), { isActive: isSelected });
+          });
+    
+          await batch.commit();
+    
+          statusMsg.textContent = `✅ Season "${selectedSeasonId}" is now active.`;
+          location.reload(); // Optional: Refresh to update dropdown checkmark
+    
+        } catch (error) {
+          console.error("Error setting active season:", error);
+          statusMsg.textContent = "❌ Failed to set active season.";
+        }
+      });
+    
+      // 4. Add listener for form submission
+      const seasonForm = document.getElementById('seasonForm');
+      seasonForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+    
+        const year = document.getElementById('year').value;
+        const quarter = document.getElementById('quarter').value;
+        const carClass = document.getElementById('carClass').value;
+        const seasonId = `${year}${quarter}`;
+    
+        const races = {};
+        for (let i = 1; i <= 12; i++) {
+          const trackName = document.getElementById(`race${i}`).value;
+          races[`race${i}`] = {
+            trackName: trackName
+          };
+        }
+    
+        firebase.firestore().collection('championships').doc(seasonId).set({
+          seasonName: `${year} ${quarter}`,
+          seasonCode: seasonId,
+          carClass: carClass,
+          isActive: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          races: races
+        })
+        .then(() => {
+          document.getElementById('seasonStatusMessage').textContent =
+            `✅ Season "${seasonId}" created successfully.`;
+        })
+        .catch((error) => {
+          console.error("❌ Error creating season:", error);
+          document.getElementById('seasonStatusMessage').textContent =
+            `❌ Error creating season: ${error.message}`;
+        });
+      });
     });
-  });
 </script>
-
 
 </html>
