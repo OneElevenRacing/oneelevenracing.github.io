@@ -28,15 +28,12 @@
 <body>
   <header>
     <h1>New Race Result Entry</h1>
-    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
   </header>
 
   <section>
+    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
     <h2 id="seasonName">Loading current season...</h2>
-    <p id="seasonStatusMessage"></p>
   </section>
-
-  <!-- Placeholder for future dropdown and race entry UI -->
 
   <script>
     // Check if user is signed in
@@ -98,9 +95,6 @@
             raceSelect.appendChild(option);
             });
 
-            document.getElementById('raceSelectionStatus').textContent = 
-            `Selected: ${firstIncompleteRaceKey} (to be replaced later by first unfilled race)`;
-
             // Step: Fetch driver list from Realtime Database
             firebase.database().ref('drivers').once('value')
             .then(snapshot => {
@@ -111,22 +105,6 @@
                 document.body.appendChild(warning);
                 return;
                 }
-
-                // Create a section for displaying drivers
-                const driverListContainer = document.createElement('section');
-                driverListContainer.innerHTML = `<h3>Drivers in this season:</h3>`;
-                const ul = document.createElement('ul');
-
-                Object.entries(driversData).forEach(([uid, driver]) => {
-                if (!driver.active) return; // ❌ Skip inactive drivers
-
-                const li = document.createElement('li');
-                li.textContent = driver.name || `Unnamed Driver (${uid})`;
-                ul.appendChild(li);
-                });
-
-                driverListContainer.appendChild(ul);
-                document.body.appendChild(driverListContainer);
 
                 // Create the race results table section
                 const resultsSection = document.createElement('section');
@@ -152,6 +130,49 @@
                 table.appendChild(headerRow);
                 resultsSection.appendChild(table);
                 document.body.appendChild(resultsSection);
+
+                // Bonus Points Section
+                const bonusSection = document.createElement('section');
+                bonusSection.innerHTML = `<h3>Bonus Points</h3>`;
+                bonusSection.style.marginTop = '20px';
+
+                const bonusFields = [
+                { id: 'polePositionDriver', label: 'Pole Position' },
+                { id: 'fastestLapDriverR1', label: 'Fastest Lap – Race 1' },
+                { id: 'fastestLapOffPodiumDriverR1', label: 'Fastest Lap (Off Podium) - Race 1' },
+                { id: 'fastestLapDriverR2', label: 'Fastest Lap – Race 2' },
+                { id: 'fastestLapOffPodiumDriverR2', label: 'Fastest Lap (Off Podium) - Race 2' }
+                ];
+
+                bonusFields.forEach(field => {
+                const label = document.createElement('label');
+                label.htmlFor = field.id;
+                label.textContent = `${field.label}: `;
+
+                const select = document.createElement('select');
+                select.id = field.id;
+                select.name = field.id;
+
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Select Driver --';
+                select.appendChild(defaultOption);
+
+                Object.entries(driversData).forEach(([uid, driver]) => {
+                    if (!driver.active) return;
+                    const option = document.createElement('option');
+                    option.value = uid;
+                    option.textContent = driver.name || `Unnamed Driver (${uid})`;
+                    select.appendChild(option);
+                });
+
+                bonusSection.appendChild(label);
+                bonusSection.appendChild(select);
+                bonusSection.appendChild(document.createElement('br'));
+                });
+
+                document.body.appendChild(bonusSection);
+
 
                 // Add rows for each active driver (names only for now)
                 Object.entries(driversData).forEach(([uid, driver]) => {
@@ -198,6 +219,43 @@
                 table.appendChild(row);
                 });
 
+                raceSelect.addEventListener('change', () => {
+                const selectedRaceKey = raceSelect.value;
+                const seasonId = document.getElementById('seasonName').dataset.seasonId;
+
+                if (!selectedRaceKey || !seasonId) return;
+
+                firebase.firestore()
+                    .collection('championships')
+                    .doc(seasonId)
+                    .get()
+                    .then(doc => {
+                    const seasonData = doc.data();
+                    const raceData = seasonData.races[selectedRaceKey];
+
+                    if (!raceData) return;
+
+                    const race1Results = raceData.resultsRace1 || {};
+                    const race2Results = raceData.resultsRace2 || {};
+
+                    // Fill Race 1 inputs
+                    document.querySelectorAll('input[data-race="race1"]').forEach(input => {
+                        const uid = input.dataset.uid;
+                        input.value = race1Results[uid] || '';
+                    });
+
+                    // Fill Race 2 inputs
+                    document.querySelectorAll('input[data-race="race2"]').forEach(input => {
+                        const uid = input.dataset.uid;
+                        input.value = race2Results[uid] || '';
+                    });
+                    })
+                    .catch(error => {
+                    console.error("Error loading race results:", error);
+                    });
+                });
+
+
                 const buttonSection = document.createElement('section');
                 buttonSection.style.marginTop = '20px';
 
@@ -211,6 +269,9 @@
                 buttonSection.appendChild(race1Submit);
                 buttonSection.appendChild(race2Submit);
                 document.body.appendChild(buttonSection);
+
+                // Trigger loading the initially selected race results
+                raceSelect.dispatchEvent(new Event('change'));
 
                 race1Submit.addEventListener('click', async () => {
                 const seasonId = document.getElementById('seasonName').dataset.seasonId;
@@ -226,12 +287,24 @@
                     }
                 });
 
+                // Grab bonus driver selections
+                const poleDriver = document.getElementById('polePositionDriver').value;
+                const flDriverR1 = document.getElementById('fastestLapDriverR1').value;
+                const flOffPodiumR1 = document.getElementById('fastestLapOffPodiumDriverR1').value;
+
+                // Prepare bonus data
+                const bonusUpdatesR1 = {};
+                if (poleDriver) bonusUpdatesR1[`races.${raceKey}.polePositionDriver`] = poleDriver;
+                if (flDriverR1) bonusUpdatesR1[`races.${raceKey}.fastestLapDriverR1`] = flDriverR1;
+                if (flOffPodiumR1) bonusUpdatesR1[`races.${raceKey}.fastestLapOffPodiumDriverR1`] = flOffPodiumR1;
+
                 try {
                     await firebase.firestore()
                     .collection('championships')
                     .doc(seasonId)
                     .update({
-                        [`races.${raceKey}.resultsRace1`]: results
+                        [`races.${raceKey}.resultsRace1`]: results,
+                        ...bonusUpdatesR1
                     });
 
                     alert("✅ Race 1 results saved to Firestore!");
@@ -256,12 +329,23 @@
                     }
                 });
 
+                // Grab Race 2 bonus selections
+                const flDriverR2 = document.getElementById('fastestLapDriverR2').value;
+                const flOffPodiumR2 = document.getElementById('fastestLapOffPodiumDriverR2').value;
+
+                // Prepare Race 2 bonus updates
+                const bonusUpdatesR2 = {};
+                if (flDriverR2) bonusUpdatesR2[`races.${raceKey}.fastestLapDriverR2`] = flDriverR2;
+                if (flOffPodiumR2) bonusUpdatesR2[`races.${raceKey}.fastestLapOffPodiumDriverR2`] = flOffPodiumR2;
+
+
                 try {
                     await firebase.firestore()
                     .collection('championships')
                     .doc(seasonId)
                     .update({
-                        [`races.${raceKey}.resultsRace2`]: results
+                        [`races.${raceKey}.resultsRace2`]: results,
+                        ...bonusUpdatesR2
                     });
 
                     alert("✅ Race 2 results saved to Firestore!");
