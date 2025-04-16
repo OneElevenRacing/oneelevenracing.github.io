@@ -298,13 +298,25 @@
                 const inputs = document.querySelectorAll('input[data-race="race1"]');
 
                 const results = {};
+                const allUIDs = []; // collect all active driver UIDs
+
                 inputs.forEach(input => {
-                    const uid = input.dataset.uid;
-                    const pos = parseInt(input.value);
-                    if (!isNaN(pos)) {
+                const uid = input.dataset.uid;
+                allUIDs.push(uid);
+                const pos = parseInt(input.value);
+                if (!isNaN(pos)) {
                     results[uid] = pos;
-                    }
+                }
                 });
+
+                // Find max position entered, and give non-participants the next place
+                const maxPosition = Math.max(...Object.values(results));
+                allUIDs.forEach(uid => {
+                if (!(uid in results)) {
+                    results[uid] = maxPosition + 1;
+                }
+                });
+
 
                 // Grab bonus driver selections
                 const poleDriver = document.getElementById('polePositionDriver').value;
@@ -340,13 +352,25 @@
                 const inputs = document.querySelectorAll('input[data-race="race2"]');
 
                 const results = {};
+                const allUIDs = []; // collect all active driver UIDs
+
                 inputs.forEach(input => {
-                    const uid = input.dataset.uid;
-                    const pos = parseInt(input.value);
-                    if (!isNaN(pos)) {
+                const uid = input.dataset.uid;
+                allUIDs.push(uid);
+                const pos = parseInt(input.value);
+                if (!isNaN(pos)) {
                     results[uid] = pos;
-                    }
+                }
                 });
+
+                // Find max position entered, and give non-participants the next place
+                const maxPosition = Math.max(...Object.values(results));
+                allUIDs.forEach(uid => {
+                if (!(uid in results)) {
+                    results[uid] = maxPosition + 1;
+                }
+                });
+
 
                 // Grab Race 2 bonus selections
                 const flDriverR2 = document.getElementById('fastestLapDriverR2').value;
