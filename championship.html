@@ -1,11 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>One Eleven Racing - Championship</title>
+    <meta charset="UTF-8" />
+    <title>One Eleven Racing - Championship</title>
 
-  <!-- Link to your preferred stylesheet -->
-  <!-- <link rel="stylesheet" href="style_main.css" /> -->
+    <!-- Link to your preferred stylesheet -->
+    <!-- <link rel="stylesheet" href="style_main.css" /> -->
+
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+
+    <style>
+        table th, table td {
+          padding: 6px;
+          border: 1px solid #ccc;
+          text-align: center;
+        }
+      
+        table th {
+          background-color: #f0f0f0;
+        }
+      
+        td[data-bonus*="PP"] { background-color: orange; }
+        td[data-bonus*="FL"] { background-color: yellow; }
+        td[data-bonus*="OP"] { background-color: lightblue; }
+      </style>
+
+    <script>
+    // Firebase Config
+    var firebaseConfig = {
+        apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+        authDomain: "one-eleven-app-7f282.firebaseapp.com",
+        databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "one-eleven-app-7f282",
+        storageBucket: "one-eleven-app-7f282.appspot.com",
+        messagingSenderId: "503866403242",
+        appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    // Step 1: Load active season and log its race data
+    firebase.firestore().collection('championships')
+        .where('isActive', '==', true)
+        .limit(1)
+        .get()
+        .then(snapshot => {
+        if (snapshot.empty) {
+            document.getElementById('standings-placeholder').innerHTML = "<p>❌ No active season found.</p>";
+            return;
+        }
+
+        const seasonDoc = snapshot.docs[0];
+        const seasonData = seasonDoc.data();
+        firebase.database().ref('drivers').once('value').then(driverSnap => {
+        const driversRaw = driverSnap.val();
+        const driverMap = {}; // { uid: name }
+        const driverUIDs = [];
+
+        for (let uid in driversRaw) {
+            if (driversRaw[uid].active) {
+            driverMap[uid] = driversRaw[uid].name;
+            driverUIDs.push(uid);
+            }
+        }
+
+        // Store for next step
+        window.oneElevenDrivers = {
+            uids: driverUIDs,
+            names: driverMap
+        };
+
+        console.log("✅ Active drivers loaded:", window.oneElevenDrivers);
+        
+        // Step 2: Build race results table structure
+        const raceResultsSection = document.getElementById('race-results');
+        const table = document.createElement('table');
+        table.setAttribute('border', '1');
+        table.setAttribute('cellpadding', '5');
+        table.setAttribute('cellspacing', '0');
+        table.style.borderCollapse = 'collapse';
+        table.style.marginTop = '15px';
+
+        // === Header Row ===
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+
+        const raceHeader = document.createElement('th');
+        raceHeader.textContent = "Race";
+        headerRow.appendChild(raceHeader);
+
+        // Add driver names as column headers
+        window.oneElevenDrivers.uids.forEach(uid => {
+        const th = document.createElement('th');
+        th.textContent = window.oneElevenDrivers.names[uid];
+        headerRow.appendChild(th);
+        });
+
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // === Table Body ===
+        const tbody = document.createElement('tbody');
+
+        const races = seasonData.races;
+        const sortedRaceKeys = Object.keys(races).sort((a, b) => {
+        const numA = parseInt(a.replace('race', ''));
+        const numB = parseInt(b.replace('race', ''));
+        return numA - numB;
+        });
+
+        sortedRaceKeys.forEach((raceKey, index) => {
+        const trackName = races[raceKey].trackName || 'TBD';
+
+        // Race 1 Row
+        const row1 = document.createElement('tr');
+        const label1 = document.createElement('td');
+        label1.textContent = `Race ${index + 1} (Race 1) - ${trackName}`;
+        row1.appendChild(label1);
+
+        window.oneElevenDrivers.uids.forEach(() => {
+            const td = document.createElement('td');
+            td.textContent = ""; // Will fill later
+            row1.appendChild(td);
+        });
+
+        tbody.appendChild(row1);
+
+        // Race 2 Row
+        const row2 = document.createElement('tr');
+        const label2 = document.createElement('td');
+        label2.textContent = `Race ${index + 1} (Race 2) - ${trackName}`;
+        row2.appendChild(label2);
+
+        window.oneElevenDrivers.uids.forEach(() => {
+            const td = document.createElement('td');
+            td.textContent = ""; // Will fill later
+            row2.appendChild(td);
+        });
+
+        tbody.appendChild(row2);
+        });
+
+        table.appendChild(tbody);
+        raceResultsSection.appendChild(table);
+
+        const positionToPoints = {
+        1: 20, 2: 16, 3: 13, 4: 10, 5: 8,
+        6: 6, 7: 5, 8: 3, 9: 2, 10: 1
+        };
+
+        const bonusCodes = {
+        PP: "polePosition",
+        FL1: "fastestLapRace1",
+        FL2: "fastestLapRace2",
+        OP1: "fastestLapOffPodiumRace1",
+        OP2: "fastestLapOffPodiumRace2"
+        };
+
+        // Loop over races again to populate results
+        sortedRaceKeys.forEach((raceKey, raceIndex) => {
+        const race = races[raceKey];
+
+        const row1 = tbody.children[raceIndex * 2];
+        const row2 = tbody.children[raceIndex * 2 + 1];
+
+        const race1Results = race.resultsRace1 || {};
+        const race2Results = race.resultsRace2 || {};
+
+        window.oneElevenDrivers.uids.forEach((uid, driverIndex) => {
+            const pos1 = race1Results[uid];
+            const pos2 = race2Results[uid];
+
+            let points1 = positionToPoints[pos1] || '';
+            let points2 = positionToPoints[pos2] || '';
+
+            const bonuses1 = [];
+            const bonuses2 = [];
+
+            if (race.polePositionDriver === uid) bonuses1.push("PP");
+            if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
+            if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
+
+            if (race.fastestLapDriverR2 === uid) bonuses2.push("FL");
+            if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
+
+            const cell1 = row1.children[driverIndex + 1];
+            const cell2 = row2.children[driverIndex + 1];
+
+            cell1.textContent =
+                (points1 ? points1 : '') +
+                (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
+
+            cell2.textContent =
+                (points2 ? points2 : '') +
+                (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
+
+
+            // Optional: set data attribute for styling
+            if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');
+            if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+');
+        });
+        });
+
+        // === Step: Calculate total points per driver ===
+        const totals = {};  // uid -> total points
+        window.oneElevenDrivers.uids.forEach(uid => totals[uid] = 0);
+
+        sortedRaceKeys.forEach((raceKey) => {
+        const race = races[raceKey];
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
+
+        // Apply race 1 points
+        Object.entries(r1).forEach(([uid, pos]) => {
+            if (positionToPoints[pos]) totals[uid] += positionToPoints[pos];
+        });
+
+        // Apply race 2 points
+        Object.entries(r2).forEach(([uid, pos]) => {
+            if (positionToPoints[pos]) totals[uid] += positionToPoints[pos];
+        });
+
+        // Bonus points
+        if (race.polePosition) totals[race.polePosition] += 1;
+        if (race.fastestLapRace1) totals[race.fastestLapRace1] += 1;
+        if (race.fastestLapRace2) totals[race.fastestLapRace2] += 1;
+        if (race.fastestLapOffPodiumRace1) totals[race.fastestLapOffPodiumRace1] += 1;
+        if (race.fastestLapOffPodiumRace2) totals[race.fastestLapOffPodiumRace2] += 1;
+        });
+
+        // Sort drivers by total points (descending)
+        const sortedStandings = Object.entries(totals)
+        .sort(([, a], [, b]) => b - a);
+
+        // === Step: Render the standings table ===
+        const standingsSection = document.getElementById('current-standings');
+        const standingsTable = document.createElement('table');
+        standingsTable.style.borderCollapse = 'collapse';
+        standingsTable.style.marginTop = '10px';
+
+        const headRow = document.createElement('tr');
+        ['Position', 'Driver', 'Points'].forEach(label => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        headRow.appendChild(th);
+        });
+        standingsTable.appendChild(headRow);
+
+        sortedStandings.forEach(([uid, total], index) => {
+        const row = document.createElement('tr');
+        
+        const pos = document.createElement('td');
+        pos.textContent = index + 1;
+
+        const name = document.createElement('td');
+        name.textContent = window.oneElevenDrivers.names[uid] || '(Unknown)';
+
+        const pts = document.createElement('td');
+        pts.textContent = total;
+
+        [pos, name, pts].forEach(td => {
+            td.style.border = '1px solid #ccc';
+            td.style.padding = '6px';
+        });
+
+        row.appendChild(pos);
+        row.appendChild(name);
+        row.appendChild(pts);
+        standingsTable.appendChild(row);
+        });
+
+        standingsSection.appendChild(standingsTable);
+
+
+        });
+
+        console.log("✅ Active season loaded:", seasonData);
+
+        document.getElementById('standings-placeholder').innerHTML =
+            `<p>Loaded season: <strong>${seasonData.seasonName}</strong></p>`;
+        
+        // We'll build on this in the next step
+        })
+        .catch(error => {
+        console.error("Error loading season:", error);
+        document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
+        });
+    </script>
+
 
 </head>
 <body>
@@ -27,25 +312,6 @@
     <h2>Race Results</h2>
     <!-- This table follows a simple pattern of Race / Position / Driver / Points.
          You can adapt the columns as needed. -->
-    <table id="raceResultsTable" border="1" cellpadding="5" cellspacing="0">
-      <thead>
-        <tr>
-          <th>Race</th>
-          <th>Position</th>
-          <th>Driver</th>
-          <th>Points</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Example row (placeholder) -->
-        <tr>
-          <td>Example Race</td>
-          <td>1</td>
-          <td>Example Driver</td>
-          <td>20</td>
-        </tr>
-      </tbody>
-    </table>
   </section>
 
   <!-- Navigation to Other Pages -->
