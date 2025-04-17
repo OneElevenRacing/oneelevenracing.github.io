@@ -77,7 +77,7 @@
     .container {
       width: min(96%, 1200px);
       margin-inline: auto;
-      padding: 1rem 0 3rem;
+      padding: 1rem 0 100px;
     }
 
     header h1 {
@@ -136,6 +136,7 @@
     tbody td {
       padding: 0.4em;
       border-bottom: 1px solid var(--clr-accent);
+      vertical-align: top;
     }
     tbody tr:nth-child(odd) { background: var(--clr-gray-600); }
     tbody tr:hover { background: #eaeaea; }
@@ -167,6 +168,12 @@
     label {
       font-size: 0.55rem;
       color: var(--clr-fg);
+      padding-top: 5px;
+    }
+
+    label[for="raceSelect"] {
+        margin-right: 0.5em; /* Or use display: block; for stacked layout */
+        font-size: 0.9em;
     }
 
     .flex-center { display: flex; align-items: center; justify-content: center; }
