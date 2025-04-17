@@ -253,21 +253,23 @@
       driverOptions.forEach(o => { if (!chosen.includes(o.uid)) results[o.uid] = sharedLast; });
 
       // bonus fields
-      const bonus = {};
-      if (raceNo===1) {
-        ['polePositionDriver','fastestLapDriverR1','fastestLapOffPodiumDriverR1'].forEach(id => {
-          const v=document.getElementById(id).value; if (v) bonus[`races.${raceKey}.${id}`]=v; });
-      } else {
-        ['fastestLapDriverR2','fastestLapOffPodiumDriverR2'].forEach(id => {
-          const v=document.getElementById(id).value; if (v) bonus[`races.${raceKey}.${id}`]=v; });
-      }
+        const bonus = {};
+        const bonusFieldIds = raceNo === 1
+        ? ['polePositionDriver','fastestLapDriverR1','fastestLapOffPodiumDriverR1']
+        : ['fastestLapDriverR2','fastestLapOffPodiumDriverR2'];
+
+        bonusFieldIds.forEach(id => {
+        const val = document.getElementById(id).value;
+        bonus[`races.${raceKey}.${id}`] = val || firebase.firestore.FieldValue.delete();
+        });
+
 
       const fieldName = raceNo===1 ? 'resultsRace1' : 'resultsRace2';
       await firebase.firestore().collection('championships').doc(seasonId).update({
         [`races.${raceKey}.${fieldName}`]: results,
         ...bonus
       });
-      alert(`✅ Race ${raceNo} results saved!`);
+      alert(`Race ${raceNo} results saved!`);
     }
 
     //--------------------------------------------------
