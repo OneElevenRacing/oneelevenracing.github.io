@@ -2,8 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Enter Race Results - One Eleven Racing</title>
-  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enter Race Results • One Eleven Racing</title>
+
+  <!-- Custom Font: KeepCalm‑Medium.ttf must be placed in the same directory -->
+  <style>
+    @font-face {
+      font-family: "KeepCalm";
+      src: url("KeepCalm-Medium.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
@@ -24,21 +37,231 @@
     };
     firebase.initializeApp(firebaseConfig);
   </script>
+
+  <!-- ---------------- STYLE ---------------- -->
   <style>
-    table { border-collapse: collapse; width: 80%; }
-    th, td { border: 1px solid #ccc; padding: 6px; }
+    :root {
+      --clr-bg: #ffffff;
+      --clr-fg: #000000;
+      --clr-accent: #000000;
+      --clr-gray-700: #f0f0f0;
+      --clr-gray-600: #fafafa;
+      --radius: 8px;
+    }
+
+    *,*::before,*::after { box-sizing: border-box; }
+    html,body { height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: "KeepCalm", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: var(--clr-bg);
+      color: var(--clr-fg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .black-bar {
+      background-color: var(--clr-fg);
+      padding: 0.5rem 1rem;
+    }
+
+    .black-bar a.back-button img {
+      height: 18px;
+    }
+
+    .black-bar a.back-button {
+      display: inline-block;
+    }
+
+    .container {
+      width: min(96%, 1200px);
+      margin-inline: auto;
+      padding: 1rem 0 3rem;
+    }
+
+    header h1 {
+      text-align: center;
+      padding-block: 1.5rem 0.5rem;
+      border-bottom: 1px solid var(--clr-accent);
+    }
+
+    h1,h2,h3 {
+      margin: 0.3em 0;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+
+    h1 { font-size: clamp(1.8rem, 3vw + 1rem, 3rem); }
+    h2 { font-size: clamp(1.4rem, 2.5vw + 0.8rem, 2rem); }
+    h3 { font-size: clamp(1.1rem, 1.5vw + 0.7rem, 1.4rem); }
+
+    .btn {
+      display: inline-block;
+      background: var(--clr-accent);
+      color: var(--clr-bg);
+      border: 2px solid var(--clr-accent);
+      padding: 0.5em 1.25em;
+      font-family: inherit;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .btn:focus-visible { outline: 3px dashed var(--clr-accent); outline-offset: 2px; }
+    .btn:hover, .btn:active {
+      background: var(--clr-bg);
+      color: var(--clr-accent);
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-block: 1.5rem 2rem;
+      font-size: 0.95rem;
+      border: 1px solid var(--clr-accent);
+    }
+    thead th {
+      background: var(--clr-gray-700);
+      padding: 0.75em;
+      text-align: left;
+      border-bottom: 2px solid var(--clr-accent);
+      color: var(--clr-fg);
+    }
+    tbody td {
+      padding: 0.6em 0.5em;
+      border-bottom: 1px solid var(--clr-accent);
+    }
+    tbody tr:nth-child(odd) { background: var(--clr-gray-600); }
+    tbody tr:hover { background: #eaeaea; }
+
+    select {
+      width: 100%;
+      max-width: 260px;
+      padding: 0.35em 0.5em;
+      background: var(--clr-bg);
+      color: var(--clr-fg);
+      border: 1px solid var(--clr-accent);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+    select:focus-visible { outline: 3px dashed var(--clr-accent); outline-offset: 2px; }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--clr-fg);
+    }
+
+    .flex-center { display: flex; align-items: center; justify-content: center; }
+    .text-center { text-align: left; }
+    .mt-2 { margin-top: 0.5rem; }
+
+
+    footer {
+    position: fixed; /* Position the footer relative to the browser window */
+    bottom: 0; /* Align the footer to the bottom of the window */
+    background-color: white; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 75px;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.079); /* Add a drop shadow */
+    }
+
+    .footerbuttonnotselected {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #808080; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    font-size: 0.9em;
+    float: left;
+    }
+
+    .footerbuttonnotselected:hover img {
+    filter: brightness(0);
+    }
+
+    .footerbuttonnotselected:hover {
+        color: #000000; /* Change text color on hover */
+    }
+
+    .footerbuttonnotselected img {
+        vertical-align: middle; /* Align the image vertically */
+        height: 45px;
+        margin-top: -10px;
+        padding: 10px;
+    }
+
+    .footerbuttonselected {
+        display: flex; /* Use flexbox to center content */
+        align-items: center; /* Align items vertically */
+        justify-content: center; /* Align items horizontally */
+        width: 33.3%;
+        height: 100%;
+        background-color: #ffffff; /* Set background color */
+        color: #000000; /* Set text color */
+        border: none; /* Remove border */
+        text-decoration: none; /* Remove default text decoration */
+        flex-direction: column; /* Stack items vertically */
+        float: left;
+        font-size: 0.9em;
+        cursor: default; /* Set cursor to default on hover */
+    }
+
+    .footerbuttonselected img {
+        vertical-align: middle; /* Align the image vertically */
+        height: 20px;
+        margin-top: -10px;
+        padding: 10px;
+        filter:brightness(0);
+    }
+
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--clr-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--clr-accent); }
+    ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+    @media (max-width: 640px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { margin-bottom: 1rem; }
+      td {
+        border: none;
+        position: relative;
+        padding-left: 50%;
+      }
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-left: 0.5rem;
+        font-weight: bold;
+        white-space: nowrap;
+      }
+    }
   </style>
 </head>
-
 <body>
-  <header>
-    <h1>New Race Result Entry</h1>
-  </header>
+    <div class="black-bar">
+        <a href="javascript:void(0);" class="back-button" onclick="window.location.href='championship.html'">
+          <img src="Logos_and_icons/back.png" alt="Back">
+        </a>
+      </div>
+    
+      <div class="container">
+        <section class="text-center mt-2">
+          <h2 id="seasonName" style="text-align: center;"  class="mt-2">Loading current season…</h2>
+        </section>
+      </div>
 
-  <section>
-    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
-    <h2 id="seasonName">Loading current season...</h2>
-  </section>
 
   <script>
   // *****************************************************
@@ -46,7 +269,7 @@
   // *****************************************************
   firebase.auth().onAuthStateChanged(user => {
     if (!user) {
-      document.body.innerHTML = "<h2>You must be signed in to access this page.</h2>";
+      document.body.innerHTML = "<h2 class='flex-center' style='height:100vh;'>You must be signed in to access this page.</h2>";
       return;
     }
 
@@ -72,11 +295,12 @@
         // Build race‑selection drop‑down
         //--------------------------------------------------
         const raceSelectContainer = document.createElement('div');
+        raceSelectContainer.className = 'flex-center mt-2';
         raceSelectContainer.innerHTML = `
             <label for="raceSelect">Select a race:</label>
-            <select id="raceSelect"></select>
+            <select id="raceSelect" class="mt-2"></select>
             <p id="raceSelectionStatus"></p>`;
-        document.body.appendChild(raceSelectContainer);
+        document.querySelector('.container').appendChild(raceSelectContainer);
 
         const raceKeysSorted = Object.keys(seasonData.races || {})
           .sort((a, b) => parseInt(a.replace('race','')) - parseInt(b.replace('race','')));
@@ -133,90 +357,92 @@
     //   1. Results table (position + two races)
     //--------------------------------------------------
     const section = document.createElement('section');
-    section.innerHTML = '<h3>Enter Race Results</h3>';
+    section.innerHTML = '<h3 style="text-align:center" class="text-center">Enter Race Results</h3>';
 
     const table = document.createElement('table');
+
+    // Build header
+    const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
     ['Position','Race 1 – Driver','Race 2 – Driver'].forEach(t => {
       const th = document.createElement('th'); th.textContent = t; headerRow.appendChild(th);
     });
-    table.appendChild(headerRow);
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
 
+    const tbody = document.createElement('tbody');
     const race1Drops = [], race2Drops = [];
 
     for (let p=1; p<=MAX_POS; p++) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>P${p}</td>`;
+      tr.innerHTML = `<td data-label='Position'>P${p}</td>`;
 
       // helper to make one <select>
       const makeSelect = (race) => {
         const sel = document.createElement('select');
         sel.dataset.position = p;
         sel.dataset.race     = race;
-        sel.style.width = '200px';
         // default option
         sel.appendChild(new Option('-- Select Driver --',''));
         driverOptions.forEach(opt => sel.appendChild(new Option(opt.name,opt.uid)));
         return sel;
       };
 
-      const td1 = document.createElement('td'); const r1 = makeSelect('race1'); td1.appendChild(r1); race1Drops.push(r1);
-      const td2 = document.createElement('td'); const r2 = makeSelect('race2'); td2.appendChild(r2); race2Drops.push(r2);
+      const td1 = document.createElement('td'); td1.dataset.label='Race 1 – Driver'; const r1 = makeSelect('race1'); td1.appendChild(r1); race1Drops.push(r1);
+      const td2 = document.createElement('td'); td2.dataset.label='Race 2 – Driver'; const r2 = makeSelect('race2'); td2.appendChild(r2); race2Drops.push(r2);
 
-      tr.appendChild(td1); tr.appendChild(td2); table.appendChild(tr);
+      tr.appendChild(td1); tr.appendChild(td2); tbody.appendChild(tr);
     }
 
-    section.appendChild(table); document.body.appendChild(section);
-
-    
-    // === Create Bonus Row Labels ===
+    // === Bonus Rows ===
     const bonusHeaderRow = document.createElement('tr');
     bonusHeaderRow.innerHTML = `
-    <td></td>
-    <td style="text-align:center; font-weight:bold;">Race 1 Bonus Points</td>
-    <td style="text-align:center; font-weight:bold;">Race 2 Bonus Points</td>
-    `;
-    table.appendChild(bonusHeaderRow);
+      <td></td>
+      <td data-label='' style="text-align:left; font-weight:bold;">Race 1 Bonus Points</td>
+      <td data-label='' style="text-align:left; font-weight:bold;">Race 2 Bonus Points</td>`;
+    tbody.appendChild(bonusHeaderRow);
 
-    // === Create Bonus Point Dropdowns with Labels ===
     const bonusRow = document.createElement('tr');
     bonusRow.appendChild(document.createElement('td')); // Empty top-left cell
 
     [1, 2].forEach(raceNo => {
-    const cell = document.createElement('td');
+      const cell = document.createElement('td');
+      bonusFields
+          .filter(field => field.race === raceNo)
+          .forEach(field => {
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label + ': ';
+            label.style.display = 'block';
 
-    bonusFields
-        .filter(field => field.race === raceNo)
-        .forEach(field => {
-        const label = document.createElement('label');
-        label.htmlFor = field.id;
-        label.textContent = field.label + ': ';
-        label.style.display = 'block'; // ensures each label+select pair is on its own line
+            const select = document.createElement('select');
+            select.id = field.id;
+            select.name = field.id;
+            select.appendChild(new Option('-- Select Driver --', ''));
+            driverOptions.forEach(opt => {
+              select.appendChild(new Option(opt.name, opt.uid));
+            });
 
-        const select = document.createElement('select');
-        select.id = field.id;
-        select.name = field.id;
-        select.appendChild(new Option('-- Select Driver --', ''));
-        driverOptions.forEach(opt => {
-            select.appendChild(new Option(opt.name, opt.uid));
-        });
+            cell.appendChild(label);
+            cell.appendChild(select);
+          });
 
-        cell.appendChild(label);
-        cell.appendChild(select);
-        });
-
-    bonusRow.appendChild(cell);
+      bonusRow.appendChild(cell);
     });
 
-    table.appendChild(bonusRow);
+    tbody.appendChild(bonusRow);
 
+    // === Submission buttons ===
     const buttonRow = document.createElement('tr');
     buttonRow.innerHTML = `
-    <td></td>
-    <td style="text-align:center;"><button id="submitRace1">Submit Race 1</button></td>
-    <td style="text-align:center;"><button id="submitRace2">Submit Race 2</button></td>
-    `;
-    table.appendChild(buttonRow);
+      <td></td>
+      <td class='text-center'><button id="submitRace1" class='btn'>Submit Race 1</button></td>
+      <td class='text-center'><button id="submitRace2" class='btn'>Submit Race 2</button></td>`;
+    tbody.appendChild(buttonRow);
+
+    table.appendChild(tbody);
+    section.appendChild(table);
+    document.querySelector('.container').appendChild(section);
 
     //--------------------------------------------------
     //   3. Deduplication logic (hide used drivers)
@@ -314,10 +540,24 @@
     document.getElementById('submitRace1').onclick = () => saveRace(1);
     document.getElementById('submitRace2').onclick = () => saveRace(2);
   }
-
-    
-
-
   </script>
 </body>
+
+<footer>
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+        <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+        SIM RACING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+        <img src="Logos_and_icons/karting.png" alt="Karting">
+        KARTING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+        <img src="Logos_and_icons/settings.png" alt="Settings">
+        SETTINGS
+    </a>
+  </footer>
+
 </html>
