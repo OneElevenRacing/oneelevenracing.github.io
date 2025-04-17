@@ -206,35 +206,81 @@
         });
 
         // === Step: Calculate total points per driver ===
-        const totals = {};  // uid -> total points
-        window.oneElevenDrivers.uids.forEach(uid => totals[uid] = 0);
 
-        sortedRaceKeys.forEach((raceKey) => {
+        const racePointsPerEvent   = {}; // { uid : [12 numbers] }
+        const bonusPointsPerDriver = {}; // { uid :   number      }
+        
+        window.oneElevenDrivers.uids.forEach(uid => {
+          racePointsPerEvent[uid]   = []; // will push 12 values later
+          bonusPointsPerDriver[uid] = 0;  // running total
+        });
+        
+        console.log("🟢 Step 1 – empty containers ready:",
+                    {racePointsPerEvent, bonusPointsPerDriver});
+
+        // Loop over the 12 events (=elements in sortedRaceKeys)
+        sortedRaceKeys.forEach((raceKey, evtIndex) => {
         const race = races[raceKey];
-        const r1 = race.resultsRace1 || {};
-        const r2 = race.resultsRace2 || {};
+        const r1   = race.resultsRace1 || {};
+        const r2   = race.resultsRace2 || {};
 
-        // Apply race 1 points
-        Object.entries(r1).forEach(([uid, pos]) => {
-            if (positionToPoints[pos]) totals[uid] += positionToPoints[pos];
+        // 2‑A  ▶ race‑finishing points (the part that CAN be dropped)
+        window.oneElevenDrivers.uids.forEach(uid => {
+            let eventPts = 0;
+
+            // Race 1 placing
+            if (positionToPoints[r1[uid]]) eventPts += positionToPoints[r1[uid]];
+            // Race 2 placing
+            if (positionToPoints[r2[uid]]) eventPts += positionToPoints[r2[uid]];
+
+            racePointsPerEvent[uid][evtIndex] = eventPts; // 0‑12 per event
         });
 
-        // Apply race 2 points
-        Object.entries(r2).forEach(([uid, pos]) => {
-            if (positionToPoints[pos]) totals[uid] += positionToPoints[pos];
+        // 2‑B  ▶ bonus points (NEVER dropped)
+        if (race.polePositionDriver)             bonusPointsPerDriver[race.polePositionDriver]              += 1;
+        if (race.fastestLapDriverR1)             bonusPointsPerDriver[race.fastestLapDriverR1]              += 1;
+        if (race.fastestLapDriverR2)             bonusPointsPerDriver[race.fastestLapDriverR2]              += 1;
+        if (race.fastestLapOffPodiumDriverR1)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]     += 1;
+        if (race.fastestLapOffPodiumDriverR2)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]     += 1;
         });
 
-        // Bonus points
-        if (race.polePosition) totals[race.polePosition] += 1;
-        if (race.fastestLapRace1) totals[race.fastestLapRace1] += 1;
-        if (race.fastestLapRace2) totals[race.fastestLapRace2] += 1;
-        if (race.fastestLapOffPodiumRace1) totals[race.fastestLapOffPodiumRace1] += 1;
-        if (race.fastestLapOffPodiumRace2) totals[race.fastestLapOffPodiumRace2] += 1;
+        console.log("🟢 Step 2 – arrays filled:",
+            JSON.parse(JSON.stringify(racePointsPerEvent)),
+            bonusPointsPerDriver);
+
+        // 3 ▶ drop the weakest events (keep best 9)
+        const countedRacePoints = {}; // { uid : sum of best 9 }
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+        const sorted = [...racePointsPerEvent[uid]].sort((a,b)=>b-a); // high→low
+        const best9  = sorted.slice(0,9);
+        const sum9   = best9.reduce((s,x)=>s+x,0);
+        countedRacePoints[uid] = sum9;
+
+        console.log(`Driver ${window.oneElevenDrivers.names[uid]} ➜ ` +
+                    `event scores ${racePointsPerEvent[uid]} | best 9 = ${best9} | ` +
+                    `sum = ${sum9}`);
         });
+
+        // console.log("🟢 Step 3 – countedRacePoints:", countedRacePoints);
+
+        // 4 ▶ final championship totals
+        const finalTotals = {}; // { uid : number }
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+        finalTotals[uid] = countedRacePoints[uid] + bonusPointsPerDriver[uid];
+        });
+
+        //console.log("🟢 Step 4 – finalTotals (race + bonus):", finalTotals);
 
         // Sort drivers by total points (descending)
-        const sortedStandings = Object.entries(totals)
+        const sortedStandings = Object.entries(finalTotals)
         .sort(([, a], [, b]) => b - a);
+
+        // console.log('🔍 Preview sortedStandings', sortedStandings.slice(0, 3));
+        // console.log('👁 Final type check',
+        // Object.entries(finalTotals).map(([uid, v]) => [uid, typeof v]));
+
 
         // === Step: Render the standings table ===
         const standingsSection = document.getElementById('current-standings');
