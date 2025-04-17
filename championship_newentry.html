@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Enter Race Results - One Eleven Racing</title>
-  <link rel="stylesheet" href="style.css" />
+  
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
@@ -11,6 +12,7 @@
   <script src="tracks.js"></script>
 
   <script>
+    // *** INITIALISE FIREBASE ***
     var firebaseConfig = {
       apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
       authDomain: "one-eleven-app-7f282.firebaseapp.com",
@@ -20,9 +22,12 @@
       messagingSenderId: "503866403242",
       appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
     };
-
     firebase.initializeApp(firebaseConfig);
   </script>
+  <style>
+    table { border-collapse: collapse; width: 80%; }
+    th, td { border: 1px solid #ccc; padding: 6px; }
+  </style>
 </head>
 
 <body>
@@ -36,384 +41,243 @@
   </section>
 
   <script>
-    // Check if user is signed in
-    firebase.auth().onAuthStateChanged(user => {
-      if (!user) {
-        document.body.innerHTML = "<h2>You must be signed in to access this page.</h2>";
-        return;
+  // *****************************************************
+  // *                 PAGE CONTROLLER                  *
+  // *****************************************************
+  firebase.auth().onAuthStateChanged(user => {
+    if (!user) {
+      document.body.innerHTML = "<h2>You must be signed in to access this page.</h2>";
+      return;
+    }
+
+    // ---- Load active championship season ----
+    firebase.firestore().collection('championships')
+      .where('isActive', '==', true)
+      .limit(1)
+      .get()
+      .then(snapshot => {
+        if (snapshot.empty) {
+          document.getElementById('seasonName').textContent = 'No active season found.';
+          return;
+        }
+
+        const seasonDoc  = snapshot.docs[0];
+        const seasonId   = seasonDoc.id;
+        const seasonData = seasonDoc.data();
+
+        document.getElementById('seasonName').textContent = `Current Season: ${seasonData.seasonName}`;
+        document.getElementById('seasonName').dataset.seasonId = seasonId;
+
+        //--------------------------------------------------
+        // Build race‑selection drop‑down
+        //--------------------------------------------------
+        const raceSelectContainer = document.createElement('div');
+        raceSelectContainer.innerHTML = `
+            <label for="raceSelect">Select a race:</label>
+            <select id="raceSelect"></select>
+            <p id="raceSelectionStatus"></p>`;
+        document.body.appendChild(raceSelectContainer);
+
+        const raceKeysSorted = Object.keys(seasonData.races || {})
+          .sort((a, b) => parseInt(a.replace('race','')) - parseInt(b.replace('race','')));
+
+        const raceSelect = document.getElementById('raceSelect');
+        raceKeysSorted.forEach((key, i) => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = `Race ${i+1}: ${seasonData.races[key].trackName}`;
+          raceSelect.appendChild(opt);
+        });
+
+        //--------------------------------------------------
+        // Fetch active drivers (Realtime DB)
+        //--------------------------------------------------
+        firebase.database().ref('drivers').once('value')
+          .then(snap => buildResultsUI(snap.val(), seasonId, raceSelect))
+          .catch(err => {
+            console.error('Error loading drivers', err);
+            document.body.insertAdjacentHTML('beforeend', '<p>❌ Failed to load driver list.</p>');
+          });
+      })
+      .catch(err => {
+        console.error('Error loading active season', err);
+        document.getElementById('seasonName').textContent = '❌ Failed to load active season';
+      });
+  });
+
+  // *****************************************************
+  // *                BUILD THE RESULTS UI              *
+  // *****************************************************
+  function buildResultsUI(driversData, seasonId, raceSelect) {
+    if (!driversData) {
+      document.body.insertAdjacentHTML('beforeend', '<p>⚠️ No drivers found in the database.</p>');
+      return;
+    }
+
+    // ---- Helpers ----
+    const driverOptions = Object.entries(driversData)
+      .filter(([_, d]) => d.active)
+      .map(([uid, d]) => ({ uid, name: d.name || `Unnamed Driver (${uid})` }));
+    const MAX_POS = 8;
+
+    //--------------------------------------------------
+    //   1. Results table (position + two races)
+    //--------------------------------------------------
+    const section = document.createElement('section');
+    section.innerHTML = '<h3>Enter Race Results</h3>';
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    ['Position','Race 1 – Driver','Race 2 – Driver'].forEach(t => {
+      const th = document.createElement('th'); th.textContent = t; headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    const race1Drops = [], race2Drops = [];
+
+    for (let p=1; p<=MAX_POS; p++) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>P${p}</td>`;
+
+      // helper to make one <select>
+      const makeSelect = (race) => {
+        const sel = document.createElement('select');
+        sel.dataset.position = p;
+        sel.dataset.race     = race;
+        sel.style.width = '200px';
+        // default option
+        sel.appendChild(new Option('-- Select Driver --',''));
+        driverOptions.forEach(opt => sel.appendChild(new Option(opt.name,opt.uid)));
+        return sel;
+      };
+
+      const td1 = document.createElement('td'); const r1 = makeSelect('race1'); td1.appendChild(r1); race1Drops.push(r1);
+      const td2 = document.createElement('td'); const r2 = makeSelect('race2'); td2.appendChild(r2); race2Drops.push(r2);
+
+      tr.appendChild(td1); tr.appendChild(td2); table.appendChild(tr);
+    }
+
+    section.appendChild(table); document.body.appendChild(section);
+
+    //--------------------------------------------------
+    //   2. Bonus‑points dropdowns
+    //--------------------------------------------------
+    const bonusSec = document.createElement('section'); bonusSec.innerHTML='<h3>Bonus Points</h3>';
+    const bonusFields = [
+      { id:'polePositionDriver',            label:'Pole Position'              },
+      { id:'fastestLapDriverR1',            label:'Fastest Lap – Race 1'       },
+      { id:'fastestLapOffPodiumDriverR1',   label:'Fastest Lap (Off Podium) – R1' },
+      { id:'fastestLapDriverR2',            label:'Fastest Lap – Race 2'       },
+      { id:'fastestLapOffPodiumDriverR2',   label:'Fastest Lap (Off Podium) – R2' }
+    ];
+    bonusFields.forEach(f => {
+      const lab = document.createElement('label'); lab.textContent = `${f.label}: `; lab.htmlFor = f.id;
+      const sel = document.createElement('select'); sel.id = f.id; sel.appendChild(new Option('-- Select Driver --',''));
+      driverOptions.forEach(o => sel.appendChild(new Option(o.name, o.uid)));
+      bonusSec.appendChild(lab); bonusSec.appendChild(sel); bonusSec.appendChild(document.createElement('br'));
+    });
+    document.body.appendChild(bonusSec);
+
+    //--------------------------------------------------
+    //   3. Deduplication logic (hide used drivers)
+    //--------------------------------------------------
+    function attachDedupLogic(selectList) {
+      selectList.forEach(sel => sel.addEventListener('change', () => {
+        const used = new Set(selectList.map(s=>s.value).filter(Boolean));
+        selectList.forEach(s => {
+          Array.from(s.options).forEach(o => {
+            if (!o.value) return; // keep default always visible
+            o.hidden = used.has(o.value) && o.value !== s.value;
+          });
+        });
+      }));
+    }
+    attachDedupLogic(race1Drops); attachDedupLogic(race2Drops);
+
+    //--------------------------------------------------
+    //   4. Pre‑loading helper
+    //--------------------------------------------------
+    function preloadDropdowns(resultsObj, dropdowns) {
+      const dropdownByPos = {};
+      dropdowns.forEach(sel => { sel.value=''; dropdownByPos[+sel.dataset.position] = sel; });
+
+      const counts = {};
+      Object.values(resultsObj).forEach(p => counts[p] = (counts[p]||0)+1);
+      const maxPos        = Math.max(...Object.keys(counts).map(Number), 0);
+      const lastIsShared  = counts[maxPos] > 1;
+
+      Object.entries(resultsObj).forEach(([uid,pos]) => {
+        if (pos === maxPos && lastIsShared) return; // non‑starters
+        const drop = dropdownByPos[pos];
+        if (drop) drop.value = uid;
+      });
+    }
+
+    //--------------------------------------------------
+    //   5. Race selector change → preload all fields
+    //--------------------------------------------------
+    raceSelect.addEventListener('change', () => {
+      const raceKey = raceSelect.value; if (!raceKey) return;
+      firebase.firestore().collection('championships').doc(seasonId).get()
+        .then(doc => {
+          const raceData = (doc.data().races || {})[raceKey] || {};
+          preloadDropdowns(raceData.resultsRace1 || {}, race1Drops);
+          preloadDropdowns(raceData.resultsRace2 || {}, race2Drops);
+
+          // bonus
+          bonusFields.forEach(f => {
+            const el = document.getElementById(f.id);
+            el.value = raceData[f.id] || '';
+          });
+        })
+        .catch(err => console.error('Error loading race', err));
+    });
+    raceSelect.dispatchEvent(new Event('change')); // trigger initial load
+
+    //--------------------------------------------------
+    //   6. Save helper
+    //--------------------------------------------------
+    async function saveRace(raceNo) {
+      const raceKey = raceSelect.value;
+      const selList = raceNo===1 ? race1Drops : race2Drops;
+      const results = {}; const chosen = [];
+      selList.forEach(sel => {
+        if (sel.value) { results[sel.value] = +sel.dataset.position; chosen.push(sel.value); }
+      });
+
+      // determine shared last value
+      const currentMax = Math.max(...Object.values(results), 0);
+      const sharedLast = Object.values(results).filter(p=>p===currentMax).length>1 ? currentMax : currentMax+1;
+
+      // add DNS/DNF drivers
+      driverOptions.forEach(o => { if (!chosen.includes(o.uid)) results[o.uid] = sharedLast; });
+
+      // bonus fields
+      const bonus = {};
+      if (raceNo===1) {
+        ['polePositionDriver','fastestLapDriverR1','fastestLapOffPodiumDriverR1'].forEach(id => {
+          const v=document.getElementById(id).value; if (v) bonus[`races.${raceKey}.${id}`]=v; });
+      } else {
+        ['fastestLapDriverR2','fastestLapOffPodiumDriverR2'].forEach(id => {
+          const v=document.getElementById(id).value; if (v) bonus[`races.${raceKey}.${id}`]=v; });
       }
 
-      // Load active season
-      firebase.firestore().collection('championships')
-        .where('isActive', '==', true)
-        .limit(1)
-        .get()
-        .then(snapshot => {
-            if (snapshot.empty) {
-                document.getElementById('seasonName').textContent = "No active season found.";
-                return;
-            }
-
-            const seasonDoc = snapshot.docs[0];
-            const data = seasonDoc.data();
-            document.getElementById('seasonName').textContent = `Current Season: ${data.seasonName}`;
-            document.getElementById('seasonName').dataset.seasonId = seasonDoc.id;
-            const raceSelectContainer = document.createElement('div');
-            raceSelectContainer.innerHTML = `
-            <label for="raceSelect">Select a race:</label>
-            <select id="raceSelect">
-                <option value="">Loading races...</option>
-            </select>
-            <p id="raceSelectionStatus"></p>
-            `;
-            document.body.appendChild(raceSelectContainer);
-
-            const races = data.races; // races is an object: race1, race2, etc.
-            const raceSelect = document.getElementById('raceSelect');
-            raceSelect.innerHTML = ''; // clear the "Loading..." option
-
-            let firstIncompleteRaceKey = null;
-            let index = 1;
-
-            const sortedRaceKeys = Object.keys(races).sort((a, b) => {
-            const numA = parseInt(a.replace('race', ''));
-            const numB = parseInt(b.replace('race', ''));
-            return numA - numB;
-            });
-
-            sortedRaceKeys.forEach((raceKey, i) => {
-            const raceInfo = races[raceKey];
-            const option = document.createElement('option');
-            option.value = raceKey;
-            option.textContent = `Race ${i + 1}: ${raceInfo.trackName}`;
-
-            if (!firstIncompleteRaceKey) {
-                firstIncompleteRaceKey = raceKey;
-                option.selected = true;
-            }
-
-            raceSelect.appendChild(option);
-            });
-
-            // Step: Fetch driver list from Realtime Database
-            firebase.database().ref('drivers').once('value')
-            .then(snapshot => {
-                const driversData = snapshot.val();
-                if (!driversData) {
-                const warning = document.createElement('p');
-                warning.textContent = "⚠️ No drivers found in the database.";
-                document.body.appendChild(warning);
-                return;
-                }
-
-                // Create the race results table section
-                const resultsSection = document.createElement('section');
-                resultsSection.innerHTML = `<h3>Enter Race Results</h3>`;
-
-                // Create the table
-                const table = document.createElement('table');
-                table.setAttribute('id', 'raceResultsTable');
-                table.style.borderCollapse = 'collapse';
-                table.style.width = '100%';
-
-                // Table header
-                const headerRow = document.createElement('tr');
-
-                ['Driver', 'Race 1 Position', 'Race 2 Position'].forEach(colName => {
-                const th = document.createElement('th');
-                th.textContent = colName;
-                th.style.border = '1px solid #ccc';
-                th.style.padding = '6px';
-                headerRow.appendChild(th);
-                });
-
-                table.appendChild(headerRow);
-                resultsSection.appendChild(table);
-                document.body.appendChild(resultsSection);
-
-                // Bonus Points Section
-                const bonusSection = document.createElement('section');
-                bonusSection.innerHTML = `<h3>Bonus Points</h3>`;
-                bonusSection.style.marginTop = '20px';
-
-                const bonusFields = [
-                { id: 'polePositionDriver', label: 'Pole Position' },
-                { id: 'fastestLapDriverR1', label: 'Fastest Lap – Race 1' },
-                { id: 'fastestLapOffPodiumDriverR1', label: 'Fastest Lap (Off Podium) - Race 1' },
-                { id: 'fastestLapDriverR2', label: 'Fastest Lap – Race 2' },
-                { id: 'fastestLapOffPodiumDriverR2', label: 'Fastest Lap (Off Podium) - Race 2' }
-                ];
-
-                bonusFields.forEach(field => {
-                const label = document.createElement('label');
-                label.htmlFor = field.id;
-                label.textContent = `${field.label}: `;
-
-                const select = document.createElement('select');
-                select.id = field.id;
-                select.name = field.id;
-
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '-- Select Driver --';
-                select.appendChild(defaultOption);
-
-                Object.entries(driversData).forEach(([uid, driver]) => {
-                    if (!driver.active) return;
-                    const option = document.createElement('option');
-                    option.value = uid;
-                    option.textContent = driver.name || `Unnamed Driver (${uid})`;
-                    select.appendChild(option);
-                });
-
-                bonusSection.appendChild(label);
-                bonusSection.appendChild(select);
-                bonusSection.appendChild(document.createElement('br'));
-                });
-
-                document.body.appendChild(bonusSection);
-
-
-                // Add rows for each active driver (names only for now)
-                Object.entries(driversData).forEach(([uid, driver]) => {
-                if (!driver.active) return;
-
-                const row = document.createElement('tr');
-
-                const nameCell = document.createElement('td');
-                nameCell.textContent = driver.name || `Unnamed Driver (${uid})`;
-                nameCell.style.border = '1px solid #ccc';
-                nameCell.style.padding = '6px';
-
-                const race1Cell = document.createElement('td');
-                race1Cell.style.border = '1px solid #ccc';
-                race1Cell.style.padding = '6px';
-                const race1Input = document.createElement('input');
-                race1Input.type = 'number';
-                race1Input.min = '1';
-                race1Input.max = '10';
-                race1Input.placeholder = 'Position';
-                race1Input.style.width = '100px';
-                race1Input.dataset.uid = uid;
-                race1Input.dataset.race = 'race1';
-                race1Cell.appendChild(race1Input);
-
-                const race2Cell = document.createElement('td');
-                race2Cell.style.border = '1px solid #ccc';
-                race2Cell.style.padding = '6px';
-                const race2Input = document.createElement('input');
-                race2Input.type = 'number';
-                race2Input.min = '1';
-                race2Input.max = '10';
-                race2Input.placeholder = 'Position';
-                race2Input.style.width = '100px';
-                race2Input.dataset.uid = uid;
-                race2Input.dataset.race = 'race2';
-                race2Cell.appendChild(race2Input);
-
-
-                row.appendChild(nameCell);
-                row.appendChild(race1Cell);
-                row.appendChild(race2Cell);
-
-                table.appendChild(row);
-                });
-
-                raceSelect.addEventListener('change', () => {
-                const selectedRaceKey = raceSelect.value;
-                const seasonId = document.getElementById('seasonName').dataset.seasonId;
-
-                if (!selectedRaceKey || !seasonId) return;
-
-                firebase.firestore()
-                    .collection('championships')
-                    .doc(seasonId)
-                    .get()
-                    .then(doc => {
-                    const seasonData = doc.data();
-                    const raceData = seasonData.races[selectedRaceKey];
-
-                    if (!raceData) return;
-
-                    const race1Results = raceData.resultsRace1 || {};
-                    const race2Results = raceData.resultsRace2 || {};
-
-                    // Fill Race 1 inputs
-                    document.querySelectorAll('input[data-race="race1"]').forEach(input => {
-                        const uid = input.dataset.uid;
-                        input.value = race1Results[uid] || '';
-                    });
-
-                    // Fill Race 2 inputs
-                    document.querySelectorAll('input[data-race="race2"]').forEach(input => {
-                        const uid = input.dataset.uid;
-                        input.value = race2Results[uid] || '';
-                    });
-
-                    // Load bonus driver dropdowns if present
-                    const bonusFields = [
-                    { id: 'polePositionDriver', key: 'polePositionDriver' },
-                    { id: 'fastestLapDriverR1', key: 'fastestLapDriverR1' },
-                    { id: 'fastestLapOffPodiumDriverR1', key: 'fastestLapOffPodiumDriverR1' },
-                    { id: 'fastestLapDriverR2', key: 'fastestLapDriverR2' },
-                    { id: 'fastestLapOffPodiumDriverR2', key: 'fastestLapOffPodiumDriverR2' }
-                    ];
-
-                    bonusFields.forEach(field => {
-                    const dropdown = document.getElementById(field.id);
-                    if (!dropdown) return; // Safety check
-
-                    const savedValue = raceData[field.key] || '';
-                    dropdown.value = savedValue;
-                    });
-
-
-                    })
-                    .catch(error => {
-                    console.error("Error loading race results:", error);
-                    });
-                });
-
-
-                const buttonSection = document.createElement('section');
-                buttonSection.style.marginTop = '20px';
-
-                const race1Submit = document.createElement('button');
-                race1Submit.textContent = 'Submit Race 1 Results';
-                race1Submit.style.marginRight = '10px';
-
-                const race2Submit = document.createElement('button');
-                race2Submit.textContent = 'Submit Race 2 Results';
-
-                buttonSection.appendChild(race1Submit);
-                buttonSection.appendChild(race2Submit);
-                document.body.appendChild(buttonSection);
-
-                // Trigger loading the initially selected race results
-                raceSelect.dispatchEvent(new Event('change'));
-
-                race1Submit.addEventListener('click', async () => {
-                const seasonId = document.getElementById('seasonName').dataset.seasonId;
-                const raceKey = document.getElementById('raceSelect').value;
-                const inputs = document.querySelectorAll('input[data-race="race1"]');
-
-                const results = {};
-                const allUIDs = []; // collect all active driver UIDs
-
-                inputs.forEach(input => {
-                const uid = input.dataset.uid;
-                allUIDs.push(uid);
-                const pos = parseInt(input.value);
-                if (!isNaN(pos)) {
-                    results[uid] = pos;
-                }
-                });
-
-                // Find max position entered, and give non-participants the next place
-                const maxPosition = Math.max(...Object.values(results));
-                allUIDs.forEach(uid => {
-                if (!(uid in results)) {
-                    results[uid] = maxPosition + 1;
-                }
-                });
-
-
-                // Grab bonus driver selections
-                const poleDriver = document.getElementById('polePositionDriver').value;
-                const flDriverR1 = document.getElementById('fastestLapDriverR1').value;
-                const flOffPodiumR1 = document.getElementById('fastestLapOffPodiumDriverR1').value;
-
-                // Prepare bonus data
-                const bonusUpdatesR1 = {};
-                if (poleDriver) bonusUpdatesR1[`races.${raceKey}.polePositionDriver`] = poleDriver;
-                if (flDriverR1) bonusUpdatesR1[`races.${raceKey}.fastestLapDriverR1`] = flDriverR1;
-                if (flOffPodiumR1) bonusUpdatesR1[`races.${raceKey}.fastestLapOffPodiumDriverR1`] = flOffPodiumR1;
-
-                try {
-                    await firebase.firestore()
-                    .collection('championships')
-                    .doc(seasonId)
-                    .update({
-                        [`races.${raceKey}.resultsRace1`]: results,
-                        ...bonusUpdatesR1
-                    });
-
-                    alert("✅ Race 1 results saved to Firestore!");
-                } catch (error) {
-                    console.error("❌ Error saving Race 1 results:", error);
-                    alert("❌ Failed to save Race 1 results.");
-                }
-                });
-
-
-                race2Submit.addEventListener('click', async () => {
-                const seasonId = document.getElementById('seasonName').dataset.seasonId;
-                const raceKey = document.getElementById('raceSelect').value;
-                const inputs = document.querySelectorAll('input[data-race="race2"]');
-
-                const results = {};
-                const allUIDs = []; // collect all active driver UIDs
-
-                inputs.forEach(input => {
-                const uid = input.dataset.uid;
-                allUIDs.push(uid);
-                const pos = parseInt(input.value);
-                if (!isNaN(pos)) {
-                    results[uid] = pos;
-                }
-                });
-
-                // Find max position entered, and give non-participants the next place
-                const maxPosition = Math.max(...Object.values(results));
-                allUIDs.forEach(uid => {
-                if (!(uid in results)) {
-                    results[uid] = maxPosition + 1;
-                }
-                });
-
-
-                // Grab Race 2 bonus selections
-                const flDriverR2 = document.getElementById('fastestLapDriverR2').value;
-                const flOffPodiumR2 = document.getElementById('fastestLapOffPodiumDriverR2').value;
-
-                // Prepare Race 2 bonus updates
-                const bonusUpdatesR2 = {};
-                if (flDriverR2) bonusUpdatesR2[`races.${raceKey}.fastestLapDriverR2`] = flDriverR2;
-                if (flOffPodiumR2) bonusUpdatesR2[`races.${raceKey}.fastestLapOffPodiumDriverR2`] = flOffPodiumR2;
-
-
-                try {
-                    await firebase.firestore()
-                    .collection('championships')
-                    .doc(seasonId)
-                    .update({
-                        [`races.${raceKey}.resultsRace2`]: results,
-                        ...bonusUpdatesR2
-                    });
-
-                    alert("✅ Race 2 results saved to Firestore!");
-                } catch (error) {
-                    console.error("❌ Error saving Race 2 results:", error);
-                    alert("❌ Failed to save Race 2 results.");
-                }
-                });
-
-
-            })
-            .catch(error => {
-                console.error("Error loading drivers:", error);
-                const errorMsg = document.createElement('p');
-                errorMsg.textContent = "❌ Failed to load driver list.";
-                document.body.appendChild(errorMsg);
-            });
-
-
-        })
-        .catch(error => {
-          console.error("Error loading active season:", error);
-          document.getElementById('seasonStatusMessage').textContent = "❌ Failed to load active season.";
-        });
-    });
+      const fieldName = raceNo===1 ? 'resultsRace1' : 'resultsRace2';
+      await firebase.firestore().collection('championships').doc(seasonId).update({
+        [`races.${raceKey}.${fieldName}`]: results,
+        ...bonus
+      });
+      alert(`✅ Race ${raceNo} results saved!`);
+    }
+
+    //--------------------------------------------------
+    //   7. Action buttons
+    //--------------------------------------------------
+    const btnSec = document.createElement('section'); btnSec.style.marginTop='20px';
+    const b1 = document.createElement('button'); b1.textContent='Submit Race 1 Results'; b1.onclick = () => saveRace(1);
+    const b2 = document.createElement('button'); b2.textContent='Submit Race 2 Results'; b2.style.marginLeft='10px'; b2.onclick = () => saveRace(2);
+    btnSec.appendChild(b1); btnSec.appendChild(b2); document.body.appendChild(btnSec);
+  }
   </script>
 </body>
 </html>
