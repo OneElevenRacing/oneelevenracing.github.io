@@ -120,6 +120,15 @@
       .map(([uid, d]) => ({ uid, name: d.name || `Unnamed Driver (${uid})` }));
     const MAX_POS = 8;
 
+    const bonusFields = [
+    { id: 'polePositionDriver', label: 'Pole Position', race: 1 },
+    { id: 'fastestLapDriverR1', label: 'Fastest Lap – Race 1', race: 1 },
+    { id: 'fastestLapOffPodiumDriverR1', label: 'Fastest Lap (Off Podium) – Race 1', race: 1 },
+    { id: 'fastestLapDriverR2', label: 'Fastest Lap – Race 2', race: 2 },
+    { id: 'fastestLapOffPodiumDriverR2', label: 'Fastest Lap (Off Podium) – Race 2', race: 2 }
+    ];
+
+
     //--------------------------------------------------
     //   1. Results table (position + two races)
     //--------------------------------------------------
@@ -159,24 +168,55 @@
 
     section.appendChild(table); document.body.appendChild(section);
 
-    //--------------------------------------------------
-    //   2. Bonus‑points dropdowns
-    //--------------------------------------------------
-    const bonusSec = document.createElement('section'); bonusSec.innerHTML='<h3>Bonus Points</h3>';
-    const bonusFields = [
-      { id:'polePositionDriver',            label:'Pole Position'              },
-      { id:'fastestLapDriverR1',            label:'Fastest Lap – Race 1'       },
-      { id:'fastestLapOffPodiumDriverR1',   label:'Fastest Lap (Off Podium) – R1' },
-      { id:'fastestLapDriverR2',            label:'Fastest Lap – Race 2'       },
-      { id:'fastestLapOffPodiumDriverR2',   label:'Fastest Lap (Off Podium) – R2' }
-    ];
-    bonusFields.forEach(f => {
-      const lab = document.createElement('label'); lab.textContent = `${f.label}: `; lab.htmlFor = f.id;
-      const sel = document.createElement('select'); sel.id = f.id; sel.appendChild(new Option('-- Select Driver --',''));
-      driverOptions.forEach(o => sel.appendChild(new Option(o.name, o.uid)));
-      bonusSec.appendChild(lab); bonusSec.appendChild(sel); bonusSec.appendChild(document.createElement('br'));
+    
+    // === Create Bonus Row Labels ===
+    const bonusHeaderRow = document.createElement('tr');
+    bonusHeaderRow.innerHTML = `
+    <td></td>
+    <td style="text-align:center; font-weight:bold;">Race 1 Bonus Points</td>
+    <td style="text-align:center; font-weight:bold;">Race 2 Bonus Points</td>
+    `;
+    table.appendChild(bonusHeaderRow);
+
+    // === Create Bonus Point Dropdowns with Labels ===
+    const bonusRow = document.createElement('tr');
+    bonusRow.appendChild(document.createElement('td')); // Empty top-left cell
+
+    [1, 2].forEach(raceNo => {
+    const cell = document.createElement('td');
+
+    bonusFields
+        .filter(field => field.race === raceNo)
+        .forEach(field => {
+        const label = document.createElement('label');
+        label.htmlFor = field.id;
+        label.textContent = field.label + ': ';
+        label.style.display = 'block'; // ensures each label+select pair is on its own line
+
+        const select = document.createElement('select');
+        select.id = field.id;
+        select.name = field.id;
+        select.appendChild(new Option('-- Select Driver --', ''));
+        driverOptions.forEach(opt => {
+            select.appendChild(new Option(opt.name, opt.uid));
+        });
+
+        cell.appendChild(label);
+        cell.appendChild(select);
+        });
+
+    bonusRow.appendChild(cell);
     });
-    document.body.appendChild(bonusSec);
+
+    table.appendChild(bonusRow);
+
+    const buttonRow = document.createElement('tr');
+    buttonRow.innerHTML = `
+    <td></td>
+    <td style="text-align:center;"><button id="submitRace1">Submit Race 1</button></td>
+    <td style="text-align:center;"><button id="submitRace2">Submit Race 2</button></td>
+    `;
+    table.appendChild(buttonRow);
 
     //--------------------------------------------------
     //   3. Deduplication logic (hide used drivers)
@@ -271,15 +311,13 @@
       });
       alert(`Race ${raceNo} results saved!`);
     }
-
-    //--------------------------------------------------
-    //   7. Action buttons
-    //--------------------------------------------------
-    const btnSec = document.createElement('section'); btnSec.style.marginTop='20px';
-    const b1 = document.createElement('button'); b1.textContent='Submit Race 1 Results'; b1.onclick = () => saveRace(1);
-    const b2 = document.createElement('button'); b2.textContent='Submit Race 2 Results'; b2.style.marginLeft='10px'; b2.onclick = () => saveRace(2);
-    btnSec.appendChild(b1); btnSec.appendChild(b2); document.body.appendChild(btnSec);
+    document.getElementById('submitRace1').onclick = () => saveRace(1);
+    document.getElementById('submitRace2').onclick = () => saveRace(2);
   }
+
+    
+
+
   </script>
 </body>
 </html>
