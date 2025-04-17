@@ -103,7 +103,7 @@
       border: 2px solid var(--clr-accent);
       padding: 0.5em 1.25em;
       font-family: inherit;
-      font-size: 0.95rem;
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       border-radius: var(--radius);
@@ -117,41 +117,55 @@
     }
 
     table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-block: 1.5rem 2rem;
-      font-size: 0.95rem;
-      border: 1px solid var(--clr-accent);
+    border-collapse: collapse;
+    width: auto;
+    margin-block: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 0.85rem;
+    border: 1px solid var(--clr-accent);
+    table-layout: fixed;
     }
     thead th {
       background: var(--clr-gray-700);
-      padding: 0.75em;
+      padding: 0.4em;
       text-align: left;
       border-bottom: 2px solid var(--clr-accent);
       color: var(--clr-fg);
     }
     tbody td {
-      padding: 0.6em 0.5em;
+      padding: 0.4em;
       border-bottom: 1px solid var(--clr-accent);
     }
     tbody tr:nth-child(odd) { background: var(--clr-gray-600); }
     tbody tr:hover { background: #eaeaea; }
 
+    thead th:nth-child(1),
+    tbody td:nth-child(1) {
+    text-align: center;
+    }
+
+    thead th:nth-child(2),
+    thead th:nth-child(3),
+    tbody td:nth-child(2),
+    tbody td:nth-child(3) {
+    }
+
     select {
       width: 100%;
-      max-width: 260px;
+      max-width: 180px;
       padding: 0.35em 0.5em;
       background: var(--clr-bg);
       color: var(--clr-fg);
       border: 1px solid var(--clr-accent);
       border-radius: var(--radius);
       font-family: inherit;
-      font-size: 0.95rem;
+      font-size: 0.8rem;
     }
     select:focus-visible { outline: 3px dashed var(--clr-accent); outline-offset: 2px; }
 
     label {
-      font-size: 0.85rem;
+      font-size: 0.55rem;
       color: var(--clr-fg);
     }
 
@@ -228,25 +242,6 @@
     ::-webkit-scrollbar-thumb { background: var(--clr-accent); }
     ::-webkit-scrollbar-thumb:hover { background: #444; }
 
-    @media (max-width: 640px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      thead { display: none; }
-      tr { margin-bottom: 1rem; }
-      td {
-        border: none;
-        position: relative;
-        padding-left: 50%;
-      }
-      td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 0;
-        width: 45%;
-        padding-left: 0.5rem;
-        font-weight: bold;
-        white-space: nowrap;
-      }
-    }
   </style>
 </head>
 <body>
@@ -358,8 +353,11 @@
     //--------------------------------------------------
     const section = document.createElement('section');
     section.innerHTML = '<h3 style="text-align:center" class="text-center">Enter Race Results</h3>';
-
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
     const table = document.createElement('table');
+    section.appendChild(wrapper);
+
 
     // Build header
     const thead = document.createElement('thead');
