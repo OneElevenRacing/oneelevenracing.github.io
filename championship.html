@@ -19,6 +19,19 @@
         table th {
           background-color: #f0f0f0;
         }
+
+        /* Sticky left column */
+        table td:first-child,
+        table th:first-child {
+        position: sticky;
+        left: 0;
+        background-color: #f8f8f8;
+        z-index: 2;
+        font-weight: bold;
+        text-align: left;
+        white-space: nowrap;
+        }
+
       
         /* Bonus point cells */
         td[data-bonus*="Pole"] { background-color: orange; }
@@ -39,11 +52,21 @@
         font-weight: bold;
         }
 
-
         td[data-dropped="true"] {
         text-decoration: line-through;
         color: #999;
         opacity: 0.6;
+        }
+
+        .scroll-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        margin-bottom: 1em;
+        }
+
+        .scroll-container table {
+        min-width: 600px; /* Adjust depending on your table's natural width */
         }
 
       </style>
@@ -248,7 +271,13 @@
         });
 
         table.appendChild(tbody);
-        raceResultsSection.appendChild(table);
+        
+        // Wrap table in div wrapper for scrolling
+        const scrollWrapper = document.createElement('div');
+        scrollWrapper.className = 'scroll-container';
+        scrollWrapper.appendChild(table);
+        raceResultsSection.appendChild(scrollWrapper);
+
 
         const bonusCodes = {
         PP: "polePosition",
