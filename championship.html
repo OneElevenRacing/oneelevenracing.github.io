@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>One Eleven Racing - Championship</title>
+    <title style="text-align: center">One Eleven Racing - Championship</title>
 
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
@@ -12,6 +12,12 @@
 
 
     <style>
+        /* Fonts */
+        @font-face {
+            font-family: 'KeepCalm'; /* Give your custom font a name */
+            src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
+        }
+
         table th, table td {
           padding: 3px 4px;
           border: 1px solid #ccc;
@@ -91,6 +97,30 @@
         font-size: 12px;         /* ⬅️ Smaller font */
         line-height: 1.2;        /* ⬅️ Reduces row height */
         table-layout: fixed;     /* ⬅️ More consistent column sizing */
+        }
+
+        #championship-nav {
+        display: flex;
+        flex-direction: column;     /* ⬅️ Stack vertically */
+        align-items: center;        /* ⬅️ Center horizontally */
+        gap: 10px;                  /* ⬅️ Space between buttons */
+        margin-top: 30px;
+        }
+
+        #championship-nav button {
+            display: block;
+            width: 80%;
+            max-width: 400px;
+            margin: 15px auto;
+            padding: 15px;
+            background-color: #000000;
+            color: white;
+            font-family: 'KeepCalm', Arial, sans-serif;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
         }
 
       </style>
@@ -410,6 +440,8 @@
         const standingsTable = document.createElement('table');
         standingsTable.style.borderCollapse = 'collapse';
         standingsTable.style.marginTop = '10px';
+        standingsTable.style.marginLeft = 'auto';
+        standingsTable.style.marginRight = 'auto';
 
         const headRow = document.createElement('tr');
         ['Position', 'Driver', 'Points'].forEach(label => {
@@ -450,7 +482,7 @@
         console.log("✅ Active season loaded:", seasonData);
 
         document.getElementById('standings-placeholder').innerHTML =
-            `<p>Loaded season: <strong>${seasonData.seasonName}</strong></p>`;
+            `<p style="text-align: center">Loaded season: <strong>${seasonData.seasonName}</strong></p>`;
         
         // We'll build on this in the next step
         })
@@ -469,7 +501,7 @@
 
   <!-- Current Standings Section -->
   <section id="current-standings">
-    <h2>Current Standings</h2>
+    <h2 style="text-align: center">Current Standings</h2>
     <!-- Placeholder: Later, you'll replace this with a dynamic table or divs -->
     <div id="standings-placeholder">
       <p>(Standings will be displayed here dynamically.)</p>
