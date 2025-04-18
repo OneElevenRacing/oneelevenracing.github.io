@@ -13,7 +13,7 @@
 
     <style>
         table th, table td {
-          padding: 6px;
+          padding: 3px 4px;
           border: 1px solid #ccc;
           text-align: center;
         }
@@ -37,9 +37,9 @@
         /* Make all driver columns equal width */
         th.driver-col,
         td.driver-col {
-        width: 80px; /* adjust as needed */
-        max-width: 100px;
-        min-width: 100px;
+        width: 60px; /* adjust as needed */
+        max-width: 60px;
+        min-width: 60px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -47,7 +47,7 @@
 
       
         /* Bonus point cells */
-        td[data-bonus*="Pole"] { background-color: orange; }
+        td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
         td[data-bonus*="OP"] { background-color: cyan; }
 
@@ -75,11 +75,22 @@
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         width: 100%;
-        margin-bottom: 1em;
+        margin: 0 auto;
+        padding: 0 20px; /* ⬅️ Gives breathing room on small screens */
+        box-sizing: border-box; /* Ensures padding doesn’t exceed 100% width */
         }
 
         .scroll-container table {
         min-width: 600px; /* Adjust depending on your table's natural width */
+        margin-left: auto;
+        margin-right: auto;
+        }
+
+        /* Compact font and spacing for race results only */
+        #race-results table {
+        font-size: 12px;         /* ⬅️ Smaller font */
+        line-height: 1.2;        /* ⬅️ Reduces row height */
+        table-layout: fixed;     /* ⬅️ More consistent column sizing */
         }
 
       </style>
@@ -335,15 +346,15 @@
             const bonuses2 = [];
 
             // Find who got fastest laps and pole race 1
-            if (race.polePositionDriver === uid) bonuses1.push("Pole");
+            if (race.polePositionDriver === uid) bonuses1.push("PP");
             if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
             if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
 
             // Check if driver got a combination of both
-            if (bonuses1.includes("Pole") && bonuses1.includes("FL")) {
+            if (bonuses1.includes("PP") && bonuses1.includes("FL")) {
             console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R1)`);
             }
-            if (bonuses1.includes("Pole") && bonuses1.includes("OP")) {
+            if (bonuses1.includes("PP") && bonuses1.includes("OP")) {
             console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R1)`);
             }
 
@@ -352,10 +363,10 @@
             if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
 
             // Check if driver got a combination of both
-            if (bonuses2.includes("Pole") && bonuses1.includes("FL")) {
+            if (bonuses2.includes("PP") && bonuses1.includes("FL")) {
             console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R2)`);
             }
-            if (bonuses2.includes("Pole") && bonuses1.includes("OP")) {
+            if (bonuses2.includes("PP") && bonuses1.includes("OP")) {
             console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R2)`);
             }
             const cell1 = row1.children[driverIndex + 1];
@@ -377,17 +388,17 @@
             // Set data attribute for bonus point styling for table
             if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');
             if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+');
-            if (bonuses1.includes("Pole") && bonuses1.includes("FL")) {
+            if (bonuses1.includes("PP") && bonuses1.includes("FL")) {
             cell1.dataset.combo = "pole-fl";
             }
-            if (bonuses1.includes("Pole") && bonuses1.includes("OP")) {
+            if (bonuses1.includes("PP") && bonuses1.includes("OP")) {
             cell1.dataset.combo = "pole-op";
             }
 
-            if (bonuses2.includes("Pole") && bonuses2.includes("FL")) {
+            if (bonuses2.includes("PP") && bonuses2.includes("FL")) {
             cell2.dataset.combo = "pole-fl";
             }
-            if (bonuses2.includes("Pole") && bonuses2.includes("OP")) {
+            if (bonuses2.includes("PP") && bonuses2.includes("OP")) {
             cell2.dataset.combo = "pole-op";
             }
 
@@ -467,7 +478,7 @@
 
   <!-- Race Results Table Section -->
   <section id="race-results">
-    <h2>Race Results</h2>
+    <h2 style="text-align: center;">Race Results</h2>
     <!-- This table follows a simple pattern of Race / Position / Driver / Points.
          You can adapt the columns as needed. -->
   </section>
