@@ -4,9 +4,6 @@
     <meta charset="UTF-8" />
     <title>One Eleven Racing - Championship</title>
 
-    <!-- Link to your preferred stylesheet -->
-    <!-- <link rel="stylesheet" href="style_main.css" /> -->
-
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
@@ -26,6 +23,13 @@
         td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
         td[data-bonus*="OP"] { background-color: lightblue; }
+
+        td[data-dropped="true"] {
+        text-decoration: line-through;
+        color: #999;
+        opacity: 0.6;
+        }
+
       </style>
 
     <script>
@@ -133,7 +137,22 @@
         console.log(`Driver ${window.oneElevenDrivers.names[uid]} ➜ ` +
                     `event scores ${racePointsPerEvent[uid]} | best 9 = ${best9} | ` +
                     `sum = ${sum9}`);
+
+        const droppedIndexes = [];
+        racePointsPerEvent[uid].forEach((pts, idx) => {
+        if (!best9.includes(pts)) {
+            droppedIndexes.push(idx);
+        } else {
+            // Only remove first occurrence to handle duplicate scores correctly
+            best9.splice(best9.indexOf(pts), 1);
+        }
         });
+        window.oneElevenDrivers.droppedIndexes = window.oneElevenDrivers.droppedIndexes || {};
+        window.oneElevenDrivers.droppedIndexes[uid] = droppedIndexes;
+        console.log(`🟢 Step 7 – Dropped events for ${window.oneElevenDrivers.names[uid]}:`, droppedIndexes);
+
+        });
+
 
         // 4 ▶ final championship totals
         const finalTotals = {}; // { uid : number }
@@ -252,6 +271,10 @@
 
             const cell1 = row1.children[driverIndex + 1];
             const cell2 = row2.children[driverIndex + 1];
+
+            const dropped = window.oneElevenDrivers.droppedIndexes[uid] || [];
+            if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
+            if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
 
             cell1.textContent =
                 (points1 ? points1 : '') +
