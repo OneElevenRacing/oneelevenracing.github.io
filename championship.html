@@ -34,6 +34,17 @@
         white-space: nowrap;
         }
 
+        /* Make all driver columns equal width */
+        th.driver-col,
+        td.driver-col {
+        width: 80px; /* adjust as needed */
+        max-width: 100px;
+        min-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        }
+
       
         /* Bonus point cells */
         td[data-bonus*="Pole"] { background-color: orange; }
@@ -229,6 +240,7 @@
         window.oneElevenDrivers.uids.forEach(uid => {
         const th = document.createElement('th');
         th.textContent = window.oneElevenDrivers.names[uid];
+        th.classList.add('driver-col');
         headerRow.appendChild(th);
         });
 
@@ -257,6 +269,7 @@
         window.oneElevenDrivers.uids.forEach(uid => {
         const td = document.createElement('td');
         td.dataset.uid = uid;
+        td.classList.add('driver-col');
         td.textContent = "";
         td.style.height = "18px";
         td.innerHTML = "&nbsp;"; 
@@ -270,6 +283,7 @@
         window.oneElevenDrivers.uids.forEach(uid => {
         const td = document.createElement('td');
         td.dataset.uid = uid;
+        td.classList.add('driver-col');
         td.textContent = "";
         td.style.height = "18px";
         td.innerHTML = "&nbsp;"; 
