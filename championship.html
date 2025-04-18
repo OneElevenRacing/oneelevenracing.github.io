@@ -20,9 +20,25 @@
           background-color: #f0f0f0;
         }
       
+        /* Bonus point cells */
         td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
-        td[data-bonus*="OP"] { background-color: lightblue; }
+        td[data-bonus*="OP"] { background-color: cyan; }
+
+        /* Combo cells: Pole + Fastest Lap */
+        td[data-combo="pole-fl"] {
+        background-color: orange;
+        color: yellow; /* or yellow; choose what’s most visible */
+        font-weight: bold;
+        }
+
+        /* Combo cells: Pole + Off-Podium Fastest Lap */
+        td[data-combo="pole-op"] {
+        background-color: orange;
+        color: blue;
+        font-weight: bold;
+        }
+
 
         td[data-dropped="true"] {
         text-decoration: line-through;
@@ -262,13 +278,30 @@
             const bonuses1 = [];
             const bonuses2 = [];
 
+            // Find who got fastest laps and pole race 1
             if (race.polePositionDriver === uid) bonuses1.push("Pole");
             if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
             if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
 
+            // Check if driver got a combination of both
+            if (bonuses1.includes("Pole") && bonuses1.includes("FL")) {
+            console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R1)`);
+            }
+            if (bonuses1.includes("Pole") && bonuses1.includes("OP")) {
+            console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R1)`);
+            }
+
+            // Find who got fastest laps and pole race 2
             if (race.fastestLapDriverR2 === uid) bonuses2.push("FL");
             if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
 
+            // Check if driver got a combination of both
+            if (bonuses2.includes("Pole") && bonuses1.includes("FL")) {
+            console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R2)`);
+            }
+            if (bonuses2.includes("Pole") && bonuses1.includes("OP")) {
+            console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R2)`);
+            }
             const cell1 = row1.children[driverIndex + 1];
             const cell2 = row2.children[driverIndex + 1];
 
@@ -285,9 +318,29 @@
                 (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
 
 
-            // Optional: set data attribute for styling
+            // Set data attribute for bonus point styling for table
             if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');
             if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+');
+            if (bonuses1.includes("Pole") && bonuses1.includes("FL")) {
+            cell1.dataset.combo = "pole-fl";
+            }
+            if (bonuses1.includes("Pole") && bonuses1.includes("OP")) {
+            cell1.dataset.combo = "pole-op";
+            }
+
+            if (bonuses2.includes("Pole") && bonuses2.includes("FL")) {
+            cell2.dataset.combo = "pole-fl";
+            }
+            if (bonuses2.includes("Pole") && bonuses2.includes("OP")) {
+            cell2.dataset.combo = "pole-op";
+            }
+
+            // Console verification that correct tag has been made
+            if (cell1.dataset.combo) console.log(`🎯 Tagged R1 cell for ${window.oneElevenDrivers.names[uid]}:`, cell1.dataset.combo);
+            if (cell2.dataset.combo) console.log(`🎯 Tagged R2 cell for ${window.oneElevenDrivers.names[uid]}:`, cell2.dataset.combo);
+
+
+
         });
         });
 
