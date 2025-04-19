@@ -51,6 +51,14 @@
         white-space: nowrap;
         }
 
+        /* Remove border between Race 1 and Race 2 rows */
+        tr.race-row-2 td {
+        border-top: none !important;
+        }
+
+        tr.race-row td {
+        border-bottom: none !important;
+        }
       
         /* Bonus point cells */
         td[data-bonus*="PP"] { background-color: orange; }
@@ -103,7 +111,6 @@
         display: flex;
         flex-direction: column;     /* ⬅️ Stack vertically */
         align-items: center;        /* ⬅️ Center horizontally */
-        gap: 10px;                  /* ⬅️ Space between buttons */
         margin-top: 30px;
         }
 
@@ -299,6 +306,7 @@
 
         // Race 1 Row
         const row1 = document.createElement('tr');
+        row1.classList.add('race-row');
         const labelCell = document.createElement('td');
         labelCell.textContent = shortLabel;
         labelCell.title = fullLabel;
@@ -320,7 +328,7 @@
 
         // Race 2 Row
         const row2 = document.createElement('tr');
-
+        row2.classList.add('race-row', 'race-row-2');
         window.oneElevenDrivers.uids.forEach(uid => {
         const td = document.createElement('td');
         td.dataset.uid = uid;
