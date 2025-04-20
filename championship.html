@@ -18,9 +18,10 @@
             src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
         }
 
+        /* Styling the rows in the race results table*/
         table th, table td {
           padding: 3px 4px;
-          border: 1px solid #ccc;
+          border: 1px solid #000;
           text-align: center;
         }
       
@@ -59,7 +60,28 @@
         tr.race-row td {
         border-bottom: none !important;
         }
+
+        /* Alternating race rows in grey */
+        tr.alt-row td:not([data-bonus]):not(.race-label) {
+        background-color: #f5f5f5;
+        }
+
+        /* Top header row – black background, white text */
+        #race-results table thead th {
+            background-color: #000;
+            color: white;
+            font-weight: bold;
+            border: 1px solid #333;
+        }
       
+        /* First column – race labels slightly grey*/
+        td.race-label {
+            background-color: #444;
+            color: white;
+            font-weight: bold;
+            border: 1px solid #333;
+        }
+
         /* Bonus point cells */
         td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
@@ -90,7 +112,6 @@
         -webkit-overflow-scrolling: touch;
         width: 100%;
         margin: 0 auto;
-        padding: 0 20px; /* ⬅️ Gives breathing room on small screens */
         box-sizing: border-box; /* Ensures padding doesn’t exceed 100% width */
         }
 
@@ -178,7 +199,6 @@
         };
        
         // === Step: Calculate total points per driver ===
-
         const races = seasonData.races;
         const sortedRaceKeys = Object.keys(races).sort((a, b) => {
         const numA = parseInt(a.replace('race', ''));
@@ -340,10 +360,10 @@
         });
         tbody.appendChild(row2);
 
-        console.log(`🧾 Event ${index + 1} (${shortLabel})`);
-        console.log(`   - row1 cells: ${row1.children.length} (should be ${window.oneElevenDrivers.uids.length + 1})`);
-        console.log(`   - row2 cells: ${row2.children.length} (should be ${window.oneElevenDrivers.uids.length})`);
-
+        if (index % 2 === 1) { // Apply to every second event (starting from 2nd)
+            row1.classList.add('alt-row');
+            row2.classList.add('alt-row');
+            }
         });
 
         table.appendChild(tbody);
