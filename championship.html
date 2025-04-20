@@ -14,7 +14,7 @@
     <style>
         /* Fonts */
         @font-face {
-            font-family: 'KeepCalm'; /* Give your custom font a name */
+            font-family: 'KeepCalm';
             src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
         }
 
@@ -122,11 +122,39 @@
         }
 
         /* Compact font and spacing for race results only */
-        #race-results table {
-        font-size: 12px;         /* ⬅️ Smaller font */
+        #race-results table,
+        #current-standings table {
+        font-family: 'KeepCalm', Arial, sans-serif;
+        font-size: 10px;         /* ⬅️ Smaller font */
         line-height: 1.2;        /* ⬅️ Reduces row height */
         table-layout: fixed;     /* ⬅️ More consistent column sizing */
         }
+
+        /* Standings table header – black background, white text */
+        #current-standings table thead th {
+        background-color: #000;
+        color: white;
+        font-weight: bold;
+        border: 1px solid #333;
+        }
+
+        /* Podium colours for top 3 championship rows */
+        #current-standings table tr.podium-1 td {
+        background-color: gold;
+        font-weight: bold;
+        }
+
+        #current-standings table tr.podium-2 td {
+        background-color: silver;
+        font-weight: bold;
+        }
+
+        #current-standings table tr.podium-3 td {
+        background-color: #cd7f32; /* Bronze */
+        font-weight: bold;
+        }
+
+
 
         #championship-nav {
         display: flex;
@@ -304,9 +332,26 @@
         }
         });
 
-        // Console check
-        console.log("🎯 Pole Positions per driver:", polePositionsPerDriver);
-        console.log("⚡ Fastest Laps per driver:", fastestLapsPerDriver);
+        // Track races per driver
+        const racesPerDriver = {};
+        window.oneElevenDrivers.uids.forEach(uid => {
+        racesPerDriver[uid] = 0;
+        });
+
+        sortedRaceKeys.forEach((raceKey) => {
+        const race = races[raceKey];
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+            if (r1[uid] != null) racesPerDriver[uid]++;
+            if (r2[uid] != null) racesPerDriver[uid]++;
+        });
+        });
+
+        // Check
+        console.log("📅 Races attended per driver:", racesPerDriver);
+
 
 
 
@@ -536,16 +581,24 @@
         standingsTable.style.marginLeft = 'auto';
         standingsTable.style.marginRight = 'auto';
 
+        const standingsThead = document.createElement('thead');
         const headRow = document.createElement('tr');
-        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums'].forEach(label => {
+
+        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Races'].forEach(label => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.appendChild(th);
         });
-        standingsTable.appendChild(headRow);
+
+        standingsThead.appendChild(headRow);
+        standingsTable.appendChild(standingsThead);
 
         sortedStandings.forEach(([uid, total], index) => {
         const row = document.createElement('tr');
+        if (index === 0) row.classList.add('podium-1');
+        if (index === 1) row.classList.add('podium-2');
+        if (index === 2) row.classList.add('podium-3');
+
         
         const pos = document.createElement('td');
         pos.textContent = index + 1;
@@ -587,28 +640,33 @@
         const podiums = document.createElement('td');
         podiums.textContent = podiumsPerDriver[uid] || 0;
 
-        [wins, poles, fl, podiums].forEach(td => {
-            td.style.border = '1px solid #ccc';
-            td.style.padding = '6px';
+        const races = document.createElement('td');
+        races.textContent = racesPerDriver[uid] || 0;
+
+
+        [wins, poles, fl, podiums, races].forEach(td => {
+        td.style.border = '1px solid #ccc';
+        td.style.padding = '6px';
         });
 
         row.appendChild(wins);
         row.appendChild(poles);
         row.appendChild(fl);
         row.appendChild(podiums);
+        row.appendChild(races);
+
 
         standingsTable.appendChild(row);
         });
 
         standingsSection.appendChild(standingsTable);
 
-
         });
 
         console.log("✅ Active season loaded:", seasonData);
 
         document.getElementById('standings-placeholder').innerHTML =
-            `<p style="text-align: center">Loaded season: <strong>${seasonData.seasonName}</strong></p>`;
+            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season: <strong>${seasonData.seasonName}</strong></p>`;
         
         // We'll build on this in the next step
         })
@@ -627,7 +685,7 @@
 
   <!-- Current Standings Section -->
   <section id="current-standings">
-    <h2 style="text-align: center">Current Standings</h2>
+    <h2 style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Current Standings</h2>
     <!-- Placeholder: Later, you'll replace this with a dynamic table or divs -->
     <div id="standings-placeholder">
       <p>(Standings will be displayed here dynamically.)</p>
@@ -636,7 +694,7 @@
 
   <!-- Race Results Table Section -->
   <section id="race-results">
-    <h2 style="text-align: center;">Race Results</h2>
+    <h2 style="text-align: center; font-family: 'KeepCalm', Arial, sans-serif; margin-top: 50px; margin-bottom: 0px;">Race Results</h2>
     <!-- This table follows a simple pattern of Race / Position / Driver / Points.
          You can adapt the columns as needed. -->
   </section>
