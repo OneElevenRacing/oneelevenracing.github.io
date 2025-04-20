@@ -245,6 +245,71 @@
         if (race.fastestLapOffPodiumDriverR2)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]     += 1;
         });
 
+        // 2‑C ▶ Wins, Podiums, Pole Positions and Fastest Laps (for each driver)
+        const winsPerDriver = {};
+        const podiumsPerDriver = {};
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+        winsPerDriver[uid] = 0;
+        podiumsPerDriver[uid] = 0;
+        });
+
+        sortedRaceKeys.forEach((raceKey, evtIndex) => {
+        const race = races[raceKey];
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+            const pos1 = r1[uid];
+            const pos2 = r2[uid];
+
+            if (pos1 === 1) winsPerDriver[uid]++;
+            if (pos2 === 1) winsPerDriver[uid]++;
+
+            if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
+            if (pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
+        });
+        });
+
+        const polePositionsPerDriver = {};
+        const fastestLapsPerDriver = {}; // store like { uid: {FL: 0, OP: 0} }
+
+        window.oneElevenDrivers.uids.forEach(uid => {
+        polePositionsPerDriver[uid] = 0;
+        fastestLapsPerDriver[uid] = { FL: 0, OP: 0 };
+        });
+
+        sortedRaceKeys.forEach((raceKey) => {
+        const race = races[raceKey];
+
+        // Pole position
+        if (race.polePositionDriver) {
+            polePositionsPerDriver[race.polePositionDriver]++;
+        }
+
+        // Fastest laps on podium
+        if (race.fastestLapDriverR1) {
+            fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
+        }
+        if (race.fastestLapDriverR2) {
+            fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
+        }
+
+        // Fastest laps off podium
+        if (race.fastestLapOffPodiumDriverR1) {
+            fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
+        }
+        if (race.fastestLapOffPodiumDriverR2) {
+            fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
+        }
+        });
+
+        // Console check
+        console.log("🎯 Pole Positions per driver:", polePositionsPerDriver);
+        console.log("⚡ Fastest Laps per driver:", fastestLapsPerDriver);
+
+
+
         // 3 ▶ drop the weakest events (keep best 9)
         const countedRacePoints = {}; // { uid : sum of best 9 }
 
@@ -472,7 +537,7 @@
         standingsTable.style.marginRight = 'auto';
 
         const headRow = document.createElement('tr');
-        ['Position', 'Driver', 'Points'].forEach(label => {
+        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums'].forEach(label => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.appendChild(th);
@@ -499,6 +564,39 @@
         row.appendChild(pos);
         row.appendChild(name);
         row.appendChild(pts);
+
+        // Add the other stats to the race standings
+        const wins = document.createElement('td');
+        wins.textContent = winsPerDriver[uid] || 0;
+
+        const poles = document.createElement('td');
+        poles.textContent = polePositionsPerDriver[uid] || 0;
+
+        const flObj = fastestLapsPerDriver[uid] || { FL: 0, OP: 0 };
+        const flText = flObj.FL && flObj.OP
+            ? `${flObj.FL} FL + ${flObj.OP} OP`
+            : flObj.FL
+            ? `${flObj.FL} FL`
+            : flObj.OP
+                ? `${flObj.OP} OP`
+                : "0";
+
+        const fl = document.createElement('td');
+        fl.textContent = flText;
+
+        const podiums = document.createElement('td');
+        podiums.textContent = podiumsPerDriver[uid] || 0;
+
+        [wins, poles, fl, podiums].forEach(td => {
+            td.style.border = '1px solid #ccc';
+            td.style.padding = '6px';
+        });
+
+        row.appendChild(wins);
+        row.appendChild(poles);
+        row.appendChild(fl);
+        row.appendChild(podiums);
+
         standingsTable.appendChild(row);
         });
 
