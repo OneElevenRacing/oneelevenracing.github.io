@@ -58,32 +58,26 @@
       background: var(--clr-bg);
       color: var(--clr-fg);
       line-height: 1.6;
+      padding-top: 60px;
       -webkit-font-smoothing: antialiased;
     }
 
-    .black-bar {
-      background-color: var(--clr-fg);
-      padding: 0.5rem 1rem;
-    }
 
-    .black-bar a.back-button img {
-      height: 18px;
+    header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: black; /* Set the background color to black */
+        width: 100%; /* Make the header span the full width of the page */
+        height: 60px;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
     }
-
-    .black-bar a.back-button {
-      display: inline-block;
-    }
-
+    
     .container {
       width: min(96%, 1200px);
       margin-inline: auto;
       padding: 1rem 0 100px;
-    }
-
-    header h1 {
-      text-align: center;
-      padding-block: 1.5rem 0.5rem;
-      border-bottom: 1px solid var(--clr-accent);
     }
 
     h1,h2,h3 {
@@ -252,11 +246,13 @@
   </style>
 </head>
 <body>
-    <div class="black-bar">
-        <a href="javascript:void(0);" class="back-button" onclick="window.location.href='championship.html'">
-          <img src="Logos_and_icons/back.png" alt="Back">
+    <header>
+        <a href="javascript:void(0);" class="back-button" id="back"
+            onclick="window.location.href='championship.html'"
+            style="display: block;">
+            <img src="Logos_and_icons/back.png" alt="Back" style="height: 20px; margin: 20px;">
         </a>
-      </div>
+    </header>
     
       <div class="container">
         <section class="text-center mt-2">

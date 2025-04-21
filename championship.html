@@ -18,6 +18,25 @@
             src: url('KeepCalm-Medium.ttf') format('truetype'), /* Specify the path to your font files */
         }
 
+        body {
+            font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
+            margin: 0;
+            padding-top: 60px;
+            padding-bottom: 75px; /* Adjust the value as needed */
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: black; /* Set the background color to black */
+            width: 100%; /* Make the header span the full width of the page */
+            height: 60px;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+        }
+
+
         /* Styling the rows in the race results table*/
         table th, table td {
           padding: 3px 4px;
@@ -177,6 +196,71 @@
             border: none;
             border-radius: 20px;
             cursor: pointer;
+        }
+
+        /* Footer */
+        footer {
+            position: fixed; /* Position the footer relative to the browser window */
+            bottom: 0; /* Align the footer to the bottom of the window */
+            background-color: white; /* Set the background color to black */
+            width: 100%; /* Make the header span the full width of the page */
+            height: 75px;
+            z-index: 10; /* 👈 Add this line */
+            box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.079); /* Add a drop shadow */
+        }
+
+        .footerbuttonnotselected {
+            display: flex; /* Use flexbox to center content */
+            align-items: center; /* Align items vertically */
+            justify-content: center; /* Align items horizontally */
+            width: 33.3%;
+            height: 100%;
+            background-color: #ffffff; /* Set background color */
+            color: #808080; /* Set text color */
+            border: none; /* Remove border */
+            text-decoration: none; /* Remove default text decoration */
+            flex-direction: column; /* Stack items vertically */
+            font-size: 0.9em;
+            float: left;
+        }
+
+        .footerbuttonnotselected:hover img {
+            filter: brightness(0);
+        }
+
+        .footerbuttonnotselected:hover {
+            color: #000000; /* Change text color on hover */
+        }
+
+        .footerbuttonnotselected img {
+            vertical-align: middle; /* Align the image vertically */
+            height: 20px;
+            margin-top: -10px;
+            padding: 10px;
+        }
+
+        .footerbuttonselected {
+            display: flex; /* Use flexbox to center content */
+            align-items: center; /* Align items vertically */
+            justify-content: center; /* Align items horizontally */
+            width: 33.3%;
+            height: 100%;
+            background-color: #ffffff; /* Set background color */
+            color: #000000; /* Set text color */
+            border: none; /* Remove border */
+            text-decoration: none; /* Remove default text decoration */
+            flex-direction: column; /* Stack items vertically */
+            float: left;
+            font-size: 0.9em;
+            cursor: default; /* Set cursor to default on hover */
+        }
+
+        .footerbuttonselected img {
+            vertical-align: middle; /* Align the image vertically */
+            height: 20px;
+            margin-top: -10px;
+            padding: 10px;
+            filter:brightness(0);
         }
 
       </style>
@@ -671,9 +755,14 @@
 
 </head>
 <body>
-  <header>
-    <h1>One Eleven Racing - Championship</h1>
-  </header>
+
+<header>
+    <a href="javascript:void(0);" class="back-button" id="back"
+        onclick="window.location.href='main.html'"
+        style="display: block; text-align: left;">
+        <img src="Logos_and_icons/back.png" alt="Back" style="height: 20px; padding: 20px;">
+    </a>
+</header>
 
   <!-- Current Standings Section -->
   <section id="current-standings">
@@ -705,6 +794,23 @@
         Enter New Race Results
     </button>
   </section>
+
+  <footer>
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+        <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+        SIM RACING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+        <img src="Logos_and_icons/karting.png" alt="Karting">
+        KARTING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+        <img src="Logos_and_icons/settings.png" alt="Settings">
+        SETTINGS
+    </a>
+  </footer>
 
 </body>
 </html>
