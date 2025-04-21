@@ -332,10 +332,10 @@
         }
         });
 
-        // Track races per driver
-        const racesPerDriver = {};
+        // Event attendance tracker (counts 1 per weekend if participated in R1 or R2)
+        const eventsPerDriver = {};
         window.oneElevenDrivers.uids.forEach(uid => {
-        racesPerDriver[uid] = 0;
+        eventsPerDriver[uid] = 0;
         });
 
         sortedRaceKeys.forEach((raceKey) => {
@@ -343,17 +343,31 @@
         const r1 = race.resultsRace1 || {};
         const r2 = race.resultsRace2 || {};
 
+        // === R1 Participation
+        const allR1Positions = Object.values(r1);
+        const r1Counts = {};
+        allR1Positions.forEach(p => r1Counts[p] = (r1Counts[p] || 0) + 1);
+        const realR1Cutoff = Math.max(...allR1Positions.filter(p => r1Counts[p] === 1), 0);
+
+        // === R2 Participation
+        const allR2Positions = Object.values(r2);
+        const r2Counts = {};
+        allR2Positions.forEach(p => r2Counts[p] = (r2Counts[p] || 0) + 1);
+        const realR2Cutoff = Math.max(...allR2Positions.filter(p => r2Counts[p] === 1), 0);
+
+        // === Determine if driver participated in either race
         window.oneElevenDrivers.uids.forEach(uid => {
-            if (r1[uid] != null) racesPerDriver[uid]++;
-            if (r2[uid] != null) racesPerDriver[uid]++;
+            const pos1 = r1[uid];
+            const pos2 = r2[uid];
+
+            const racedR1 = pos1 > 0 && pos1 <= realR1Cutoff;
+            const racedR2 = pos2 > 0 && pos2 <= realR2Cutoff;
+
+            if (racedR1 || racedR2) {
+            eventsPerDriver[uid]++;
+            }
         });
         });
-
-        // Check
-        console.log("📅 Races attended per driver:", racesPerDriver);
-
-
-
 
         // 3 ▶ drop the weakest events (keep best 9)
         const countedRacePoints = {}; // { uid : sum of best 9 }
@@ -363,10 +377,6 @@
         const best9  = sorted.slice(0,9);
         const sum9   = best9.reduce((s,x)=>s+x,0);
         countedRacePoints[uid] = sum9;
-
-        console.log(`Driver ${window.oneElevenDrivers.names[uid]} ➜ ` +
-                    `event scores ${racePointsPerEvent[uid]} | best 9 = ${best9} | ` +
-                    `sum = ${sum9}`);
 
         const droppedIndexes = [];
         racePointsPerEvent[uid].forEach((pts, idx) => {
@@ -379,7 +389,6 @@
         });
         window.oneElevenDrivers.droppedIndexes = window.oneElevenDrivers.droppedIndexes || {};
         window.oneElevenDrivers.droppedIndexes[uid] = droppedIndexes;
-        console.log(`🟢 Step 7 – Dropped events for ${window.oneElevenDrivers.names[uid]}:`, droppedIndexes);
 
         });
 
@@ -518,25 +527,10 @@
             if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
             if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
 
-            // Check if driver got a combination of both
-            if (bonuses1.includes("PP") && bonuses1.includes("FL")) {
-            console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R1)`);
-            }
-            if (bonuses1.includes("PP") && bonuses1.includes("OP")) {
-            console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R1)`);
-            }
-
             // Find who got fastest laps and pole race 2
             if (race.fastestLapDriverR2 === uid) bonuses2.push("FL");
             if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
 
-            // Check if driver got a combination of both
-            if (bonuses2.includes("PP") && bonuses1.includes("FL")) {
-            console.log(`🟠 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Fastest Lap (R2)`);
-            }
-            if (bonuses2.includes("PP") && bonuses1.includes("OP")) {
-            console.log(`🔵 Race ${raceIndex + 1} – ${window.oneElevenDrivers.names[uid]} got Pole + Off-Podium Fastest Lap (R2)`);
-            }
             const cell1 = row1.children[driverIndex + 1];
             const cell2 = row2.children[driverIndex];
 
@@ -584,7 +578,7 @@
         const standingsThead = document.createElement('thead');
         const headRow = document.createElement('tr');
 
-        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Races'].forEach(label => {
+        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Events'].forEach(label => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.appendChild(th);
@@ -640,11 +634,11 @@
         const podiums = document.createElement('td');
         podiums.textContent = podiumsPerDriver[uid] || 0;
 
-        const races = document.createElement('td');
-        races.textContent = racesPerDriver[uid] || 0;
+        const events = document.createElement('td');
+        events.textContent = eventsPerDriver[uid] || 0;
 
 
-        [wins, poles, fl, podiums, races].forEach(td => {
+        [wins, poles, fl, podiums, events].forEach(td => {
         td.style.border = '1px solid #ccc';
         td.style.padding = '6px';
         });
@@ -653,7 +647,7 @@
         row.appendChild(poles);
         row.appendChild(fl);
         row.appendChild(podiums);
-        row.appendChild(races);
+        row.appendChild(events);
 
 
         standingsTable.appendChild(row);
@@ -662,8 +656,6 @@
         standingsSection.appendChild(standingsTable);
 
         });
-
-        console.log("✅ Active season loaded:", seasonData);
 
         document.getElementById('standings-placeholder').innerHTML =
             `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season: <strong>${seasonData.seasonName}</strong></p>`;
