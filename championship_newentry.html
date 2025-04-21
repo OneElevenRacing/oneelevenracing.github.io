@@ -26,7 +26,7 @@
   <script src="tracks.js"></script>
 
   <script>
-    // *** INITIALISE FIREBASE ***
+    // *** INITIALISE FIREBASE and Check for user login ***
     var firebaseConfig = {
       apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
       authDomain: "one-eleven-app-7f282.firebaseapp.com",
@@ -37,6 +37,37 @@
       appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
     };
     firebase.initializeApp(firebaseConfig);
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.body.style.display = "none";  // ⛔ hide everything initially
+
+        firebase.auth().onAuthStateChanged(async (user) => {
+        if (!user) {
+            console.warn("🚫 User not signed in. Redirecting...");
+            window.location.href = "championship.html";
+            return;
+        }
+
+        try {
+            const driverSnap = await firebase.database().ref(`drivers/${user.uid}`).once("value");
+            const driverData = driverSnap.val();
+
+            if (!driverData || !driverData.active) {
+            console.warn("⚠️ User is not an active driver. Redirecting...");
+            window.location.href = "championship.html";
+            return;
+            }
+
+            console.log("✅ Driver access confirmed:", user.uid);
+            document.body.style.display = "block"; // ✅ show page
+        } catch (error) {
+            console.error("❌ Error checking driver access:", error);
+            document.body.innerHTML = "<h2 style='text-align:center;'>Unexpected error. Please try again later.</h2>";
+            document.body.style.display = "block";
+        }
+        });
+    });
   </script>
 
   <!-- ---------------- STYLE ---------------- -->
@@ -141,12 +172,6 @@
     text-align: center;
     }
 
-    thead th:nth-child(2),
-    thead th:nth-child(3),
-    tbody td:nth-child(2),
-    tbody td:nth-child(3) {
-    }
-
     select {
       width: 100%;
       max-width: 180px;
@@ -246,7 +271,7 @@
 
   </style>
 </head>
-<body>
+<body style="display:none">
     <header>
         <a href="javascript:void(0);" class="back-button" id="back"
             onclick="window.location.href='championship.html'"
@@ -266,13 +291,7 @@
   // *****************************************************
   // *                 PAGE CONTROLLER                  *
   // *****************************************************
-  firebase.auth().onAuthStateChanged(user => {
-    if (!user) {
-      document.body.innerHTML = "<h2 class='flex-center' style='height:100vh;'>You must be signed in to access this page.</h2>";
-      return;
-    }
-
-    // ---- Load active championship season ----
+      // ---- Load active championship season ----
     firebase.firestore().collection('championships')
       .where('isActive', '==', true)
       .limit(1)
@@ -326,7 +345,7 @@
         console.error('Error loading active season', err);
         document.getElementById('seasonName').textContent = '❌ Failed to load active season';
       });
-  });
+  
 
   // *****************************************************
   // *                BUILD THE RESULTS UI              *
