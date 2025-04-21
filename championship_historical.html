@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title style="text-align:center">One Eleven Racing – Historical Championships</title>
+
+  <!-- Firebase libraries (v8 to match your original code) -->
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+
+  <!-- Track map helper you already use -->
+  <script src="tracks.js"></script>
+
+  <!-- ---------- Styles (identical to championship.html) ---------- -->
+  <style>
+    /* ... (unchanged CSS from your current page) ... */
+    /* Only addition: a tiny margin around the season selector */
+    #season-selector {
+      text-align:center;
+      margin-top:70px;   /* below the fixed header */
+      font-family:'KeepCalm', Arial, sans-serif;
+    }
+    #season-dropdown {
+      font-family:'KeepCalm', Arial, sans-serif;
+      font-size:1em;
+      padding:4px 8px;
+      margin-left:6px;
+    }
+  </style>
+
+  <!-- ---------- Page logic ---------- -->
+  <script>
+    /* 0 ▸ Firebase config (same keys) */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+      authDomain: "one-eleven-app-7f282.firebaseapp.com",
+      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "one-eleven-app-7f282",
+      storageBucket: "one-eleven-app-7f282.appspot.com",
+      messagingSenderId: "503866403242",
+      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    /* ------------------------------------------------------------------
+       1 ▸  Build the season list once, then load whichever season is picked
+    ------------------------------------------------------------------ */
+    function populateSeasonDropdown() {
+      const dd = document.getElementById('season-dropdown');
+      dd.innerHTML = '<option disabled selected>Loading…</option>';
+
+      firebase.firestore().collection('championships')
+        .orderBy('seasonName')                // alphabetical; change if you store numeric year
+        .get()
+        .then(ss => {
+          dd.innerHTML = '';                  // clear the temporary “Loading…”
+          if (ss.empty) {
+            dd.innerHTML = '<option disabled>(no seasons found)</option>';
+            return;
+          }
+
+          ss.forEach(doc => {
+            const opt = document.createElement('option');
+            opt.value = doc.id;
+            opt.textContent = doc.data().seasonName || '(no name)';
+            dd.appendChild(opt);
+          });
+
+          /* Auto‑load the first season straight away */
+          loadSeason(dd.value);
+        })
+        .catch(err => {
+          console.error('⚠️ Failed to fetch seasons:', err);
+          dd.innerHTML = '<option disabled>(error loading seasons)</option>';
+        });
+
+      /* Every time the user changes the dropdown, reload tables */
+      dd.addEventListener('change', () => loadSeason(dd.value));
+    }
+
+    /* ------------------------------------------------------------------
+       2 ▸  Core function = pull one season + build both tables
+    ------------------------------------------------------------------ */
+    function loadSeason(seasonId) {
+      /* a)  Clear any previous tables / placeholders */
+      document.getElementById('current-standings').innerHTML =
+        `<h2 style="text-align:center;font-family:'KeepCalm',Arial,sans-serif;">Standings</h2>
+         <div id="standings-placeholder"><p>Loading…</p></div>`;
+
+      document.getElementById('race-results').innerHTML =
+        `<h2 style="text-align:center;font-family:'KeepCalm',Arial,sans-serif;margin-top:50px;margin-bottom:0;">
+           Race Results
+         </h2>`;
+
+      /* b)  Fetch season document */
+      firebase.firestore().collection('championships').doc(seasonId).get()
+        .then(async docSnap => {
+          if (!docSnap.exists) {
+            document.getElementById('standings-placeholder').innerHTML =
+              '<p>❌ Season not found.</p>';
+            return;
+          }
+          const seasonData = docSnap.data();
+
+          /* c)  Get the active driver list (unchanged) */
+          const driverSnap = await firebase.database().ref('drivers').once('value');
+          const driversRaw = driverSnap.val() || {};
+          const driverMap  = {}, driverUIDs = [];
+          for (const uid in driversRaw) {
+            if (driversRaw[uid].active) {
+              driverMap[uid] = driversRaw[uid].name;
+              driverUIDs.push(uid);
+            }
+          }
+          window.oneElevenDrivers = { uids: driverUIDs, names: driverMap };
+
+          /* d)  100 % of the maths from championship.html
+                 ------------------------------------------- */
+          const races           = seasonData.races || {};
+          const sortedRaceKeys  = Object.keys(races).sort((a,b)=>
+                                    parseInt(a.replace('race','')) -
+                                    parseInt(b.replace('race','')) );
+
+          const positionToPts   = {1:20,2:16,3:13,4:10,5:8,6:6,7:5,8:3,9:2,10:1};
+          const racePtsPerEvt   = {}, bonusPtsPerDrv = {};
+          const winsPerDrv      = {}, podiumsPerDrv  = {};
+          const polePosPerDrv   = {}, fastestPerDrv  = {};
+          const eventsPerDrv    = {};
+
+          /* init zero arrays / objects for each driver */
+          driverUIDs.forEach(uid=>{
+            racePtsPerEvt[uid] = [];
+            bonusPtsPerDrv[uid]=0;
+            winsPerDrv[uid]=0; podiumsPerDrv[uid]=0;
+            polePosPerDrv[uid]=0;
+            fastestPerDrv[uid]={FL:0,OP:0};
+            eventsPerDrv[uid]=0;
+          });
+
+          /* ---- loop all race weekends ---- */
+          sortedRaceKeys.forEach((rk,evtIdx)=>{
+            const R      = races[rk];
+            const r1     = R.resultsRace1||{},  r2 = R.resultsRace2||{};
+
+            driverUIDs.forEach(uid=>{
+              /* 1 ▸ race‑finishing points */
+              let points = 0;
+              if (positionToPts[r1[uid]]) points += positionToPts[r1[uid]];
+              if (positionToPts[r2[uid]]) points += positionToPts[r2[uid]];
+              racePtsPerEvt[uid][evtIdx] = points;
+
+              /* 2 ▸ wins + podiums */
+              if (r1[uid]===1) winsPerDrv[uid]++;  if (r2[uid]===1) winsPerDrv[uid]++;
+              if (r1[uid]>=1&&r1[uid]<=3) podiumsPerDrv[uid]++;
+              if (r2[uid]>=1&&r2[uid]<=3) podiumsPerDrv[uid]++;
+            });
+
+            /* 3 ▸ bonus points */
+            if (R.polePositionDriver)                { bonusPtsPerDrv[R.polePositionDriver]++;    polePosPerDrv[R.polePositionDriver]++; }
+            if (R.fastestLapDriverR1)                { bonusPtsPerDrv[R.fastestLapDriverR1]++;     fastestPerDrv[R.fastestLapDriverR1].FL++; }
+            if (R.fastestLapDriverR2)                { bonusPtsPerDrv[R.fastestLapDriverR2]++;     fastestPerDrv[R.fastestLapDriverR2].FL++; }
+            if (R.fastestLapOffPodiumDriverR1)       { bonusPtsPerDrv[R.fastestLapOffPodiumDriverR1]++; fastestPerDrv[R.fastestLapOffPodiumDriverR1].OP++; }
+            if (R.fastestLapOffPodiumDriverR2)       { bonusPtsPerDrv[R.fastestLapOffPodiumDriverR2]++; fastestPerDrv[R.fastestLapOffPodiumDriverR2].OP++; }
+
+            /* 4 ▸ event attendance (“took part in either race”) */
+            driverUIDs.forEach(uid=>{
+              const tookPart = (r1[uid] && r1[uid]<=20) || (r2[uid] && r2[uid]<=20); // crude ≤20 cutoff
+              if (tookPart) eventsPerDrv[uid]++;
+            });
+          });
+
+          /* 5 ▸ drop worst 3 events (best 9 count) */
+          const countedPtsPerDrv = {}, droppedIdxPerDrv = {};
+          driverUIDs.forEach(uid=>{
+            const sorted = [...racePtsPerEvt[uid]].sort((a,b)=>b-a);
+            const best9  = sorted.slice(0,9);
+            countedPtsPerDrv[uid] = best9.reduce((s,x)=>s+x,0);
+
+            const droppedIdx=[];
+            /* flag the dropped weekends for table strikethrough */
+            racePtsPerEvt[uid].forEach((pts,i)=>{
+              if(!best9.includes(pts)){ droppedIdx.push(i); }
+              else { best9.splice(best9.indexOf(pts),1);}  // remove 1st match to cope with duplicates
+            });
+            droppedIdxPerDrv[uid]=droppedIdx;
+          });
+          window.oneElevenDrivers.droppedIndexes = droppedIdxPerDrv;
+
+          /* 6 ▸ final totals + sort */
+          const finalTotals = {};
+          driverUIDs.forEach(uid=> finalTotals[uid]=countedPtsPerDrv[uid]+bonusPtsPerDrv[uid]);
+          driverUIDs.sort((a,b)=>finalTotals[b]-finalTotals[a]); // for column order
+          const sortedStandings = Object.entries(finalTotals)
+                                         .sort(([,A],[,B])=>B-A);
+
+          /* ------------------------------------------------------------------
+             e)  BUILD THE RACE‑RESULTS TABLE  (identical markup)
+          ------------------------------------------------------------------ */
+          const raceResultsSection = document.getElementById('race-results');
+          /* clear but keep title */
+          raceResultsSection.querySelectorAll('table').forEach(t=>t.remove());
+
+          const tbl = document.createElement('table');
+          tbl.border='1'; tbl.cellPadding='5'; tbl.cellSpacing='0';
+          tbl.style.borderCollapse='collapse'; tbl.style.marginTop='15px';
+          const thead = document.createElement('thead');
+          const hr   = document.createElement('tr');
+          const hdRace = document.createElement('th'); hdRace.textContent='Race'; hr.appendChild(hdRace);
+          driverUIDs.forEach(uid=>{
+            const th=document.createElement('th'); th.textContent=driverMap[uid]; th.classList.add('driver-col');
+            hr.appendChild(th);
+          });
+          thead.appendChild(hr);  tbl.appendChild(thead);
+
+          const tbody=document.createElement('tbody');
+          sortedRaceKeys.forEach((rk,idx)=>{
+            const R=races[rk];
+            const track = window.trackMap[R.trackName]||{};
+            const short = track.short||R.trackName, full=track.full||R.trackName;
+
+            const row1=document.createElement('tr'); row1.classList.add('race-row');
+            const lbl = document.createElement('td'); lbl.rowSpan=2; lbl.textContent=short; lbl.title=full;
+            lbl.classList.add('race-label'); lbl.style.verticalAlign='middle';
+            row1.appendChild(lbl);
+
+            const row2=document.createElement('tr'); row2.classList.add('race-row','race-row-2');
+
+            driverUIDs.forEach(uid=>{
+              const td1=document.createElement('td'); td1.classList.add('driver-col'); td1.innerHTML='&nbsp;';
+              const td2=document.createElement('td'); td2.classList.add('driver-col'); td2.innerHTML='&nbsp;';
+              row1.appendChild(td1); row2.appendChild(td2);
+            });
+            tbody.appendChild(row1); tbody.appendChild(row2);
+
+            if(idx%2===1){ row1.classList.add('alt-row'); row2.classList.add('alt-row'); }
+          });
+          tbl.appendChild(tbody);
+          const wrapper=document.createElement('div'); wrapper.className='scroll-container';
+          wrapper.appendChild(tbl); raceResultsSection.appendChild(wrapper);
+
+          /* …populate each cell (same code you already wrote)… */
+          sortedRaceKeys.forEach((rk,ri)=>{
+            const R=races[rk], r1=R.resultsRace1||{}, r2=R.resultsRace2||{};
+            const row1=tbody.children[ri*2], row2=tbody.children[ri*2+1];
+
+            driverUIDs.forEach((uid,di)=>{
+              const pos1=r1[uid], pos2=r2[uid];
+              const pts1=positionToPts[pos1]||'', pts2=positionToPts[pos2]||'';
+              const bon1=[], bon2=[];
+              if(R.polePositionDriver===uid)           bon1.push('PP');
+              if(R.fastestLapDriverR1===uid)           bon1.push('FL');
+              if(R.fastestLapOffPodiumDriverR1===uid)  bon1.push('OP');
+              if(R.fastestLapDriverR2===uid)           bon2.push('FL');
+              if(R.fastestLapOffPodiumDriverR2===uid)  bon2.push('OP');
+
+              const c1=row1.children[di+1], c2=row2.children[di];
+              if(droppedIdxPerDrv[uid].includes(ri)){ c1.dataset.dropped='true'; c2.dataset.dropped='true'; }
+              c1.textContent = (pts1 ? pts1 : '') + (bon1.length ? ` (${bon1.join('+')})` : '');
+              c2.textContent = (pts2 ? pts2 : '') + (bon2.length ? ` (${bon2.join('+')})` : '');
+              if(bon1.length) c1.dataset.bonus=bon1.join('+');
+              if(bon2.length) c2.dataset.bonus=bon2.join('+');
+              if(bon1.includes('PP')&&bon1.includes('FL')) c1.dataset.combo='pole-fl';
+              if(bon1.includes('PP')&&bon1.includes('OP')) c1.dataset.combo='pole-op';
+              if(bon2.includes('PP')&&bon2.includes('FL')) c2.dataset.combo='pole-fl';
+              if(bon2.includes('PP')&&bon2.includes('OP')) c2.dataset.combo='pole-op';
+            });
+          });
+
+          /* ------------------------------------------------------------------
+             f)  STANDINGS TABLE (copy‑paste from championship.html)
+          ------------------------------------------------------------------ */
+          const standingsSection = document.getElementById('current-standings');
+          standingsSection.querySelectorAll('table').forEach(t=>t.remove());
+
+          const stTbl=document.createElement('table'); stTbl.style.borderCollapse='collapse';
+          stTbl.style.marginTop='10px'; stTbl.style.marginLeft='auto'; stTbl.style.marginRight='auto';
+          const stHead=document.createElement('thead');
+          const stHeadRow=document.createElement('tr');
+          ['Pos','Driver','Pts','Wins','Poles','Fastest Laps','Podiums','Events'].forEach(text=>{
+            const th=document.createElement('th'); th.textContent=text; stHeadRow.appendChild(th);
+          });
+          stHead.appendChild(stHeadRow); stTbl.appendChild(stHead);
+
+          sortedStandings.forEach(([uid,total],idx)=>{
+            const tr=document.createElement('tr');
+            if(idx===0) tr.classList.add('podium-1');
+            if(idx===1) tr.classList.add('podium-2');
+            if(idx===2) tr.classList.add('podium-3');
+
+            const td=(v)=>{const d=document.createElement('td');d.textContent=v;d.style.border='1px solid #ccc';d.style.padding='6px';return d;};
+            tr.appendChild(td(idx+1));
+            tr.appendChild(td(driverMap[uid]));
+            tr.appendChild(td(total));
+            tr.appendChild(td(winsPerDrv[uid]||0));
+            tr.appendChild(td(polePosPerDrv[uid]||0));
+            const flObj=fastestPerDrv[uid]||{FL:0,OP:0};
+            tr.appendChild(td(flObj.FL&&flObj.OP?`${flObj.FL} FL + ${flObj.OP} OP`:flObj.FL?`${flObj.FL} FL`:flObj.OP?`${flObj.OP} OP`:'0'));
+            tr.appendChild(td(podiumsPerDrv[uid]||0));
+            tr.appendChild(td(eventsPerDrv[uid]||0));
+
+            stTbl.appendChild(tr);
+          });
+          standingsSection.appendChild(stTbl);
+
+          /* g)  Season label above standings */
+          document.getElementById('standings-placeholder').innerHTML =
+            `<p style="text-align:center;font-family:'KeepCalm',Arial,sans-serif;">
+               Season: <strong>${seasonData.seasonName}</strong>
+             </p>`;
+        })
+        .catch(err=>{
+          console.error('⚠️ Failed to load season:',err);
+          document.getElementById('standings-placeholder').innerHTML='<p>❌ Failed to load season data.</p>';
+        });
+    }
+
+    /* ========== Initialise everything once the DOM is ready ========== */
+    document.addEventListener('DOMContentLoaded', populateSeasonDropdown);
+  </script>
+</head>
+
+<body>
+  <header>
+    <a href="javascript:void(0);" class="back-button" onclick="window.location.href='main.html'">
+      <img src="Logos_and_icons/back.png" alt="Back" style="height:20px;padding:20px;">
+    </a>
+  </header>
+
+  <!-- ▸▸  Season picker  ◂◂ -->
+  <section id="season-selector">
+    <label for="season-dropdown">Select season:</label>
+    <select id="season-dropdown"></select>
+  </section>
+
+  <!-- Standings & results – identical markup -->
+  <section id="current-standings">
+    <h2 style="text-align:center;font-family:'KeepCalm',Arial,sans-serif;">Standings</h2>
+    <div id="standings-placeholder"><p>(Select a season above…)</p></div>
+  </section>
+
+  <section id="race-results">
+    <h2 style="text-align:center;font-family:'KeepCalm',Arial,sans-serif;margin-top:50px;margin-bottom:0;">Race Results</h2>
+  </section>
+
+  <!-- Same nav buttons you have on the main championship page -->
+  <section id="championship-nav" style="margin-top:20px;">
+    <button onclick="window.location.href='championship.html';">View Current Season</button>
+    <button onclick="window.location.href='championship_admin.html';">Go to Admin Page</button>
+    <button onclick="window.location.href='championship_newentry.html';">Enter New Race Results</button>
+  </section>
+
+  <footer>
+    <a class="footerbuttonnotselected" onclick="window.location.href='main.html'">
+      <img src="Logos_and_icons/simracing.png" alt="Sim Racing">SIM RACING
+    </a>
+    <a class="footerbuttonnotselected" onclick="navigateToKartingPage()">
+      <img src="Logos_and_icons/karting.png" alt="Karting">KARTING
+    </a>
+    <a class="footerbuttonnotselected" onclick="window.location.href='settings.html'">
+      <img src="Logos_and_icons/settings.png" alt="Settings">SETTINGS
+    </a>
+  </footer>
+</body>
+</html>
