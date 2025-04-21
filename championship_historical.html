@@ -21,7 +21,7 @@
         body {
             font-family: 'KeepCalm', Arial, sans-serif; /* Use your custom font as the primary font family, fallback to Arial if it's not available */
             margin: 0;
-            padding-top: 60px;
+            padding-top: 80px;
             padding-bottom: 125px;
         }
 
@@ -279,19 +279,91 @@
 
     firebase.initializeApp(firebaseConfig);
 
-    // Step 1: Load active season and log its race data
+    // Populate dropdown for historical seasons
     firebase.firestore().collection('championships')
+    .orderBy('seasonName') // 🔁 You can change this to 'startDate' or another field if preferred
+    .get()
+    .then(snapshot => {
+        const dropdown = document.getElementById('season-selector');
+        dropdown.innerHTML = ''; // Clear "Loading..."
+
+        const selectedSeasonId = new URLSearchParams(window.location.search).get('season');
+        snapshot.forEach(doc => {
+        const data = doc.data();
+        const option = document.createElement('option');
+        option.value = doc.id;
+        option.textContent = data.seasonName || 'Unnamed Season';
+        
+        // ✅ Pre-select if this matches current season from URL
+        if (doc.id === selectedSeasonId) {
+            option.selected = true;
+        }
+
+        dropdown.appendChild(option);
+        });
+
+        console.log('✅ Season dropdown populated.');
+    })
+    .catch(error => {
+        console.error('❌ Failed to load seasons:', error);
+        const dropdown = document.getElementById('season-selector');
+        dropdown.innerHTML = '<option value="">(Error loading)</option>';
+    });
+
+    // Check if user changes season selection
+    window.addEventListener('DOMContentLoaded', () => {
+    const selector = document.getElementById('season-selector');
+    if (selector) {
+        selector.addEventListener('change', function () {
+        const selectedSeasonId = this.value;
+        if (selectedSeasonId) {
+            // Reload page with selected season ID in URL
+            window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
+        }
+        });
+    } else {
+        console.warn('⚠️ season-selector not found in DOM.');
+    }
+    });
+
+    // 🔎 Get season ID from URL if it exists
+    function getSeasonIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('season');
+    }
+
+    const selectedSeasonId = getSeasonIdFromUrl();
+
+    let seasonDocPromise;
+
+    if (selectedSeasonId) {
+    // Load specific season by ID
+    seasonDocPromise = firebase.firestore()
+        .collection('championships')
+        .doc(selectedSeasonId)
+        .get()
+        .then(doc => doc.exists ? { docs: [doc] } : { empty: true });
+    } else {
+    // Fallback: load active season
+    seasonDocPromise = firebase.firestore()
+        .collection('championships')
         .where('isActive', '==', true)
         .limit(1)
-        .get()
-        .then(snapshot => {
+        .get();
+    }
+
+    seasonDocPromise
+    .then(snapshot => {
         if (snapshot.empty) {
-            document.getElementById('standings-placeholder').innerHTML = "<p>❌ No active season found.</p>";
-            return;
+        document.getElementById('standings-placeholder').innerHTML = "<p>❌ No season found.</p>";
+        return;
         }
 
         const seasonDoc = snapshot.docs[0];
         const seasonData = seasonDoc.data();
+
+        window.selectedSeasonId = seasonDoc.id; // optional global for reference
+
         firebase.database().ref('drivers').once('value').then(driverSnap => {
         const driversRaw = driverSnap.val();
         const driverMap = {}; // { uid: name }
@@ -473,9 +545,7 @@
         });
         window.oneElevenDrivers.droppedIndexes = window.oneElevenDrivers.droppedIndexes || {};
         window.oneElevenDrivers.droppedIndexes[uid] = droppedIndexes;
-
         });
-
 
         // 4 ▶ final championship totals
         const finalTotals = {}; // { uid : number }
@@ -742,7 +812,7 @@
         });
 
         document.getElementById('standings-placeholder').innerHTML =
-            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season: <strong>${seasonData.seasonName}</strong></p>`;
+            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season Loaded: <strong>${seasonData.seasonName}</strong></p>`;
         
         // We'll build on this in the next step
         })
@@ -763,6 +833,14 @@
         <img src="Logos_and_icons/back.png" alt="Back" style="height: 20px; padding: 20px;">
     </a>
 </header>
+
+<div id="season-selector-container" style="text-align: center;">
+    <label for="season-selector" style="font-family: 'KeepCalm', Arial, sans-serif; font-size: 14px; margin-right: 10px;">Select Season:</label>
+    <select id="season-selector" style="font-family: 'KeepCalm', Arial, sans-serif; font-size: 14px; padding: 5px 10px;">
+      <option value="">Loading...</option>
+    </select>
+  </div>
+  
 
   <!-- Current Standings Section -->
   <section id="current-standings">
