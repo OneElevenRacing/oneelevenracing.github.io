@@ -793,8 +793,9 @@
         });
 
         document.getElementById('standings-placeholder').innerHTML =
-            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season: <strong>${seasonData.seasonName}</strong></p>`;
-        
+        `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
+            Season: <strong>${seasonData.seasonName}</strong> &nbsp;|&nbsp; Car Class: <strong>${seasonData.carClass || 'Unknown'}</strong>
+        </p>`;        
         })
         .catch(error => {
         console.error("Error loading season:", error);
