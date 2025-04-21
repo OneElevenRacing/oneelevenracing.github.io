@@ -309,7 +309,8 @@ function loadHistoricalPage() {
         const data = doc.data();
         const option = document.createElement('option');
         option.value = doc.id;
-        option.textContent = data.seasonName || 'Unnamed Season';
+        const carClass = data.carClass ? ` (${data.carClass})` : '';
+        option.textContent = `${data.seasonName}${carClass}`;
         
         // ✅ Pre-select if this matches current season from URL
         if (doc.id === selectedSeasonId) {
@@ -821,8 +822,15 @@ function loadHistoricalPage() {
 
         });
 
+        const carClass = seasonData.carClass || 'Unknown';
         document.getElementById('standings-placeholder').innerHTML =
-            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season Loaded: <strong>${seasonData.seasonName}</strong></p>`;
+        `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
+            Season: <strong>${seasonData.seasonName}</strong> &nbsp;|&nbsp;
+            Car Class: <span style="background:#eee; padding:4px 10px; border-radius:12px; font-size: 0.9em;">
+            ${carClass}
+            </span>
+        </p>`;
+
         
         // We'll build on this in the next step
         })
