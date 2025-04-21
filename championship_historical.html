@@ -280,6 +280,22 @@
 
     firebase.initializeApp(firebaseConfig);
 
+    //Check user login
+    firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+            console.log("✅ User is signed in:", user.uid);
+            loadHistoricalPage(); // 👈 call the logic only if signed in
+        } else {
+            console.warn("🚫 User not signed in. Redirecting...");
+            alert("Please sign in to view historical data.");
+            window.location.href = "login.html"; // update if your login page is named differently
+        }
+        });
+
+
+
+function loadHistoricalPage() {
+
     // Populate dropdown for historical seasons
     firebase.firestore().collection('championships')
     .orderBy('seasonName') // 🔁 You can change this to 'startDate' or another field if preferred
@@ -301,6 +317,15 @@
         }
 
         dropdown.appendChild(option);
+        
+        // ✅ Now the dropdown exists — add the change listener
+        dropdown.addEventListener('change', function () {
+        const selectedSeasonId = this.value;
+        if (selectedSeasonId) {
+            window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
+        }
+        });
+
         });
 
         console.log('✅ Season dropdown populated.');
@@ -309,22 +334,6 @@
         console.error('❌ Failed to load seasons:', error);
         const dropdown = document.getElementById('season-selector');
         dropdown.innerHTML = '<option value="">(Error loading)</option>';
-    });
-
-    // Check if user changes season selection
-    window.addEventListener('DOMContentLoaded', () => {
-    const selector = document.getElementById('season-selector');
-    if (selector) {
-        selector.addEventListener('change', function () {
-        const selectedSeasonId = this.value;
-        if (selectedSeasonId) {
-            // Reload page with selected season ID in URL
-            window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
-        }
-        });
-    } else {
-        console.warn('⚠️ season-selector not found in DOM.');
-    }
     });
 
     // 🔎 Get season ID from URL if it exists
@@ -821,6 +830,7 @@
         console.error("Error loading season:", error);
         document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
         });
+    }
     </script>
 
 
