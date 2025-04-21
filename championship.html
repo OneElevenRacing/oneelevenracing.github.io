@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <title style="text-align: center">One Eleven Racing - Championship</title>
 
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
@@ -278,6 +279,56 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+
+    // Check user is authorised
+    firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+        console.log("✅ User signed in:", user.uid);
+
+        // Check if user is a registered driver
+        firebase.database().ref(`drivers/${user.uid}`).once("value")
+        .then(snapshot => {
+            if (snapshot.exists()) {
+            console.log("✅ User is authorised as a driver:", user.uid);
+            
+            // ✅ You can now safely continue with Firestore stuff
+            startChampionshipPage(); // 🔧 We'll define this next
+            } else {
+            console.warn("🚫 User is NOT authorised.");
+            alert("Access denied: You are not authorised.");
+            window.location.href = "main.html";
+            }
+        })
+        .catch(error => {
+            console.error("⚠️ Error checking authorisation:", error);
+        });
+
+        // Optional: Admin check
+        firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+        .then(snapshot => {
+            if (snapshot.exists() && snapshot.val() === true) {
+            console.log("👑 User is an admin");
+            const adminBtn = document.createElement("button");
+            adminBtn.textContent = "Go to Admin Page";
+            adminBtn.onclick = () => window.location.href = "championship_admin.html";
+            document.getElementById("championship-nav").appendChild(adminBtn);
+            }
+        });
+
+    } else {
+        console.log("🚫 No user signed in.");
+        alert("Please sign in first.");
+        window.location.href = "index.html"; // adjust path if needed
+    }
+    });
+
+    // Wrapper to not run function until authorised
+    function startChampionshipPage() {
+        firebase.firestore().collection('championships')
+            .where('isActive', '==', true)
+            .limit(1)
+            .get()
+            .then(snapshot => {
 
     // Step 1: Load active season and log its race data
     firebase.firestore().collection('championships')
@@ -744,12 +795,17 @@
         document.getElementById('standings-placeholder').innerHTML =
             `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">Season: <strong>${seasonData.seasonName}</strong></p>`;
         
-        // We'll build on this in the next step
         })
         .catch(error => {
         console.error("Error loading season:", error);
         document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
         });
+    })
+    .catch(error => {
+      console.error("Error loading season:", error);
+      document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
+    });
+}
     </script>
 
 
@@ -785,10 +841,6 @@
     <!-- You can replace 'historical.html' with your eventual historical seasons page -->
     <button onclick="window.location.href='championship_historical.html';">
       View Historical Seasons
-    </button>
-    <!-- Link to your admin page -->
-    <button onclick="window.location.href='championship_admin.html';">
-      Go to Admin Page
     </button>
     <button onclick="window.location.href='championship_newentry.html';">
         Enter New Race Results
