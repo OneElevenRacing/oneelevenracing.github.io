@@ -33,69 +33,42 @@ header {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
 }
 
-
-/* Footer */
-footer {
-    position: fixed; /* Position the footer relative to the browser window */
-    bottom: 0; /* Align the footer to the bottom of the window */
-    background-color: white; /* Set the background color to black */
-    width: 100%; /* Make the header span the full width of the page */
-    height: 75px;
-    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.079); /* Add a drop shadow */
-}
-
-.footerbuttonnotselected {
+.headerbuttonnotselected {
     display: flex; /* Use flexbox to center content */
     align-items: center; /* Align items vertically */
     justify-content: center; /* Align items horizontally */
-    width: 33.3%;
-    height: 100%;
-    background-color: #ffffff; /* Set background color */
-    color: #808080; /* Set text color */
-    border: none; /* Remove border */
-    text-decoration: none; /* Remove default text decoration */
-    flex-direction: column; /* Stack items vertically */
-    font-size: 0.9em;
-    float: left;
+    width: auto;
+    height:  100%;
+    background-color: #ffffff00; /* Set background color */
+    float: right;
+    padding-right: 24px;
+    filter:brightness(5)
 }
 
-.footerbuttonnotselected:hover img {
-    filter: brightness(0);
+.headerbuttonnotselected:hover img {
+    filter: brightness(0.3);
 }
 
-.footerbuttonnotselected:hover {
-    color: #000000; /* Change text color on hover */
-}
-
-.footerbuttonnotselected img {
+.headerbuttonnotselected img {
     vertical-align: middle; /* Align the image vertically */
-    height: 20px;
-    margin-top: -10px;
-    padding: 10px;
+    height: 24px;
 }
 
-.footerbuttonselected {
+.headerbuttonselected {
     display: flex; /* Use flexbox to center content */
     align-items: center; /* Align items vertically */
     justify-content: center; /* Align items horizontally */
-    width: 33.3%;
-    height: 100%;
-    background-color: #ffffff; /* Set background color */
-    color: #000000; /* Set text color */
-    border: none; /* Remove border */
-    text-decoration: none; /* Remove default text decoration */
-    flex-direction: column; /* Stack items vertically */
-    float: left;
-    font-size: 0.9em;
-    cursor: default; /* Set cursor to default on hover */
+    width: auto;
+    height:  100%;
+    background-color: #ffffff00; /* Set background color */
+    float: right;
+    padding-right: 24px;
+    filter:brightness(5)
 }
 
-.footerbuttonselected img {
+.headerbuttonselected img {
     vertical-align: middle; /* Align the image vertically */
-    height: 20px;
-    margin-top: -10px;
-    padding: 10px;
-    filter:brightness(0);
+    height: 24px;
 }
 
 /* Default Button */

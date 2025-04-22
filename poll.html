@@ -11,7 +11,7 @@
 
   <title>Poll Page</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="style_about.css">
+  <link rel="stylesheet" href="style_poll.css">
 
   <!-- Firebase scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
@@ -81,17 +81,21 @@
       }
     });
   </script>
+
+<!-- Javascript Initialisation -->
+<script src="script.js" defer></script>
+
 </head>
 
-<div class="about-container" style="margin-top: 0px;">
-  <body>
-    <header>
-      <a href="javascript:void(0);" class="back-button" id="back"
-         onclick="window.location.href='main.html'"
-         style="display: block; text-align: left;">
+<body>
+  <header>
+      <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
           <img src="Logos_and_icons/back.png" alt="Back">
       </a>
-    </header>
+      <a href="javascript:void(0);" class="headerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+          <img src="Logos_and_icons/settings.png" alt="Settings">
+      </a>
+  </header>
 
     <h2 id="pollTitleHeader" style="font-size: 1.2em; margin-top: 35px;">Latest Poll </h2>
 
@@ -182,7 +186,7 @@
           // Next cells: each day
           (poll.options || []).forEach(day => {
             const th = document.createElement('th');
-            th.textContent = day;
+            th.textContent = day.replace(/\./g, "/"); // Replace dots with slashes;
             headerRow.appendChild(th);
           });
 
@@ -299,10 +303,10 @@
 
       // Create table headers for each poll option (date)
       pollOptions.forEach(option => {
-        const th = document.createElement("th");
-        th.textContent = option;
-        headerRow.appendChild(th);
-      });
+  const th = document.createElement("th");
+  th.textContent = option.replace(/\./g, "/"); // Replace dots with slashes
+  headerRow.appendChild(th);
+});
 
       // Now fetch the responses
       populateResponseTable(pollId, pollOptions);
@@ -386,109 +390,5 @@
     });
   }
 </script>
-
-<footer>
-  <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
-      <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
-      SIM RACING
-  </a>
-
-  <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
-      <img src="Logos_and_icons/karting.png" alt="Karting">
-      KARTING
-  </a>
-
-  <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
-      <img src="Logos_and_icons/settings.png" alt="Settings">
-      SETTINGS
-  </a>
-</footer>
-
-<style>
-
-  /* These are the response table styles */
-  /* This will wrap the table and provide space around it */
-  .table-container {
-      padding: 10px; /* ✅ Adds space inside the container */
-      max-width: 90%; /* ✅ Prevents it from going full width */
-      margin: 0 auto; /* ✅ Centers it properly */
-  }
-
-  #responsesTable {
-    border-collapse: collapse; /* unify table borders */
-    margin: 0 auto; /* center horizontally */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-  }
-
-  .poll-table {
-    /* border-collapse: collapse; /* unify table borders */
-    margin: 0 auto; /* center horizontally */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-    width: 40%;
-  }
-
-  #responsesTable th, #responsesTable td {
-    padding: 3px; /* Some space inside cells */
-    font-size: 0.8em;
-  }
-
-  #responsesTable tbody tr:hover {
-  background-color: #e9e9e9;
-  }
-
-  #latestPollContainer th, #latestPollContainer td {
-    padding: 3px; /* Some space inside cells */
-    font-size: 0.8em;
-  }
-
-  #responsesTable thead tr {
-  background-color: #f2f2f2; /* light gray */
-  font-weight: bold;
-  text-transform: uppercase; /* optional: all caps */
-  }
-
-  #responsesTable tfoot tr {
-  background-color: #f2f2f2;
-  font-weight: bold;
-}
-
-/*These are the radio button styles*/
-/* Style the radio buttons */
-input[type="radio"] {
-    appearance: none;  /* Remove default styling */
-    -webkit-appearance: none; /* Safari support */
-    -moz-appearance: none; /* Firefox support */
-    width: 16px;
-    height: 16px;
-    border: 1px solid grey;  /* Border color of the circle */
-    border-radius: 50%; /* Make it circular */
-    outline: none;
-    background-color: white; /* Default unselected color */
-    display: inline-block;
-    position: relative;
-    cursor: pointer;
-}
-
-/* When selected (checked), fill the circle with red */
-input[type="radio"]:checked {
-    background-color: red;  /* Fill color when selected */
-    border-color: red; /* Keep border color red */
-}
-
-/* Optional: Add a little animation effect */
-input[type="radio"]:checked::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    background-color: white; /* Inner dot color */
-    display: block;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-}
-
-</style>
 
 </html>
