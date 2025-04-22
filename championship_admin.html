@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="Logos_and_icons/Icons/111_icon152.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="Logos_and_icons/Icons/111_icon120.png">
+  <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <title>One Eleven Racing - Championship Admin</title>
+
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+  <script src="tracks.js"></script>
+
+  <style>
+    body {
+      display: none;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+
+  <script>
+    // === Firebase Setup ===
+    var firebaseConfig = {
+      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+      authDomain: "one-eleven-app-7f282.firebaseapp.com",
+      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "one-eleven-app-7f282",
+      storageBucket: "one-eleven-app-7f282.appspot.com",
+      messagingSenderId: "503866403242",
+      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function loadAdminPage() {
+      console.log("✅ Loading admin content...");
+      document.body.style.display = "block";
+
+      const trackSelectorsDiv = document.getElementById('trackSelectors');
+
+      for (let i = 1; i <= 12; i++) {
+        const label = document.createElement('label');
+        label.textContent = `Race ${i}: `;
+        const select = document.createElement('select');
+        select.name = `race${i}`;
+        select.id = `race${i}`;
+        select.required = true;
+
+        trackData.forEach(track => {
+          const option = document.createElement('option');
+          option.value = track.name;
+          option.textContent = track.name;
+          select.appendChild(option);
+        });
+
+        trackSelectorsDiv.appendChild(label);
+        trackSelectorsDiv.appendChild(select);
+        trackSelectorsDiv.appendChild(document.createElement('br'));
+      }
+
+      const dropdown = document.getElementById('seasonSelectDropdown');
+      const message = document.getElementById('activeSeasonMessage');
+
+      firebase.firestore().collection('championships').get()
+        .then(snapshot => {
+          dropdown.innerHTML = '<option value="">-- Select a season --</option>';
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${data.seasonName} (${doc.id})` + (data.isActive ? ' ✅' : '');
+            dropdown.appendChild(option);
+          });
+          message.textContent = "✅ Seasons loaded successfully.";
+        })
+        .catch(error => {
+          console.error("Error loading seasons:", error);
+          message.textContent = "❌ Could not load seasons.";
+        });
+
+      document.getElementById('setActiveBtn').addEventListener('click', async () => {
+        const selectedSeasonId = dropdown.value;
+        const statusMsg = document.getElementById('setActiveStatusMessage');
+
+        if (!selectedSeasonId) {
+          statusMsg.textContent = "⚠️ Please select a season first.";
+          return;
+        }
+
+        try {
+          const championshipsRef = firebase.firestore().collection('championships');
+          const snapshot = await championshipsRef.get();
+          const batch = firebase.firestore().batch();
+
+          snapshot.forEach(doc => {
+            const isSelected = doc.id === selectedSeasonId;
+            batch.update(championshipsRef.doc(doc.id), { isActive: isSelected });
+          });
+
+          await batch.commit();
+          statusMsg.textContent = `✅ Season "${selectedSeasonId}" is now active.`;
+          location.reload();
+        } catch (error) {
+          console.error("Error setting active season:", error);
+          statusMsg.textContent = "❌ Failed to set active season.";
+        }
+      });
+
+      const seasonForm = document.getElementById('seasonForm');
+      seasonForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const year = document.getElementById('year').value;
+        const quarter = document.getElementById('quarter').value;
+        const carClass = document.getElementById('carClass').value;
+        const seasonId = `${year}${quarter}`;
+
+        const races = {};
+        for (let i = 1; i <= 12; i++) {
+          const trackName = document.getElementById(`race${i}`).value;
+          races[`race${i}`] = { trackName };
+        }
+
+        firebase.firestore().collection('championships').doc(seasonId).set({
+          seasonName: `${year} ${quarter}`,
+          seasonCode: seasonId,
+          carClass,
+          isActive: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          races
+        })
+          .then(() => {
+            document.getElementById('seasonStatusMessage').textContent =
+              `✅ Season "${seasonId}" created successfully.`;
+          })
+          .catch((error) => {
+            console.error("❌ Error creating season:", error);
+            document.getElementById('seasonStatusMessage').textContent =
+              `❌ Error creating season: ${error.message}`;
+          });
+      });
+    }
+
+    // === Auth + Admin Check ===
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) {
+        console.warn("🚫 Not signed in – redirecting.");
+        window.location.href = "championship.html";
+        return;
+      }
+
+      firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+        .then(snapshot => {
+          if (snapshot.exists() && snapshot.val() === true) {
+            console.log("👑 User is admin:", user.uid);
+            loadAdminPage();
+          } else {
+            console.warn("⚠️ User is signed in but not an admin. Redirecting.");
+            window.location.href = "championship.html";
+          }
+        })
+        .catch(error => {
+          console.error("❌ Error checking admin status:", error);
+          document.body.innerHTML = "<h2>Error verifying access. Please try again later.</h2>";
+          document.body.style.display = "block";
+        });
+    });
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Championship Admin</h1>
+  </header>
+  <section style="margin-bottom: 20px;">
+    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
+  </section>
+  <section id="season-creation">
+    <form id="seasonForm">
+      <label for="year">Year:</label>
+      <select id="year" required>
+        <option value="">Select year</option>
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026">2026</option>
+      </select>
+
+      <label for="quarter">Quarter:</label>
+      <select id="quarter" required>
+        <option value="">Select quarter</option>
+        <option value="Q1">Q1</option>
+        <option value="Q2">Q2</option>
+        <option value="Q3">Q3</option>
+        <option value="Q4">Q4</option>
+      </select>
+
+      <label for="carClass">Car Class:</label>
+      <input type="text" id="carClass" placeholder="e.g. GTE" required />
+
+      <h3>Race Locations</h3>
+      <div id="trackSelectors"></div>
+
+      <button type="submit">Create Season</button>
+    </form>
+    <p id="seasonStatusMessage"></p>
+  </section>
+  <section id="edit-current-season">
+    <h2>Edit Current Season's Results</h2>
+    <p>(Form/table for editing race results, driver standings, etc.)</p>
+  </section>
+  <section id="select-active-season">
+    <h2>Select Active Season</h2>
+    <select id="seasonSelectDropdown">
+      <option value="">-- Loading seasons... --</option>
+    </select>
+    <p id="activeSeasonMessage"></p>
+    <br>
+    <button id="setActiveBtn">Set as Active Season</button>
+    <p id="setActiveStatusMessage"></p>
+  </section>
+</body>
+</html>
