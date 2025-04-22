@@ -1,7 +1,6 @@
 /*
 Sections in this CSS:
 About Page Styles
-Poll Page Styles
 */
 
 
@@ -41,15 +40,4 @@ Poll Page Styles
 }
 
 
-/* This is where the poll page styles sit */
 
-.poll-input, .poll-select {
-  width: 80%;        /* Same width as the button */
-  max-width: 400px;  /* Same max width as the button */
-  padding: 0.8em;     /* Same padding for even height */
-  font-size: 0.8em;  /* Matches button font size */
-  border-radius: 20px; /* Same rounded corners */
-  border: 1px solid #ccc; /* Light border for clarity */
-  display: block;
-  margin: 5px auto; /* Centers the inputs */
-}

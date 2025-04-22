@@ -28,6 +28,9 @@
         firebase.initializeApp(firebaseConfig);
     </script>
 
+    <!-- Javascript Initialisation -->
+<script src="script.js" defer></script>
+
     <style>
         /* Basic styling for the page */
         .driver-container {
@@ -118,8 +121,11 @@
 <body>
     <!-- Header Section -->
     <header>
-        <a href="settings.html" class="back-button">
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
             <img src="Logos_and_icons/back.png" alt="Back">
+        </a>
+        <a href="javascript:void(0);" class="headerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+            <img src="Logos_and_icons/settings.png" alt="Settings">
         </a>
     </header>
 
@@ -131,23 +137,7 @@
         </div>
     </main>
 
-    <!-- Footer Section -->
-    <footer>
-        <a href="main.html" class="footerbuttonnotselected">
-            <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
-            SIM RACING
-        </a>
 
-        <a href="karting.html" class="footerbuttonnotselected">
-            <img src="Logos_and_icons/karting.png" alt="Karting">
-            KARTING
-        </a>
-
-        <a href="settings.html" class="footerbuttonselected">
-            <img src="Logos_and_icons/settings.png" alt="Settings">
-            SETTINGS
-        </a>
-    </footer>
 
     <!-- JavaScript Section -->
     <script>
@@ -165,6 +155,7 @@
                 return snapshot.val() === true;
             });
         }
+        
 
         // Function to create a driver edit form
         function createDriverForm(driverId, driverData, isAdmin, currentUserId) {
