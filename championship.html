@@ -807,6 +807,10 @@
       document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
     });
 }
+
+    function openLink(url) {
+        window.open(url, '_blank');
+    }
     </script>
 
 
@@ -845,6 +849,9 @@
     </button>
     <button onclick="window.location.href='championship_newentry.html';">
         Enter New Race Results
+    </button>
+    <button onclick="openLink('https://1drv.ms/x/c/fd3232f06653250f/Ed7HexgnogBMoaJVe509tQsB4HNSyJvfLzYfHR2qfsoICw?e=1cmJa9')">
+        Link to Old Spreadsheet
     </button>
   </section>
 
