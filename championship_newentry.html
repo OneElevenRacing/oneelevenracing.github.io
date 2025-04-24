@@ -457,9 +457,18 @@
     const buttonRow = document.createElement('tr');
     buttonRow.innerHTML = `
       <td></td>
-      <td class='text-center'><button id="submitRace1" class='btn'>Submit Race 1</button></td>
-      <td class='text-center'><button id="submitRace2" class='btn'>Submit Race 2</button></td>`;
+      <td class='text-center'>
+        <button id="submitRace1" class='btn'>Submit Race 1</button>
+        <br/>
+        <button id="clearRace1" class='btn' style="margin-top: 4px; background: #999;">Clear Race 1</button>
+      </td>
+      <td class='text-center'>
+        <button id="submitRace2" class='btn'>Submit Race 2</button>
+        <br/>
+        <button id="clearRace2" class='btn' style="margin-top: 4px; background: #999;">Clear Race 2</button>
+      </td>`;
     tbody.appendChild(buttonRow);
+
 
     table.appendChild(tbody);
     section.appendChild(table);
@@ -506,17 +515,45 @@
     raceSelect.addEventListener('change', () => {
       const raceKey = raceSelect.value; if (!raceKey) return;
       firebase.firestore().collection('championships').doc(seasonId).get()
-        .then(doc => {
+      .then(doc => {
           const raceData = (doc.data().races || {})[raceKey] || {};
+          const isSpecial = raceData.special === true;
+
+          // Preload results
           preloadDropdowns(raceData.resultsRace1 || {}, race1Drops);
           preloadDropdowns(raceData.resultsRace2 || {}, race2Drops);
 
-          // bonus
+          // Preload bonus fields
           bonusFields.forEach(f => {
             const el = document.getElementById(f.id);
             el.value = raceData[f.id] || '';
           });
+
+          // === Hide/show Race 2 fields if special event ===
+          const race2Header = document.querySelectorAll('thead th')[2];
+          const race2Cells  = document.querySelectorAll('tbody td[data-label="Race 2 – Driver"]');
+          const race2Bonus  = document.querySelectorAll('td:nth-child(3) select'); // Bonus selects in Race 2 cell
+          const race2Button = document.getElementById('submitRace2');
+
+          if (isSpecial) {
+            race2Header.style.display = "none";
+            race2Cells.forEach(cell => cell.style.display = "none");
+            race2Bonus.forEach(el => el.parentElement.style.display = "none");
+            race2Button.disabled = true;
+            race2Button.style.opacity = "0.5";
+            race2Button.style.cursor = "not-allowed";
+            race2Button.title = "Race 2 is not used for special events";
+          } else {
+            race2Header.style.display = "";
+            race2Cells.forEach(cell => cell.style.display = "");
+            race2Bonus.forEach(el => el.parentElement.style.display = "");
+            race2Button.disabled = false;
+            race2Button.style.opacity = "1";
+            race2Button.style.cursor = "pointer";
+            race2Button.title = "";
+          }
         })
+
         .catch(err => console.error('Error loading race', err));
     });
     raceSelect.dispatchEvent(new Event('change')); // trigger initial load
@@ -558,8 +595,52 @@
       });
       alert(`Race ${raceNo} results saved!`);
     }
+
+    async function clearRace(raceNo) {
+      const raceKey = raceSelect.value;
+      const raceLabel = `Race ${raceNo}`;
+      const confirmClear = confirm(`⚠️ Are you sure you want to clear all results for ${raceLabel}?\nThis cannot be undone.`);
+
+      if (!confirmClear) {
+        console.log(`${raceLabel} clearing cancelled by user.`);
+        return;
+      }
+
+      const fieldName = raceNo === 1 ? 'resultsRace1' : 'resultsRace2';
+
+      // Bonus fields
+      const bonusFieldIds = raceNo === 1
+        ? ['polePositionDriver','fastestLapDriverR1','fastestLapOffPodiumDriverR1']
+        : ['fastestLapDriverR2','fastestLapOffPodiumDriverR2'];
+
+      const bonusUpdates = {};
+      bonusFieldIds.forEach(id => {
+        bonusUpdates[`races.${raceKey}.${id}`] = firebase.firestore.FieldValue.delete();
+      });
+
+      await firebase.firestore().collection('championships').doc(seasonId).update({
+        [`races.${raceKey}.${fieldName}`]: firebase.firestore.FieldValue.delete(),
+        ...bonusUpdates
+      });
+
+      // Optional: Clear UI fields
+      const dropdowns = raceNo === 1 ? race1Drops : race2Drops;
+      dropdowns.forEach(d => d.value = '');
+      bonusFieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+
+      alert(`✅ ${raceLabel} results cleared!`);
+      raceSelect.dispatchEvent(new Event('change'));
+    }
+
     document.getElementById('submitRace1').onclick = () => saveRace(1);
     document.getElementById('submitRace2').onclick = () => saveRace(2);
+
+    document.getElementById('clearRace1').onclick = () => clearRace(1);
+    document.getElementById('clearRace2').onclick = () => clearRace(2);
+
   }
   </script>
 </body>

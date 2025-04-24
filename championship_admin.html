@@ -38,19 +38,27 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    function loadAdminPage() {
-      console.log("✅ Loading admin content...");
-      document.body.style.display = "block";
 
-      const trackSelectorsDiv = document.getElementById('trackSelectors');
+    // Generate track selections
+    function generateTrackSelectors(numRaces) {
+    console.log(`Generating ${numRaces} race dropdowns...`);
+    const trackSelectorsDiv = document.getElementById('trackSelectors');
+    trackSelectorsDiv.innerHTML = ''; // Clear previous entries
 
-      for (let i = 1; i <= 12; i++) {
+      for (let i = 1; i <= numRaces; i++) {
+        console.log(`Creating selector for Race ${i}`);
+
         const label = document.createElement('label');
         label.textContent = `Race ${i}: `;
+
         const select = document.createElement('select');
         select.name = `race${i}`;
         select.id = `race${i}`;
         select.required = true;
+
+        if (!trackData || trackData.length === 0) {
+          console.warn("⚠️ trackData is not available or empty");
+        }
 
         trackData.forEach(track => {
           const option = document.createElement('option');
@@ -59,11 +67,34 @@
           select.appendChild(option);
         });
 
+        // === Special Event Checkbox ===
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.style.marginLeft = '10px';
+        checkboxLabel.style.fontSize = '0.9em';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `special${i}`;
+        checkbox.name = `special${i}`;
+
+        checkboxLabel.appendChild(checkbox);
+        checkboxLabel.appendChild(document.createTextNode(' Special Event'));
+
+        // === Append to container ===
         trackSelectorsDiv.appendChild(label);
         trackSelectorsDiv.appendChild(select);
+        trackSelectorsDiv.appendChild(checkboxLabel);
         trackSelectorsDiv.appendChild(document.createElement('br'));
       }
 
+      console.log("✅ Finished generating dropdowns with checkboxes.");
+    }
+
+
+    function loadAdminPage() {
+      document.body.style.display = "block";
+
+      const trackSelectorsDiv = document.getElementById('trackSelectors');
       const dropdown = document.getElementById('seasonSelectDropdown');
       const message = document.getElementById('activeSeasonMessage');
 
@@ -120,17 +151,20 @@
         const carClass = document.getElementById('carClass').value;
         const seasonId = `${year}${quarter}`;
 
+        const numRaces = parseInt(document.getElementById('numRaces').value);
         const races = {};
-        for (let i = 1; i <= 12; i++) {
+        for (let i = 1; i <= numRaces; i++) {
           const trackName = document.getElementById(`race${i}`).value;
-          races[`race${i}`] = { trackName };
+          const special = document.getElementById(`special${i}`).checked;
+          races[`race${i}`] = { trackName, special };
         }
+
 
         firebase.firestore().collection('championships').doc(seasonId).set({
           seasonName: `${year} ${quarter}`,
           seasonCode: seasonId,
           carClass,
-          isActive: true,
+          isActive: false,
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
           races
         })
@@ -168,6 +202,18 @@
           console.error("❌ Error checking admin status:", error);
           document.body.innerHTML = "<h2>Error verifying access. Please try again later.</h2>";
           document.body.style.display = "block";
+          console.log("Admin page loaded — setting up race selector interface...");
+
+        });
+
+        const numRacesInput = document.getElementById('numRaces');
+        generateTrackSelectors(parseInt(numRacesInput.value)); // initial load
+
+        numRacesInput.addEventListener('change', () => {
+          const num = parseInt(numRacesInput.value);
+          if (num >= 1 && num <= 24) {
+            generateTrackSelectors(num);
+          }
         });
     });
   </script>
@@ -202,6 +248,8 @@
       <input type="text" id="carClass" placeholder="e.g. GTE" required />
 
       <h3>Race Locations</h3>
+      <label for="numRaces">Number of Races:</label>
+      <input type="number" id="numRaces" min="1" max="24" value="12" required />
       <div id="trackSelectors"></div>
 
       <button type="submit">Create Season</button>
