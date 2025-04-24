@@ -64,9 +64,9 @@
         /* Make all driver columns equal width */
         th.driver-col,
         td.driver-col {
-        width: 60px; /* adjust as needed */
-        max-width: 60px;
-        min-width: 60px;
+        width: 75px; /* adjust as needed */
+        max-width: 75px;
+        min-width: 75px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -392,10 +392,15 @@
         window.oneElevenDrivers.uids.forEach(uid => {
             let eventPts = 0;
 
-            // Race 1 placing
+            if (race.special === true) {
+            // Special event: Race 1 counts double, ignore Race 2
+            if (positionToPoints[r1[uid]]) eventPts += 2 * positionToPoints[r1[uid]];
+            } else {
+            // Normal: add Race 1 and Race 2 points
             if (positionToPoints[r1[uid]]) eventPts += positionToPoints[r1[uid]];
-            // Race 2 placing
             if (positionToPoints[r2[uid]]) eventPts += positionToPoints[r2[uid]];
+            }
+
 
             racePointsPerEvent[uid][evtIndex] = eventPts; // 0‑12 per event
         });
@@ -418,21 +423,24 @@
         });
 
         sortedRaceKeys.forEach((raceKey, evtIndex) => {
-        const race = races[raceKey];
-        const r1 = race.resultsRace1 || {};
-        const r2 = race.resultsRace2 || {};
+            const race = races[raceKey];
+            const isSpecial = race.special === true;
 
-        window.oneElevenDrivers.uids.forEach(uid => {
-            const pos1 = r1[uid];
-            const pos2 = r2[uid];
+            const r1 = race.resultsRace1 || {};
+            const r2 = race.resultsRace2 || {};
 
-            if (pos1 === 1) winsPerDriver[uid]++;
-            if (pos2 === 1) winsPerDriver[uid]++;
+            window.oneElevenDrivers.uids.forEach(uid => {
+                const pos1 = r1[uid];
+                const pos2 = r2[uid];
 
-            if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
-            if (pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
+                if (pos1 === 1) winsPerDriver[uid]++;
+                if (!isSpecial && pos2 === 1) winsPerDriver[uid]++;
+
+                if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
+                if (!isSpecial && pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
+            });
         });
-        });
+
 
         const polePositionsPerDriver = {};
         const fastestLapsPerDriver = {}; // store like { uid: {FL: 0, OP: 0} }
@@ -578,49 +586,59 @@
         const shortLabel = track ? track.short : trackName;
         const fullLabel  = track ? track.full  : trackName;
 
-        // Race 1 Row
+        const race = races[raceKey];
+        const isSpecial = race.special === true;
+
+        // === Row 1
         const row1 = document.createElement('tr');
         row1.classList.add('race-row');
+        if (isSpecial) row1.classList.add('special-event');
+
         const labelCell = document.createElement('td');
-        labelCell.textContent = shortLabel;
-        labelCell.title = fullLabel;
+        labelCell.textContent = fullLabel;
+        labelCell.title = isSpecial ? `${fullLabel} (Special Event – Double Points)` : fullLabel;
+        labelCell.classList.add('race-label');
         labelCell.rowSpan = 2;
         labelCell.style.verticalAlign = "middle";
-        labelCell.classList.add('race-label');
         row1.appendChild(labelCell);
 
         window.oneElevenDrivers.uids.forEach(uid => {
-        const td = document.createElement('td');
-        td.dataset.uid = uid;
-        td.classList.add('driver-col');
-        td.textContent = "";
-        td.style.height = "18px";
-        td.innerHTML = "&nbsp;"; 
-        row1.appendChild(td);
+            const td = document.createElement('td');
+            td.dataset.uid = uid;
+            td.classList.add('driver-col');
+            td.textContent = "";
+            td.style.height = "18px";
+            td.innerHTML = "&nbsp;";
+            row1.appendChild(td);
         });
-        tbody.appendChild(row1);
 
-        // Race 2 Row
+        // === Row 2 (blank for special, real for normal)
         const row2 = document.createElement('tr');
         row2.classList.add('race-row', 'race-row-2');
+        if (isSpecial) row2.classList.add('spacer-row');
+
         window.oneElevenDrivers.uids.forEach(uid => {
-        const td = document.createElement('td');
-        td.dataset.uid = uid;
-        td.classList.add('driver-col');
-        td.textContent = "";
-        td.style.height = "18px";
-        td.innerHTML = "&nbsp;"; 
-        row2.appendChild(td);
+            const td = document.createElement('td');
+            td.dataset.uid = uid;
+            td.classList.add('driver-col');
+            td.textContent = "";
+            td.style.height = "18px";
+            td.innerHTML = "&nbsp;";
+            row2.appendChild(td);
         });
+
+        tbody.appendChild(row1);
         tbody.appendChild(row2);
 
-        if (index % 2 === 1) { // Apply to every second event (starting from 2nd)
+        // Optional zebra styling
+        if (index % 2 === 1) {
             row1.classList.add('alt-row');
             row2.classList.add('alt-row');
-            }
+        }
         });
 
         table.appendChild(tbody);
+
         
         // Wrap table in div wrapper for scrolling
         const scrollWrapper = document.createElement('div');
@@ -638,69 +656,68 @@
         };
 
         // Loop over races again to populate results
+        let rowPointer = 0;
+
         sortedRaceKeys.forEach((raceKey, raceIndex) => {
         const race = races[raceKey];
+        const isSpecial = race.special === true;
 
-        const row1 = tbody.children[raceIndex * 2];
-        const row2 = tbody.children[raceIndex * 2 + 1];
+        const row1 = tbody.children[rowPointer];
+        const row2 = tbody.children[rowPointer + 1];
 
-        const race1Results = race.resultsRace1 || {};
-        const race2Results = race.resultsRace2 || {};
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
 
         window.oneElevenDrivers.uids.forEach((uid, driverIndex) => {
-            const pos1 = race1Results[uid];
-            const pos2 = race2Results[uid];
-
+            const pos1 = r1[uid];
+            const pos2 = r2[uid];
+            
             let points1 = positionToPoints[pos1] || '';
             let points2 = positionToPoints[pos2] || '';
-
+            if (isSpecial && points1) {
+                points1 *= 2;
+            }
+            
             const bonuses1 = [];
             const bonuses2 = [];
 
-            // Find who got fastest laps and pole race 1
             if (race.polePositionDriver === uid) bonuses1.push("PP");
             if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
             if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
 
-            // Find who got fastest laps and pole race 2
+            if (!isSpecial) {
             if (race.fastestLapDriverR2 === uid) bonuses2.push("FL");
             if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
-
-            const cell1 = row1.children[driverIndex + 1];
-            const cell2 = row2.children[driverIndex];
+            }
 
             const dropped = window.oneElevenDrivers.droppedIndexes[uid] || [];
+
+            // === Row 1
+            const cell1 = row1.children[driverIndex + 1];
+            if (cell1) {
             if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
-            if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
-
-            cell1.textContent =
-                (points1 ? points1 : '') +
+            cell1.textContent = (points1 ? points1 : '') +
                 (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
-
-            cell2.textContent =
-                (points2 ? points2 : '') +
-                (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
-
-
-            // Set data attribute for bonus point styling for table
             if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');
+            if (bonuses1.includes("PP") && bonuses1.includes("FL")) cell1.dataset.combo = "pole-fl";
+            if (bonuses1.includes("PP") && bonuses1.includes("OP")) cell1.dataset.combo = "pole-op";
+            }
+
+            // === Row 2 (blank for special events)
+            const cell2 = row2.children[driverIndex];
+            if (!isSpecial && cell2) {
+            if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
+            cell2.textContent = (points2 ? points2 : '') +
+                (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
             if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+');
-            if (bonuses1.includes("PP") && bonuses1.includes("FL")) {
-            cell1.dataset.combo = "pole-fl";
+            if (bonuses2.includes("PP") && bonuses2.includes("FL")) cell2.dataset.combo = "pole-fl";
+            if (bonuses2.includes("PP") && bonuses2.includes("OP")) cell2.dataset.combo = "pole-op";
             }
-            if (bonuses1.includes("PP") && bonuses1.includes("OP")) {
-            cell1.dataset.combo = "pole-op";
-            }
-
-            if (bonuses2.includes("PP") && bonuses2.includes("FL")) {
-            cell2.dataset.combo = "pole-fl";
-            }
-            if (bonuses2.includes("PP") && bonuses2.includes("OP")) {
-            cell2.dataset.combo = "pole-op";
-            }
-
         });
+
+        rowPointer += 2; // Always advance 2 rows regardless of event type
         });
+
 
         // === Step: Render the standings table ===
         const standingsSection = document.getElementById('current-standings');
