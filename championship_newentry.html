@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+  <title>Enter Race Results • One Eleven Racing</title>
+
+  <!-- Custom Font: KeepCalm‑Medium.ttf must be placed in the same directory -->
+  <style>
+    @font-face {
+      font-family: "KeepCalm";
+      src: url("KeepCalm-Medium.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+  </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+  <script src="tracks.js"></script>
+
+  <script>
+    // *** INITIALISE FIREBASE and Check for user login ***
+    var firebaseConfig = {
+      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
+      authDomain: "one-eleven-app-7f282.firebaseapp.com",
+      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "one-eleven-app-7f282",
+      storageBucket: "one-eleven-app-7f282.appspot.com",
+      messagingSenderId: "503866403242",
+      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.body.style.display = "none";  // ⛔ hide everything initially
+
+        firebase.auth().onAuthStateChanged(async (user) => {
+        if (!user) {
+            console.warn("🚫 User not signed in. Redirecting...");
+            window.location.href = "championship.html";
+            return;
+        }
+
+        try {
+            const driverSnap = await firebase.database().ref(`drivers/${user.uid}`).once("value");
+            const driverData = driverSnap.val();
+
+            if (!driverData || !driverData.active) {
+            console.warn("⚠️ User is not an active driver. Redirecting...");
+            window.location.href = "championship.html";
+            return;
+            }
+
+            console.log("✅ Driver access confirmed:", user.uid);
+            document.body.style.display = "block"; // ✅ show page
+        } catch (error) {
+            console.error("❌ Error checking driver access:", error);
+            document.body.innerHTML = "<h2 style='text-align:center;'>Unexpected error. Please try again later.</h2>";
+            document.body.style.display = "block";
+        }
+        });
+    });
+  </script>
+
+  <!-- ---------------- STYLE ---------------- -->
+  <style>
+    :root {
+      --clr-bg: #ffffff;
+      --clr-fg: #000000;
+      --clr-accent: #000000;
+      --clr-gray-700: #f0f0f0;
+      --clr-gray-600: #fafafa;
+      --radius: 8px;
+    }
+
+    *,*::before,*::after { box-sizing: border-box; }
+    html,body { height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: "KeepCalm", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: var(--clr-bg);
+      color: var(--clr-fg);
+      line-height: 1.6;
+      padding-top: 60px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+
+    header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: black; /* Set the background color to black */
+        width: 100%; /* Make the header span the full width of the page */
+        height: 60px;
+        z-index: 1000;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a drop shadow */
+    }
+    
+    .container {
+      width: min(96%, 1200px);
+      margin-inline: auto;
+      padding: 1rem 0 100px;
+    }
+
+    h1,h2,h3 {
+      margin: 0.3em 0;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+
+    h1 { font-size: clamp(1.8rem, 3vw + 1rem, 3rem); }
+    h2 { font-size: clamp(1.4rem, 2.5vw + 0.8rem, 2rem); }
+    h3 { font-size: clamp(1.1rem, 1.5vw + 0.7rem, 1.4rem); }
+
+    .btn {
+      display: inline-block;
+      background: var(--clr-accent);
+      color: var(--clr-bg);
+      border: 2px solid var(--clr-accent);
+      padding: 0.5em 1.25em;
+      font-family: inherit;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .btn:focus-visible { outline: 3px dashed var(--clr-accent); outline-offset: 2px; }
+    .btn:hover, .btn:active {
+      background: var(--clr-bg);
+      color: var(--clr-accent);
+    }
+
+    table {
+    border-collapse: collapse;
+    width: auto;
+    margin-block: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 0.85rem;
+    border: 1px solid var(--clr-accent);
+    table-layout: fixed;
+    }
+    thead th {
+      background: var(--clr-gray-700);
+      padding: 0.4em;
+      text-align: left;
+      border-bottom: 2px solid var(--clr-accent);
+      color: var(--clr-fg);
+    }
+    tbody td {
+      padding: 0.4em;
+      border-bottom: 1px solid var(--clr-accent);
+      vertical-align: top;
+    }
+    tbody tr:nth-child(odd) { background: var(--clr-gray-600); }
+    tbody tr:hover { background: #eaeaea; }
+
+    thead th:nth-child(1),
+    tbody td:nth-child(1) {
+    text-align: center;
+    }
+
+    select {
+      width: 100%;
+      max-width: 180px;
+      padding: 0.35em 0.5em;
+      background: var(--clr-bg);
+      color: var(--clr-fg);
+      border: 1px solid var(--clr-accent);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 0.8rem;
+    }
+    select:focus-visible { outline: 3px dashed var(--clr-accent); outline-offset: 2px; }
+
+    label {
+      font-size: 0.55rem;
+      color: var(--clr-fg);
+      padding-top: 5px;
+    }
+
+    label[for="raceSelect"] {
+        margin-right: 0.5em; /* Or use display: block; for stacked layout */
+        font-size: 0.9em;
+    }
+
+    .flex-center { display: flex; align-items: center; justify-content: center; }
+    .text-center { text-align: left; }
+    .mt-2 { margin-top: 0.5rem; }
+
+
+    footer {
+    position: fixed; /* Position the footer relative to the browser window */
+    bottom: 0; /* Align the footer to the bottom of the window */
+    background-color: white; /* Set the background color to black */
+    width: 100%; /* Make the header span the full width of the page */
+    height: 75px;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.079); /* Add a drop shadow */
+    }
+
+    .footerbuttonnotselected {
+    display: flex; /* Use flexbox to center content */
+    align-items: center; /* Align items vertically */
+    justify-content: center; /* Align items horizontally */
+    width: 33.3%;
+    height: 100%;
+    background-color: #ffffff; /* Set background color */
+    color: #808080; /* Set text color */
+    border: none; /* Remove border */
+    text-decoration: none; /* Remove default text decoration */
+    flex-direction: column; /* Stack items vertically */
+    font-size: 0.9em;
+    float: left;
+    }
+
+    .footerbuttonnotselected:hover img {
+    filter: brightness(0);
+    }
+
+    .footerbuttonnotselected:hover {
+        color: #000000; /* Change text color on hover */
+    }
+
+    .footerbuttonnotselected img {
+        vertical-align: middle; /* Align the image vertically */
+        height: 45px;
+        margin-top: -10px;
+        padding: 10px;
+    }
+
+    .footerbuttonselected {
+        display: flex; /* Use flexbox to center content */
+        align-items: center; /* Align items vertically */
+        justify-content: center; /* Align items horizontally */
+        width: 33.3%;
+        height: 100%;
+        background-color: #ffffff; /* Set background color */
+        color: #000000; /* Set text color */
+        border: none; /* Remove border */
+        text-decoration: none; /* Remove default text decoration */
+        flex-direction: column; /* Stack items vertically */
+        float: left;
+        font-size: 0.9em;
+        cursor: default; /* Set cursor to default on hover */
+    }
+
+    .footerbuttonselected img {
+        vertical-align: middle; /* Align the image vertically */
+        height: 20px;
+        margin-top: -10px;
+        padding: 10px;
+        filter:brightness(0);
+    }
+
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--clr-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--clr-accent); }
+    ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+  </style>
+</head>
+<body style="display:none">
+    <header>
+        <a href="javascript:void(0);" class="back-button" id="back"
+            onclick="window.location.href='championship.html'"
+            style="display: block;">
+            <img src="Logos_and_icons/back.png" alt="Back" style="height: 20px; margin: 20px;">
+        </a>
+    </header>
+    
+      <div class="container">
+        <section class="text-center mt-2">
+          <h2 id="seasonName" style="text-align: center;"  class="mt-2">Loading current season…</h2>
+        </section>
+      </div>
+
+
+  <script>
+  // *****************************************************
+  // *                 PAGE CONTROLLER                  *
+  // *****************************************************
+      // ---- Load active championship season ----
+    firebase.firestore().collection('championships')
+      .where('isActive', '==', true)
+      .limit(1)
+      .get()
+      .then(snapshot => {
+        if (snapshot.empty) {
+          document.getElementById('seasonName').textContent = 'No active season found.';
+          return;
+        }
+
+        const seasonDoc  = snapshot.docs[0];
+        const seasonId   = seasonDoc.id;
+        const seasonData = seasonDoc.data();
+
+        document.getElementById('seasonName').textContent = `Current Season: ${seasonData.seasonName}`;
+        document.getElementById('seasonName').dataset.seasonId = seasonId;
+
+        //--------------------------------------------------
+        // Build race‑selection drop‑down
+        //--------------------------------------------------
+        const raceSelectContainer = document.createElement('div');
+        raceSelectContainer.className = 'flex-center mt-2';
+        raceSelectContainer.innerHTML = `
+            <label for="raceSelect">Select a race:</label>
+            <select id="raceSelect" class="mt-2"></select>
+            <p id="raceSelectionStatus"></p>`;
+        document.querySelector('.container').appendChild(raceSelectContainer);
+
+        const raceKeysSorted = Object.keys(seasonData.races || {})
+          .sort((a, b) => parseInt(a.replace('race','')) - parseInt(b.replace('race','')));
+
+        const raceSelect = document.getElementById('raceSelect');
+        raceKeysSorted.forEach((key, i) => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = `Race ${i+1}: ${seasonData.races[key].trackName}`;
+          raceSelect.appendChild(opt);
+        });
+
+        //--------------------------------------------------
+        // Fetch active drivers (Realtime DB)
+        //--------------------------------------------------
+        firebase.database().ref('drivers').once('value')
+          .then(snap => buildResultsUI(snap.val(), seasonId, raceSelect))
+          .catch(err => {
+            console.error('Error loading drivers', err);
+            document.body.insertAdjacentHTML('beforeend', '<p>❌ Failed to load driver list.</p>');
+          });
+      })
+      .catch(err => {
+        console.error('Error loading active season', err);
+        document.getElementById('seasonName').textContent = '❌ Failed to load active season';
+      });
+  
+
+  // *****************************************************
+  // *                BUILD THE RESULTS UI              *
+  // *****************************************************
+  function buildResultsUI(driversData, seasonId, raceSelect) {
+    if (!driversData) {
+      document.body.insertAdjacentHTML('beforeend', '<p>⚠️ No drivers found in the database.</p>');
+      return;
+    }
+
+    // ---- Helpers ----
+    const driverOptions = Object.entries(driversData)
+      .filter(([_, d]) => d.active)
+      .map(([uid, d]) => ({ uid, name: d.name || `Unnamed Driver (${uid})` }));
+    const MAX_POS = 8;
+
+    const bonusFields = [
+    { id: 'polePositionDriver', label: 'Pole Position', race: 1 },
+    { id: 'fastestLapDriverR1', label: 'Fastest Lap – Race 1', race: 1 },
+    { id: 'fastestLapOffPodiumDriverR1', label: 'Fastest Lap (Off Podium) – Race 1', race: 1 },
+    { id: 'fastestLapDriverR2', label: 'Fastest Lap – Race 2', race: 2 },
+    { id: 'fastestLapOffPodiumDriverR2', label: 'Fastest Lap (Off Podium) – Race 2', race: 2 }
+    ];
+
+
+    //--------------------------------------------------
+    //   1. Results table (position + two races)
+    //--------------------------------------------------
+    const section = document.createElement('section');
+    section.innerHTML = '<h3 style="text-align:center" class="text-center">Enter Race Results</h3>';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-wrapper';
+    const table = document.createElement('table');
+    section.appendChild(wrapper);
+
+
+    // Build header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Position','Race 1 – Driver','Race 2 – Driver'].forEach(t => {
+      const th = document.createElement('th'); th.textContent = t; headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const race1Drops = [], race2Drops = [];
+
+    for (let p=1; p<=MAX_POS; p++) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td data-label='Position'>P${p}</td>`;
+
+      // helper to make one <select>
+      const makeSelect = (race) => {
+        const sel = document.createElement('select');
+        sel.dataset.position = p;
+        sel.dataset.race     = race;
+        // default option
+        sel.appendChild(new Option('-- Select Driver --',''));
+        driverOptions.forEach(opt => sel.appendChild(new Option(opt.name,opt.uid)));
+        return sel;
+      };
+
+      const td1 = document.createElement('td'); td1.dataset.label='Race 1 – Driver'; const r1 = makeSelect('race1'); td1.appendChild(r1); race1Drops.push(r1);
+      const td2 = document.createElement('td'); td2.dataset.label='Race 2 – Driver'; const r2 = makeSelect('race2'); td2.appendChild(r2); race2Drops.push(r2);
+
+      tr.appendChild(td1); tr.appendChild(td2); tbody.appendChild(tr);
+    }
+
+    // === Bonus Rows ===
+    const bonusHeaderRow = document.createElement('tr');
+    bonusHeaderRow.innerHTML = `
+      <td></td>
+      <td data-label='' style="text-align:left; font-weight:bold;">Race 1 Bonus Points</td>
+      <td data-label='' style="text-align:left; font-weight:bold;">Race 2 Bonus Points</td>`;
+    tbody.appendChild(bonusHeaderRow);
+
+    const bonusRow = document.createElement('tr');
+    bonusRow.appendChild(document.createElement('td')); // Empty top-left cell
+
+    [1, 2].forEach(raceNo => {
+      const cell = document.createElement('td');
+      bonusFields
+          .filter(field => field.race === raceNo)
+          .forEach(field => {
+            const label = document.createElement('label');
+            label.htmlFor = field.id;
+            label.textContent = field.label + ': ';
+            label.style.display = 'block';
+
+            const select = document.createElement('select');
+            select.id = field.id;
+            select.name = field.id;
+            select.appendChild(new Option('-- Select Driver --', ''));
+            driverOptions.forEach(opt => {
+              select.appendChild(new Option(opt.name, opt.uid));
+            });
+
+            cell.appendChild(label);
+            cell.appendChild(select);
+          });
+
+      bonusRow.appendChild(cell);
+    });
+
+    tbody.appendChild(bonusRow);
+
+    // === Submission buttons ===
+    const buttonRow = document.createElement('tr');
+    buttonRow.innerHTML = `
+      <td></td>
+      <td class='text-center'><button id="submitRace1" class='btn'>Submit Race 1</button></td>
+      <td class='text-center'><button id="submitRace2" class='btn'>Submit Race 2</button></td>`;
+    tbody.appendChild(buttonRow);
+
+    table.appendChild(tbody);
+    section.appendChild(table);
+    document.querySelector('.container').appendChild(section);
+
+    //--------------------------------------------------
+    //   3. Deduplication logic (hide used drivers)
+    //--------------------------------------------------
+    function attachDedupLogic(selectList) {
+      selectList.forEach(sel => sel.addEventListener('change', () => {
+        const used = new Set(selectList.map(s=>s.value).filter(Boolean));
+        selectList.forEach(s => {
+          Array.from(s.options).forEach(o => {
+            if (!o.value) return; // keep default always visible
+            o.hidden = used.has(o.value) && o.value !== s.value;
+          });
+        });
+      }));
+    }
+    attachDedupLogic(race1Drops); attachDedupLogic(race2Drops);
+
+    //--------------------------------------------------
+    //   4. Pre‑loading helper
+    //--------------------------------------------------
+    function preloadDropdowns(resultsObj, dropdowns) {
+      const dropdownByPos = {};
+      dropdowns.forEach(sel => { sel.value=''; dropdownByPos[+sel.dataset.position] = sel; });
+
+      const counts = {};
+      Object.values(resultsObj).forEach(p => counts[p] = (counts[p]||0)+1);
+      const maxPos        = Math.max(...Object.keys(counts).map(Number), 0);
+      const lastIsShared  = counts[maxPos] > 1;
+
+      Object.entries(resultsObj).forEach(([uid,pos]) => {
+        if (pos === maxPos && lastIsShared) return; // non‑starters
+        const drop = dropdownByPos[pos];
+        if (drop) drop.value = uid;
+      });
+    }
+
+    //--------------------------------------------------
+    //   5. Race selector change → preload all fields
+    //--------------------------------------------------
+    raceSelect.addEventListener('change', () => {
+      const raceKey = raceSelect.value; if (!raceKey) return;
+      firebase.firestore().collection('championships').doc(seasonId).get()
+        .then(doc => {
+          const raceData = (doc.data().races || {})[raceKey] || {};
+          preloadDropdowns(raceData.resultsRace1 || {}, race1Drops);
+          preloadDropdowns(raceData.resultsRace2 || {}, race2Drops);
+
+          // bonus
+          bonusFields.forEach(f => {
+            const el = document.getElementById(f.id);
+            el.value = raceData[f.id] || '';
+          });
+        })
+        .catch(err => console.error('Error loading race', err));
+    });
+    raceSelect.dispatchEvent(new Event('change')); // trigger initial load
+
+    //--------------------------------------------------
+    //   6. Save helper
+    //--------------------------------------------------
+    async function saveRace(raceNo) {
+      const raceKey = raceSelect.value;
+      const selList = raceNo===1 ? race1Drops : race2Drops;
+      const results = {}; const chosen = [];
+      selList.forEach(sel => {
+        if (sel.value) { results[sel.value] = +sel.dataset.position; chosen.push(sel.value); }
+      });
+
+      // determine shared last value
+      const currentMax = Math.max(...Object.values(results), 0);
+      const sharedLast = Object.values(results).filter(p=>p===currentMax).length>1 ? currentMax : currentMax+1;
+
+      // add DNS/DNF drivers
+      driverOptions.forEach(o => { if (!chosen.includes(o.uid)) results[o.uid] = sharedLast; });
+
+      // bonus fields
+        const bonus = {};
+        const bonusFieldIds = raceNo === 1
+        ? ['polePositionDriver','fastestLapDriverR1','fastestLapOffPodiumDriverR1']
+        : ['fastestLapDriverR2','fastestLapOffPodiumDriverR2'];
+
+        bonusFieldIds.forEach(id => {
+        const val = document.getElementById(id).value;
+        bonus[`races.${raceKey}.${id}`] = val || firebase.firestore.FieldValue.delete();
+        });
+
+
+      const fieldName = raceNo===1 ? 'resultsRace1' : 'resultsRace2';
+      await firebase.firestore().collection('championships').doc(seasonId).update({
+        [`races.${raceKey}.${fieldName}`]: results,
+        ...bonus
+      });
+      alert(`Race ${raceNo} results saved!`);
+    }
+    document.getElementById('submitRace1').onclick = () => saveRace(1);
+    document.getElementById('submitRace2').onclick = () => saveRace(2);
+  }
+  </script>
+</body>
+
+<footer>
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
+        <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
+        SIM RACING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+        <img src="Logos_and_icons/karting.png" alt="Karting">
+        KARTING
+    </a>
+  
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
+        <img src="Logos_and_icons/settings.png" alt="Settings">
+        SETTINGS
+    </a>
+  </footer>
+
+</html>
