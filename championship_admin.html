@@ -159,24 +159,32 @@
           races[`race${i}`] = { trackName, special };
         }
 
-
-        firebase.firestore().collection('championships').doc(seasonId).set({
-          seasonName: `${year} ${quarter}`,
-          seasonCode: seasonId,
-          carClass,
-          isActive: false,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          races
-        })
-          .then(() => {
+        const seasonRef = firebase.firestore().collection('championships').doc(seasonId);
+        seasonRef.get().then(docSnapshot => {
+          if (docSnapshot.exists) {
             document.getElementById('seasonStatusMessage').textContent =
-              `✅ Season "${seasonId}" created successfully.`;
-          })
-          .catch((error) => {
-            console.error("❌ Error creating season:", error);
-            document.getElementById('seasonStatusMessage').textContent =
-              `❌ Error creating season: ${error.message}`;
-          });
+              `⚠️ A season with ID "${seasonId}" already exists. Please choose a different year/quarter.`;
+          } else {
+            // Safe to create new season
+            seasonRef.set({
+              seasonName: `${year} ${quarter}`,
+              seasonCode: seasonId,
+              carClass,
+              isActive: false,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              races
+            })
+            .then(() => {
+              document.getElementById('seasonStatusMessage').textContent =
+                `✅ Season "${seasonId}" created successfully.`;
+            })
+            .catch((error) => {
+              console.error("❌ Error creating season:", error);
+              document.getElementById('seasonStatusMessage').textContent =
+                `❌ Error creating season: ${error.message}`;
+            });
+          }
+        });
       });
     }
 
