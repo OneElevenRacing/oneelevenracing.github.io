@@ -102,6 +102,12 @@
             border: 1px solid #333;
         }
 
+        td.race-label.special-event {
+            background-color: #222;
+            color: #ffcc00;  /* Gold text */
+            font-weight: bold;
+        }
+
         /* Bonus point cells */
         td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
@@ -422,15 +428,20 @@ function loadHistoricalPage() {
 
         // 2‑A  ▶ race‑finishing points (the part that CAN be dropped)
         window.oneElevenDrivers.uids.forEach(uid => {
-            let eventPts = 0;
+        let eventPts = 0;
 
-            // Race 1 placing
+        if (race.special === true) {
+            // Special event: Race 1 counts double, Race 2 ignored
+            if (positionToPoints[r1[uid]]) eventPts += 2 * positionToPoints[r1[uid]];
+        } else {
+            // Normal event: Both Race 1 and Race 2 count
             if (positionToPoints[r1[uid]]) eventPts += positionToPoints[r1[uid]];
-            // Race 2 placing
             if (positionToPoints[r2[uid]]) eventPts += positionToPoints[r2[uid]];
+        }
 
-            racePointsPerEvent[uid][evtIndex] = eventPts; // 0‑12 per event
+        racePointsPerEvent[uid][evtIndex] = eventPts;
         });
+
 
         // 2‑B  ▶ bonus points (NEVER dropped)
         if (race.polePositionDriver)             bonusPointsPerDriver[race.polePositionDriver]              += 1;
@@ -602,8 +613,9 @@ function loadHistoricalPage() {
         // === Table Body ===
         const tbody = document.createElement('tbody');
 
-        sortedRaceKeys.forEach((raceKey, index) => {
-        const trackName = races[raceKey].trackName || 'TBD';
+        sortedRaceKeys.forEach((raceKey, index) => {       
+        const race = races[raceKey];
+        const trackName = race.trackName || 'TBD'; 
         const track = window.trackMap[trackName];
         const shortLabel = track ? track.short : trackName;
         const fullLabel  = track ? track.full  : trackName;
@@ -617,6 +629,9 @@ function loadHistoricalPage() {
         labelCell.rowSpan = 2;
         labelCell.style.verticalAlign = "middle";
         labelCell.classList.add('race-label');
+        if (race.special === true) {
+            labelCell.classList.add('special-event');  // Uses your CSS
+        }
         row1.appendChild(labelCell);
 
         window.oneElevenDrivers.uids.forEach(uid => {
@@ -683,6 +698,12 @@ function loadHistoricalPage() {
 
             let points1 = positionToPoints[pos1] || '';
             let points2 = positionToPoints[pos2] || '';
+
+            // 🔁 Apply double points to Race 1 if special event, and skip Race 2
+            if (race.special === true) {
+                if (points1) points1 = points1 * 2;
+                points2 = ''; // Don't show anything in Race 2
+            }
 
             const bonuses1 = [];
             const bonuses2 = [];
