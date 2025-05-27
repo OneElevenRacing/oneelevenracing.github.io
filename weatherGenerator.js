@@ -1,30 +1,29 @@
 // This is the function with all of the probabilities and weather. Make sure they add up to 1.00
 function generateRandomWeather() {
     const weathers = {
-        "Clear": 0.19,
-        "Light Cloud": 0.124,
-        "Medium Cloud": 0.124,
-        "Heavy Cloud": 0.124,
-        "Overcast": 0.124,
-        "Light Rain": 0.083,
-        "Rain": 0.041,
-        "Storm": 0.024,
-        "Thunderstorm": 0.024,
-        "Fog": 0.024,
+        "Clear": 0.168,
+        "Light Cloud": 0.109,
+        "Medium Cloud": 0.109,
+        "Heavy Cloud": 0.109,
+        "Overcast": 0.109,
+        "Light Rain": 0.103,
+        "Rain": 0.071,
+        "Storm": 0.029,
+        "Thunderstorm": 0.029,
+        "Fog": 0.045,
         "Fog with Rain": 0.016,
         "Heavy Fog": 0.008,
         "Heavy Fog with Rain": 0.008,
         "Hazy": 0.008,
         "Random": 0.015,
-        "Ian's Choice": 0.007,
-        "Richard's Choice": 0.007,
-        "Sam's Choice": 0.007,
-        "Chris' Choice": 0.007,
-        "Fabian's Choice": 0.007,
-        "Rob's Choice": 0.007,
-        "Jake's Choice": 0.007,
-        "James' Choice": 0.007,
-        "Tom's Choice": 0.007
+        "Ian's Choice": 0.008,
+        "Richard's Choice": 0.008,
+        "Sam's Choice": 0.008,
+        "Chris' Choice": 0.008,
+        "Fabian's Choice": 0.008,
+        "Konner's Choice": 0.008,
+        "James' Choice": 0.008,
+        "Tom's Choice": 0.008
     };
 
     let totalWeight = Object.values(weathers).reduce((sum, weight) => sum + weight, 0);
