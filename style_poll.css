@@ -14,7 +14,7 @@ h2 {
 #responsesTable, .poll-table {
     border-collapse: collapse; /* unify table borders */
     margin: 0 auto; /* center horizontally */
-    width: 95%; /* Make tables fill the screen */
+    width: 50%; /* Make tables fill the screen */
 }
 
 /* Inside the tables */

@@ -102,6 +102,13 @@
             border: 1px solid #333;
         }
 
+        td.race-label.special-event {
+            background-color: #222;
+            color: #ffcc00; /* gold-like for emphasis */
+            border: 1px solid #666;
+            font-weight: bold;
+        }
+
         /* Bonus point cells */
         td[data-bonus*="PP"] { background-color: orange; }
         td[data-bonus*="FL"] { background-color: yellow; }
@@ -598,6 +605,7 @@
         labelCell.textContent = fullLabel;
         labelCell.title = isSpecial ? `${fullLabel} (Special Event – Double Points)` : fullLabel;
         labelCell.classList.add('race-label');
+        if (isSpecial) labelCell.classList.add('special-event');
         labelCell.rowSpan = 2;
         labelCell.style.verticalAlign = "middle";
         row1.appendChild(labelCell);
@@ -730,7 +738,7 @@
         const standingsThead = document.createElement('thead');
         const headRow = document.createElement('tr');
 
-        ['Position', 'Driver', 'Points', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Events'].forEach(label => {
+        ['Position', 'Driver', 'Points', 'Diff', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Events'].forEach(label => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.appendChild(th);
@@ -755,14 +763,27 @@
         const pts = document.createElement('td');
         pts.textContent = total;
 
-        [pos, name, pts].forEach(td => {
-            td.style.border = '1px solid #ccc';
-            td.style.padding = '6px';
+        // Difference to leader or driver ahead
+        const diff = document.createElement('td');
+        if (index === 0) {
+        diff.textContent = "n/a"; // Leader
+        } else {
+        const pointsAhead = sortedStandings[index - 1][1]; // previous driver's points
+        const diffValue = total - pointsAhead;
+        diff.textContent = (diffValue > 0 ? "+" : "") + diffValue; // usually negative
+        }
+
+        // Style
+        [pos, name, pts, diff].forEach(td => {
+        td.style.border = '1px solid #ccc';
+        td.style.padding = '6px';
         });
+
 
         row.appendChild(pos);
         row.appendChild(name);
         row.appendChild(pts);
+        row.appendChild(diff);
 
         // Add the other stats to the race standings
         const wins = document.createElement('td');
