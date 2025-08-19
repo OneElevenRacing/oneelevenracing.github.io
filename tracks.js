@@ -1,10 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
     const currentPage = window.location.pathname;
-  
-    // Only call populateTrackOptions() on pages that need it
-    if (currentPage.includes("poll_admin.html") || currentPage.includes("main.html")) {
-      populateTrackOptions();
-    }
   });
 
 // the list of tracks with their corresponding image locations, stored as an array
@@ -69,7 +64,7 @@ const trackData = [
     { name: "Imola 2001", shortName: "Imola", imagePath: "Logos_and_icons/racetracks/Imola_2001.png" },
     { name: "Imola 1988", shortName: "Imola", imagePath: "Logos_and_icons/racetracks/Imola_1988.png" },
     { name: "Imola 1972", shortName: "Imola", imagePath: "Logos_and_icons/racetracks/Imola_1972.png" },
-    { name: "Indianapolis Road Course", shortName: "Indianapolis", imagePath: "Logos_and_icons/racetracks/IndianapolisRC 14.png" },
+    { name: "Indianapolis Road Course", shortName: "Indianapolis", imagePath: "Logos_and_icons/racetracks/IndianapolisRC_14.png" },
     { name: "Interlagos GP", shortName: "Interlagos", imagePath: "Logos_and_icons/racetracks/Interlagos_GP.png" },
     { name: "Interlagos Stock Car Brasil", shortName: "Interlagos", imagePath: "Logos_and_icons/racetracks/Interlagos_GP.png" },
     { name: "Interlagos 1993", shortName: "Interlagos", imagePath: "Logos_and_icons/racetracks/Interlagos-1992.png" },
@@ -273,7 +268,6 @@ function convertTo24HourFormat(timeString) {
 document.addEventListener('DOMContentLoaded', function() {
     populateTrackOptions();
     fetchCurrentData();
-    // ... other initialization code ...
 });
 
 

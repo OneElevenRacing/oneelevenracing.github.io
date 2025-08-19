@@ -101,36 +101,9 @@
                         <p id="currentRacingClass" class="current-data"></p>
                     </div>
                 </div>
-                <button onclick="updateSeasonData()" class="season-update-btn">Update Season Configuration</button>
+                <button type="button" onclick="updateSeasonData(event)" class="season-update-btn">Update Season Configuration</button>
             </form>
         </div>
     </main>
-
-    <script>
-        populateTrackOptions();
-        fetchCurrentData();
-
-        // Season configuration form submission
-        document.getElementById('seasonForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const seasonNumber = document.getElementById('seasonNumber').value;
-            const racingClass = document.getElementById('racingClass').value;
-            
-            const seasonRef = firebase.database().ref('seasonData');
-            seasonRef.set({
-                seasonNumber: seasonNumber,
-                racingClass: racingClass
-            }, function(error) {
-                if (error) {
-                    alert('Error updating season data: ' + error.message);
-                } else {
-                    alert('Season data updated successfully!');
-                    window.location.reload();
-                }
-            });
-        });
-    </script>
-
 </body>
 </html>
