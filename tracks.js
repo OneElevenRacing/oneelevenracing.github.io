@@ -191,7 +191,7 @@ function fetchCurrentData() {
     const timeEl = document.getElementById('raceTime');
     const xoyondoEl = document.getElementById('xoyondoLink');
 
-    if (!trackEl || !dateEl || !timeEl || !xoyondoEl) {
+    if (!trackEl || !dateEl || !timeEl) {
         console.warn("fetchCurrentData: Some required elements are missing on this page. Skipping fetch.");
         return;
     }
@@ -225,21 +225,37 @@ function fetchCurrentData() {
         document.getElementById('currentRaceTime').textContent = currentTime || 'TBD';
     });
 
-    // Fetch and display current Xoyondo link
+    // Fetch and display current Xoyondo link (optional on some pages)
+    const xoyondoInput = document.getElementById('xoyondoLink');
+    const xoyondoCurrent = document.getElementById('currentXoyondoLink');
+    if (xoyondoInput && xoyondoCurrent) {
     firebase.database().ref('xoyondo_link').once('value').then(snapshot => {
         const currentLink = snapshot.val() || 'Not set';
-        document.getElementById('xoyondoLink').value = currentLink;
-        document.getElementById('currentXoyondoLink').textContent = currentLink;
+        xoyondoInput.value = currentLink;
+        xoyondoCurrent.textContent = currentLink;
     });
+    }
 }
 
 // Utility function to convert date from "Day, xth Month" format to "yyyy-mm-dd" format
 function convertToInputDateFormat(dateString) {
-    const [dayName, day, month] = dateString.split(' ');
-    const year = new Date().getFullYear(); // Assuming current year
-    const formattedDate = new Date(`${day} ${month} ${year}`).toISOString().split('T')[0];
-    return formattedDate;
-}
+    // Accepts e.g. "Wed 21st Aug" or "Wed 21 Aug"
+    const parts = dateString.trim().split(/\s+/); // ["Wed","21st","Aug"]
+    if (parts.length < 3) return ''; // bail if unexpected
+  
+    const dayRaw = parts[1].toLowerCase().replace(/(st|nd|rd|th)$/, ''); // "21st" -> "21"
+    const monthAbbr = parts[2]; // "Aug"
+  
+    const monthMap = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+    const m = monthMap[monthAbbr];
+    const d = parseInt(dayRaw, 10);
+    const y = new Date().getFullYear();
+  
+    if (isNaN(d) || m == null) return '';
+  
+    const dt = new Date(Date.UTC(y, m, d));
+    return dt.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  }
 
 // Utility function to convert time from "h.mmam/pm" format to "HH:MM" format
 function convertTo24HourFormat(timeString) {
