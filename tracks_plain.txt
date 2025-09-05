@@ -1,0 +1,149 @@
+RANDOM (No Preference)
+Adelaide
+Adelaide 1988
+Azure Circuit
+Barcelona GP
+Barcelona GP (No Chicane)
+Barcelona National
+Barcelona 1991
+Bathurst 2020
+Bathurst 1983
+Brands Hatch
+Brands Hatch Indy
+Brasilia
+Brasilia Outer (like an oval)
+Buenos Aires Circuito No.6 S
+Buenos Aires Circuito No.6
+Buenos Aires Circuito No.8
+Buenos Aires Circuito No.9
+Buenos Aires Circuito No.12
+Buenos Aires Circuito No.15
+Cadwell Park
+Campo Grande
+Cascais
+Cascais Alternate
+Cascais 1988
+Cascavel
+Cleveland GP
+Cordoba No.4
+Cordoba TC
+Cordoba No.2
+Curitiba
+Curvelo Long
+Curvelo Short
+Daytona Sports Car Course
+Daytona Nascar Road Course
+Donington GP
+Donington National
+Fontana Sports Car Course
+Galeao Airport
+Gateway WWT Road Course (Short)
+Gateway WWT Road Course (Long)
+Goiania
+Goiania Short
+Goiania External (like an oval)
+Guapore
+Hockenheim
+Hockenheim National
+Hockenheim Short A
+Hockenheim Short B
+Hockenheim 2001
+Hockenheim 1988
+Hockenheim 1988 Short
+Hockenheim 1977
+Yahuacocha (Ibarra)
+Yahuacocha Reverse (Ibarra)
+Imola
+Imola 2001
+Imola 1988
+Imola 1972
+Indianapolis Road Course
+Interlagos GP
+Interlagos Stock Car Brasil
+Interlagos 1993
+Interlagos 1991
+Interlagos 1976
+Jacarepagua 2005
+Jacarepagua 1988
+Jacarepagua 2012 SCB
+Jacarepagua 2012 Short
+Jerez Moto
+Jerez Chicane
+Jerez 1988
+Kansai GP
+Kansai West
+Kansai East
+Kansai Classic
+Kyalami
+Kyalami 1976
+Laguna Seca 2020
+Le Mans 24H
+Le Mans Bugatti
+Londrina Short
+Londrina Long
+Long Beach
+Montreal
+Montreal 1991
+Montreal 1988
+Monza
+Monza Junior
+Monza 1991
+Monza 1971
+Monza 1971 Junior
+Monza 1971 10k
+Monza 1971 10K (No Chicane)
+Mosport
+Nürburgring 1971 Beton
+Nürburgring GP 2020
+Nürburgring Sprint 2020
+Nürburgring Sprint S 2020
+Nurburgring Sudschleife 1971
+Oulton Park International
+Oulton Park Island
+Oulton Park Fosters
+Oulton Park Classic
+Road America
+Road America (Bend)
+Road Atlanta
+Road Atlanta (Moto)
+Salvador Street Circuit
+Santa Cruz do Sul
+Sebring
+Sebring School
+Sebring Club
+Silverstone
+Silverstone International
+Silverstone National
+Silverstone 2001
+Silverstone National 2001
+Silverstone 1991
+Silverstone 1975
+Silverstone 1975 (no chicane)
+Snetterton 300
+Snetterton 200
+Spa-Francorchamps 2022
+Spa-Francorchamps 2020
+Spa-Francorchamps 1993
+Spa-Francorchamp 1970
+Spa-Francorchamp 1970 1000Km
+Spielberg
+Spielberg Short
+Spielberg 1974
+Spielberg 1977
+Taruma Internacional
+Taruma Chicane
+Termas de Rio Hondo
+Velo Citta
+Velo Citta Track Day
+Velo Citta Club Day
+Velopark 2017
+Velopark 2010
+Virginia International Raceway Full
+Virginia International Raceway Grand
+Virginia International Raceway North
+Virginia International Raceway South
+Virginia International Raceway Patriot
+Watkins Glen GP
+Watkins Glen GP (Inner Loop)
+Watkins Glen Short
+Watkins Glen Short (Inner Loop)
