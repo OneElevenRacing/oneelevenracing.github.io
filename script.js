@@ -33,8 +33,8 @@ function fetchAndDisplaySeasonData() {
 }
 
 // Function to update season data
-function updateSeasonData() {
-    event.preventDefault();
+function updateSeasonData(e) {
+    if (e && e.preventDefault) e.preventDefault();
     
     const seasonNumber = document.getElementById('seasonNumber').value;
     const racingClass = document.getElementById('racingClass').value;
@@ -143,8 +143,6 @@ function fetchAndUpdateRaceInfo() {
     });
 }
 
-fetchAndUpdateRaceInfo();
-
 function openLink(url) {
     window.open(url, '_blank');
 }
@@ -176,15 +174,12 @@ function showAlert() {
 function setupMenuDropdown() {
     console.log("Setting up menu dropdown");
 
-    const gearIcon = document.querySelector('.fa-gear');
-    if (gearIcon) {
-        gearIcon.addEventListener('click', function(event) {
-            console.log("Gear icon clicked");
-            document.getElementById('dropdown').classList.toggle('show');
-            event.stopPropagation();
-        });
-    } else {
-        console.log("Gear icon not found");
+    const dropdown = document.getElementById('dropdown');
+    if (gearIcon && dropdown) {
+      gearIcon.addEventListener('click', function(event) {
+        dropdown.classList.toggle('show');
+        event.stopPropagation();
+      });
     }
 
     window.onclick = function(event) {
