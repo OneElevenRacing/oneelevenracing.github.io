@@ -158,6 +158,8 @@
           const special = document.getElementById(`special${i}`).checked;
           races[`race${i}`] = { trackName, special };
         }
+        const dropRacesRaw = parseInt(document.getElementById('numDrops').value);
+        const dropRaces = Math.max(0, Math.min(dropRacesRaw, numRaces)); // clamp for safety
 
         const seasonRef = firebase.firestore().collection('championships').doc(seasonId);
         seasonRef.get().then(docSnapshot => {
@@ -172,11 +174,12 @@
               carClass,
               isActive: false,
               createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              dropRaces,
               races
             })
             .then(() => {
               document.getElementById('seasonStatusMessage').textContent =
-                `✅ Season "${seasonId}" created successfully.`;
+                `✅ Season "${seasonId}" created successfully (dropRaces = ${dropRaces}).`;
             })
             .catch((error) => {
               console.error("❌ Error creating season:", error);
@@ -215,12 +218,34 @@
         });
 
         const numRacesInput = document.getElementById('numRaces');
-        generateTrackSelectors(parseInt(numRacesInput.value)); // initial load
+        const numDropsInput = document.getElementById('numDrops');
+        const numDropsHint = document.getElementById('numDropsHint');
+
+        function syncMaxDrops() {
+          const num = parseInt(numRacesInput.value) || 0;
+          // Set max allowed drop races = number of races
+          numDropsInput.max = num;
+
+          // If current drop value exceeds new max, clamp it down
+          const current = parseInt(numDropsInput.value) || 0;
+          if (current > num) {
+            numDropsInput.value = num;
+          }
+
+          // Update the hint so users see the current cap
+          if (numDropsHint) {
+            numDropsHint.textContent = `(max ${num})`;
+          }
+        }
+        syncMaxDrops();
+
+        generateTrackSelectors(parseInt(numRacesInput.value));
 
         numRacesInput.addEventListener('change', () => {
           const num = parseInt(numRacesInput.value);
           if (num >= 1 && num <= 24) {
             generateTrackSelectors(num);
+            syncMaxDrops(); // keep drop races capped to the new number of races
           }
         });
     });
@@ -255,10 +280,19 @@
       <label for="carClass">Car Class:</label>
       <input type="text" id="carClass" placeholder="e.g. GTE" required />
 
+      <!-- This displays the selectors just before the track list -->
       <h3>Race Locations</h3>
       <label for="numRaces">Number of Races:</label>
-      <input type="number" id="numRaces" min="1" max="24" value="12" required />
+      <input type="number" id="numRaces" min="1" max="24" value="10" required />
+      <br>
+      <label for="numDrops">Number of Dropped Races:</label>
+      <input type="number" id="numDrops" min="0" value="2" required />
+      <small id="numDropsHint">(max will match the number of races)</small>
+      <br><br>
+
+      <!-- This is the track list -->
       <div id="trackSelectors"></div>
+      <br>
 
       <button type="submit">Create Season</button>
     </form>
