@@ -302,38 +302,39 @@
 
 function loadHistoricalPage() {
 
+    // Track what the dropdown should show.
+    // Prefer ?season=... from the URL; if absent, we’ll set this to the active season later.
+    let desiredSeasonId = new URLSearchParams(window.location.search).get('season') || null;
+
     // Populate dropdown for historical seasons
     firebase.firestore().collection('championships')
-    .orderBy('seasonName') // 🔁 You can change this to 'startDate' or another field if preferred
+    .orderBy('seasonName')
     .get()
     .then(snapshot => {
         const dropdown = document.getElementById('season-selector');
         dropdown.innerHTML = ''; // Clear "Loading..."
 
-        const selectedSeasonId = new URLSearchParams(window.location.search).get('season');
         snapshot.forEach(doc => {
         const data = doc.data();
         const option = document.createElement('option');
         option.value = doc.id;
         const carClass = data.carClass ? ` (${data.carClass})` : '';
         option.textContent = `${data.seasonName}${carClass}`;
-        
-        // ✅ Pre-select if this matches current season from URL
-        if (doc.id === selectedSeasonId) {
-            option.selected = true;
-        }
-
         dropdown.appendChild(option);
-        
-        // ✅ Now the dropdown exists — add the change listener
-        dropdown.addEventListener('change', function () {
+        });
+
+        // ✅ attach the change handler exactly once
+        dropdown.onchange = function () {
         const selectedSeasonId = this.value;
         if (selectedSeasonId) {
             window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
         }
-        });
+        };
 
-        });
+        // ✅ if we already know which season should be shown, reflect it in the dropdown now
+        if (desiredSeasonId) {
+        dropdown.value = desiredSeasonId;
+        }
 
         console.log('✅ Season dropdown populated.');
     })
@@ -342,6 +343,7 @@ function loadHistoricalPage() {
         const dropdown = document.getElementById('season-selector');
         dropdown.innerHTML = '<option value="">(Error loading)</option>';
     });
+
 
     // 🔎 Get season ID from URL if it exists
     function getSeasonIdFromUrl() {
@@ -379,6 +381,35 @@ function loadHistoricalPage() {
         const seasonDoc = snapshot.docs[0];
         const seasonData = seasonDoc.data();
 
+        // If no ?season=... was provided, we’re showing the active season.
+        // Make the dropdown reflect that.
+        if (!desiredSeasonId) {
+        desiredSeasonId = seasonDoc.id;
+        const dropdown = document.getElementById('season-selector');
+        if (dropdown) dropdown.value = seasonDoc.id; // harmless if options aren’t loaded yet
+        }
+
+
+        // === Season parameters ===
+        const races = seasonData.races || {};
+        const sortedRaceKeys = Object.keys(races).sort((a, b) => {
+        const numA = parseInt(a.replace('race', ''));
+        const numB = parseInt(b.replace('race', ''));
+        return numA - numB;
+        });
+        const eventCount = sortedRaceKeys.length;
+
+        // Default policy if field is missing: 0 drops
+        const dropRaces = (typeof seasonData.dropRaces === 'number') ? seasonData.dropRaces : 0;
+
+        // Safety clamps
+        const safeDropRaces = Math.max(0, Math.min(dropRaces, eventCount));
+        const keepEvents    = eventCount - safeDropRaces;
+
+        // (Optional) quick console check
+        console.log({ eventCount, dropRaces, safeDropRaces, keepEvents });
+
+
         window.selectedSeasonId = seasonDoc.id; // optional global for reference
 
         firebase.database().ref('drivers').once('value').then(driverSnap => {
@@ -412,15 +443,16 @@ function loadHistoricalPage() {
         6: 6, 7: 5, 8: 3, 9: 2, 10: 1
         };
 
-        const racePointsPerEvent   = {}; // { uid : [12 numbers] }
-        const bonusPointsPerDriver = {}; // { uid :   number      }
-        
+        const racePointsPerEvent   = {}; // { uid : [eventCount numbers] } one per event
+        const bonusPointsPerDriver = {}; // { uid : number }
+
         window.oneElevenDrivers.uids.forEach(uid => {
-          racePointsPerEvent[uid]   = []; // will push 12 values later
-          bonusPointsPerDriver[uid] = 0;  // running total
+        racePointsPerEvent[uid]   = []; // will push eventCount values
+        bonusPointsPerDriver[uid] = 0;
         });
-        
-        // Loop over the 12 events (=elements in sortedRaceKeys)
+
+        // Loop over all events (=sortedRaceKeys.length)
+
         sortedRaceKeys.forEach((raceKey, evtIndex) => {
         const race = races[raceKey];
         const r1   = race.resultsRace1 || {};
@@ -429,6 +461,8 @@ function loadHistoricalPage() {
         // 2‑A  ▶ race‑finishing points (the part that CAN be dropped)
         window.oneElevenDrivers.uids.forEach(uid => {
         let eventPts = 0;
+        const p1 = r1[uid];
+        const p2 = r2[uid];
 
         if (race.special === true) {
             // Special event: Race 1 counts double, Race 2 ignored
@@ -547,27 +581,44 @@ function loadHistoricalPage() {
         });
         });
 
-        // 3 ▶ drop the weakest events (keep best 9)
-        const countedRacePoints = {}; // { uid : sum of best 9 }
+        // 3 ▶ Drop the weakest events per driver (generalised to season length & dropRaces)
+        const countedRacePoints = {};        // { uid: number }
+        window.oneElevenDrivers.droppedIndexes = {};  // { uid: [eventIndex, ...] }
+        window.oneElevenDrivers.keptIndexes    = {};  // optional
 
         window.oneElevenDrivers.uids.forEach(uid => {
-        const sorted = [...racePointsPerEvent[uid]].sort((a,b)=>b-a); // high→low
-        const best9  = sorted.slice(0,9);
-        const sum9   = best9.reduce((s,x)=>s+x,0);
-        countedRacePoints[uid] = sum9;
+        // [{ idx, pts }] to sort while keeping original event index
+        const ptsByEvent = (racePointsPerEvent[uid] || []).map((pts, idx) => ({ idx, pts: pts || 0 }));
 
-        const droppedIndexes = [];
-        racePointsPerEvent[uid].forEach((pts, idx) => {
-        if (!best9.includes(pts)) {
-            droppedIndexes.push(idx);
-        } else {
-            // Only remove first occurrence to handle duplicate scores correctly
-            best9.splice(best9.indexOf(pts), 1);
-        }
+        // Sort by points desc; tie-breaker: earlier event wins (stable, deterministic)
+        ptsByEvent.sort((a, b) => {
+            if (b.pts !== a.pts) return b.pts - a.pts;
+            return a.idx - b.idx;
         });
-        window.oneElevenDrivers.droppedIndexes = window.oneElevenDrivers.droppedIndexes || {};
-        window.oneElevenDrivers.droppedIndexes[uid] = droppedIndexes;
+
+        const kept    = ptsByEvent.slice(0, keepEvents).map(x => x.idx);
+        const dropped = ptsByEvent.slice(keepEvents).map(x => x.idx);
+
+        const sumKept = kept.reduce((acc, idx) => acc + (racePointsPerEvent[uid][idx] || 0), 0);
+
+        countedRacePoints[uid] = sumKept;
+        window.oneElevenDrivers.droppedIndexes[uid] = dropped;
+        window.oneElevenDrivers.keptIndexes[uid]    = kept;
         });
+
+        // (Optional) quick sanity log
+        console.log('Historical drop check', {
+        eventCount, safeDropRaces, keepEvents,
+        sample: window.oneElevenDrivers.uids.slice(0,3).map(uid => ({
+            uid,
+            kept: window.oneElevenDrivers.keptIndexes[uid],
+            dropped: window.oneElevenDrivers.droppedIndexes[uid],
+            sumKept: countedRacePoints[uid],
+            bonus: bonusPointsPerDriver[uid],
+            final: countedRacePoints[uid] + bonusPointsPerDriver[uid]
+        }))
+        });
+
 
         // 4 ▶ final championship totals
         const finalTotals = {}; // { uid : number }
@@ -846,11 +897,13 @@ function loadHistoricalPage() {
         const carClass = seasonData.carClass || 'Unknown';
         document.getElementById('standings-placeholder').innerHTML =
         `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
-            Season: <strong>${seasonData.seasonName}</strong> &nbsp;|&nbsp;
-            Car Class: <span style="background:#eee; padding:4px 10px; border-radius:12px; font-size: 0.9em;">
-            ${carClass}
-            </span>
+            Season: <strong>${seasonData.seasonName}</strong>
+            &nbsp;|&nbsp; Car Class:
+            <span style="background:#eee; padding:4px 10px; border-radius:12px; font-size: 0.9em;">${carClass}</span>
+            &nbsp;|&nbsp; Events: <strong>${eventCount}</strong>
+            &nbsp;|&nbsp; Drops: <strong>${safeDropRaces}</strong>
         </p>`;
+
 
         
         // We'll build on this in the next step
