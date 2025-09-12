@@ -302,38 +302,39 @@
 
 function loadHistoricalPage() {
 
+    // Track what the dropdown should show.
+    // Prefer ?season=... from the URL; if absent, we’ll set this to the active season later.
+    let desiredSeasonId = new URLSearchParams(window.location.search).get('season') || null;
+
     // Populate dropdown for historical seasons
     firebase.firestore().collection('championships')
-    .orderBy('seasonName') // 🔁 You can change this to 'startDate' or another field if preferred
+    .orderBy('seasonName')
     .get()
     .then(snapshot => {
         const dropdown = document.getElementById('season-selector');
         dropdown.innerHTML = ''; // Clear "Loading..."
 
-        const selectedSeasonId = new URLSearchParams(window.location.search).get('season');
         snapshot.forEach(doc => {
         const data = doc.data();
         const option = document.createElement('option');
         option.value = doc.id;
         const carClass = data.carClass ? ` (${data.carClass})` : '';
         option.textContent = `${data.seasonName}${carClass}`;
-        
-        // ✅ Pre-select if this matches current season from URL
-        if (doc.id === selectedSeasonId) {
-            option.selected = true;
-        }
-
         dropdown.appendChild(option);
-        
-        // ✅ Now the dropdown exists — add the change listener
+        });
+
+        // ✅ attach the change handler exactly once
         dropdown.onchange = function () {
-            const selectedSeasonId = this.value;
-            if (selectedSeasonId) {
-                window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
-            }
+        const selectedSeasonId = this.value;
+        if (selectedSeasonId) {
+            window.location.href = `${window.location.pathname}?season=${selectedSeasonId}`;
+        }
         };
 
-        });
+        // ✅ if we already know which season should be shown, reflect it in the dropdown now
+        if (desiredSeasonId) {
+        dropdown.value = desiredSeasonId;
+        }
 
         console.log('✅ Season dropdown populated.');
     })
@@ -342,6 +343,7 @@ function loadHistoricalPage() {
         const dropdown = document.getElementById('season-selector');
         dropdown.innerHTML = '<option value="">(Error loading)</option>';
     });
+
 
     // 🔎 Get season ID from URL if it exists
     function getSeasonIdFromUrl() {
@@ -378,6 +380,15 @@ function loadHistoricalPage() {
 
         const seasonDoc = snapshot.docs[0];
         const seasonData = seasonDoc.data();
+
+        // If no ?season=... was provided, we’re showing the active season.
+        // Make the dropdown reflect that.
+        if (!desiredSeasonId) {
+        desiredSeasonId = seasonDoc.id;
+        const dropdown = document.getElementById('season-selector');
+        if (dropdown) dropdown.value = seasonDoc.id; // harmless if options aren’t loaded yet
+        }
+
 
         // === Season parameters ===
         const races = seasonData.races || {};
