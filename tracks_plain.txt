@@ -147,3 +147,62 @@ Watkins Glen GP
 Watkins Glen GP (Inner Loop)
 Watkins Glen Short
 Watkins Glen Short (Inner Loop)
+
+
+NO LAYOUTS
+Adelaide
+Azure Circuit
+Barcelona
+Bathurst
+Brands Hatch
+Brasilia
+Buenos Aires
+Cadwell Park
+Campo Grande
+Cascais
+Cascavel
+Cleveland
+Cordoba
+Curitiba
+Curvelo
+Daytona
+Donington
+Fontana
+Galeao
+Gateway
+Goiania
+Goiania
+Guapore
+Hockenheim
+Yahuacocha (Ibarra)
+Imola
+Indianapolis
+Interlagos
+Jacarepagua
+Jerez
+Kansai
+Kyalami
+Laguna Seca
+Le Mans
+Londrina
+Long Beach
+Montreal
+Monza
+Mosport
+Nürburgring
+Oulton Park
+Road America
+Road Atlanta
+Salvador Street Circuit
+Santa Cruz do Sul
+Sebring
+Silverstone
+Snetterton
+Spa-Francorchamps
+Spielberg
+Taruma
+Termas de Rio Hondo
+Velo Citta
+Velopark
+Virginia International Raceway
+Watkins Glen
