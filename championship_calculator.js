@@ -3,13 +3,19 @@
     function qs(id) { return document.getElementById(id); }
     function fmt(n) { return typeof n === 'number' ? n.toString() : String(n || ''); }
   
+    // === CONFIG: non-attendance baseline ===
+    // If your "one behind last" equals 0, leave these at 0.
+    // If you actually award a point (or more) for skipping, set accordingly.
+    const NON_ATTEND_POINTS_NORMAL  = 5; // baseline finishing points for a normal weekend when not attending
+    const NON_ATTEND_POINTS_SPECIAL = 10; // baseline finishing points for a special weekend when not attending
+  
     // ---------- Core helpers ----------
     function getRemainingEventIndexes(champData) {
       const { eventCount, racePointsPerEvent } = champData;
       const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
       const remaining = [];
       for (let i = 0; i < eventCount; i++) {
-        // If ALL drivers have no finishing points recorded for this event, treat it as remaining
+        // Treat an event as "remaining" if no driver has any finishing points recorded for it yet
         let anyPoints = false;
         for (const uid of uids) {
           const v = (racePointsPerEvent[uid] || [])[i] || 0;
@@ -20,22 +26,30 @@
       return remaining;
     }
   
-    // Max finishing points per event (your format yields 40 in both normal & special)
+    function isSpecialIndex(idx, champData) {
+      return (champData.specialEventIndexes || []).includes(idx);
+    }
+  
+    // Max finishing points per event for a single driver under your rules:
+    // - Normal: R1 + R2 = 20 + 20 = 40
+    // - Special: R1 double = 40 (R2 ignored)
     function maxEventFinishingPointsForIndex(idx, champData) {
-      // Normal event: 20+20 = 40 ; Special: double R1 = 40
       return 40;
     }
   
-    // Max bonus points available to the SAME driver per event:
-    // - Pole (PP): 1
-    // - Fastest Lap R1 (FL1): 1
-    // - Fastest Lap R2 (FL2): 1 if normal event, 0 if special (you ignore R2 for specials)
-    function maxEventBonusForIndex(idx, champData) {
-      const isSpecial = (champData.specialEventIndexes || []).includes(idx);
-      return isSpecial ? 2 : 3;
+    // Min finishing points per event for a single driver (non-attendance baseline)
+    function minEventFinishingPointsForIndex(idx, champData) {
+      return isSpecialIndex(idx, champData) ? NON_ATTEND_POINTS_SPECIAL : NON_ATTEND_POINTS_NORMAL;
     }
   
-    // Compute min/max totals and best/worst possible finishing position
+    // Max bonus a single driver can still get on that event
+    // - Normal: PP (1) + FL1 (1) + FL2 (1) = 3
+    // - Special: PP (1) + FL1 (1) = 2 (R2 ignored)
+    function maxEventBonusForIndex(idx, champData) {
+      return isSpecialIndex(idx, champData) ? 2 : 3;
+    }
+  
+    // ---------- Extremes calculator ----------
     function computeExtremes(champData) {
       const {
         eventCount, keepEvents, driverNames,
@@ -46,50 +60,50 @@
       const uids = uidsByStandings || Object.keys(driverNames || {});
       const remainingIdxs = getRemainingEventIndexes(champData);
   
-      // Per-driver arrays
-      const minTotals = {};   // equals current total (can’t drop lower)
-      const maxTotals = {};
-      const minFinish = {};   // best rank (1 = champion)
-      const maxFinish = {};   // worst rank
+      const minTotals = {};   // worst-case (with baseline points for non-attendance)
+      const maxTotals = {};   // best-case (wins + all own bonuses)
+      const minFinish = {};   // best position (1 = champion) possible
+      const maxFinish = {};   // worst position possible
   
-      // Precompute each driver’s finishing max (considering drops) and bonus max
       const finishingMax = {};
+      const finishingMin = {};
       const bonusMax = {};
   
       for (const uid of uids) {
-        const base = (racePointsPerEvent[uid] || []).slice(); // copy
-        // Normalise to length
+        const base = (racePointsPerEvent[uid] || []).slice();
         while (base.length < eventCount) base.push(0);
   
-        // Hypothetical finishing points if driver wins remaining events
-        const hyp = base.map((v, idx) => {
-          if (remainingIdxs.includes(idx)) {
-            return maxEventFinishingPointsForIndex(idx, champData);
-          }
-          return Number(v) || 0;
-        });
-  
-        // Sum top keepEvents from hyp
-        const hypSortedDesc = hyp.slice().sort((a, b) => b - a);
-        const finishingMaxSum = hypSortedDesc.slice(0, keepEvents).reduce((s, x) => s + x, 0);
-  
+        // --- MAX (finishing) ---
+        const hypMax = base.map((v, idx) => remainingIdxs.includes(idx)
+          ? maxEventFinishingPointsForIndex(idx, champData)
+          : (Number(v) || 0)
+        );
+        const hypMaxSorted = hypMax.slice().sort((a, b) => b - a);
+        const finishingMaxSum = hypMaxSorted.slice(0, keepEvents).reduce((s, x) => s + x, 0);
         finishingMax[uid] = finishingMaxSum;
   
-        // Bonus: best-case add PP + FL1 (+ FL2 if normal) for each remaining event
-        let bonusAdd = 0;
-        for (const idx of remainingIdxs) {
-          bonusAdd += maxEventBonusForIndex(idx, champData);
-        }
-        bonusMax[uid] = (bonusPointsPerDriver[uid] || 0) + bonusAdd;
+        // --- MIN (finishing, using baseline for remaining events) ---
+        const hypMin = base.map((v, idx) => remainingIdxs.includes(idx)
+          ? minEventFinishingPointsForIndex(idx, champData)
+          : (Number(v) || 0)
+        );
+        const hypMinSorted = hypMin.slice().sort((a, b) => b - a);
+        const finishingMinSum = hypMinSorted.slice(0, keepEvents).reduce((s, x) => s + x, 0);
+        finishingMin[uid] = finishingMinSum;
   
-        // Min/Max overall totals
-        const currentTotal = finalTotals[uid] || 0;       // already counted + bonuses
-        minTotals[uid] = currentTotal;                    // can’t go below current
-        maxTotals[uid] = finishingMaxSum + bonusMax[uid]; // finishing max + bonus max
+        // Bonuses
+        const currentBonus = bonusPointsPerDriver[uid] || 0;
+  
+        // If you don't attend, you can't add more bonus — so min bonus add = 0
+        const bonusAdd = remainingIdxs.reduce((acc, idx) => acc + maxEventBonusForIndex(idx, champData), 0);
+        bonusMax[uid] = currentBonus + bonusAdd;
+  
+        // Final min/max totals
+        minTotals[uid] = finishingMinSum + currentBonus; // old "currentTotal" replaced by recomputed min
+        maxTotals[uid] = finishingMaxSum + bonusMax[uid];
       }
   
-      // Best possible rank for each driver:
-      //   assume THIS driver hits max, everyone else stays at min
+      // Best possible rank for each driver: they hit max, others stay at *their* min
       for (const target of uids) {
         const scores = uids.map(uid => ({
           uid,
@@ -97,15 +111,13 @@
         }));
         scores.sort((a, b) => {
           if (b.score !== a.score) return b.score - a.score;
-          // gentle tie-breaker: leave existing order by uidsByStandings
+          // tie-break with current standings order to keep it stable
           return uids.indexOf(a.uid) - uids.indexOf(b.uid);
         });
-        const bestIndex = scores.findIndex(s => s.uid === target);
-        minFinish[target] = bestIndex + 1; // 1-based
+        minFinish[target] = scores.findIndex(s => s.uid === target) + 1;
       }
   
-      // Worst possible rank:
-      //   assume THIS driver stays at min, everyone else reaches max
+      // Worst possible rank: they stay at min, everyone else hits max
       for (const target of uids) {
         const scores = uids.map(uid => ({
           uid,
@@ -115,21 +127,18 @@
           if (b.score !== a.score) return b.score - a.score;
           return uids.indexOf(a.uid) - uids.indexOf(b.uid);
         });
-        const worstIndex = scores.findIndex(s => s.uid === target);
-        maxFinish[target] = worstIndex + 1;
+        maxFinish[target] = scores.findIndex(s => s.uid === target) + 1;
       }
   
-      return { minTotals, maxTotals, finishingMax, bonusMax, minFinish, maxFinish, remainingIdxs };
+      return { minTotals, maxTotals, finishingMin, finishingMax, bonusMax, minFinish, maxFinish, remainingIdxs };
     }
   
     // ---------- Modal UI ----------
     function renderTable(champData, extremes) {
       const { driverNames, uidsByStandings } = champData;
       const uids = uidsByStandings || Object.keys(driverNames || {});
-  
       const { minTotals, maxTotals, minFinish, maxFinish } = extremes;
   
-      // Build table HTML
       let html = `
         <h3 style="margin:0 0 10px 0;">Title scenarios</h3>
         <p style="margin:0 0 8px 0;">
@@ -176,9 +185,9 @@
           </table>
         </div>
         <p style="font-size:11px;color:#666;margin-top:8px;">
-          Notes: “Min” assumes no more points are scored. “Max” assumes wins for all remaining events
-          (40 finishing points per event) and all own bonus points (PP + FL1 + FL2 on normal weekends).
-          Off-podium fastest laps (OP) are excluded from the same driver’s max because they’re mutually exclusive with podiums.
+          Notes:
+          <br>- “Min” recomputes the best ${champData.keepEvents} events assuming <em>non-attendance baseline</em> points for the remaining weekends.
+          <br>- “Max” assumes wins in all remaining weekends (40 finishing points each) and all own bonuses (PP + FL1 (+FL2 on normal)).
         </p>
       `;
   
@@ -189,7 +198,6 @@
     window.openPointsCalculator = function (champData) {
       if (!champData) { alert('No championship data available yet.'); return; }
   
-      // Compute and show
       const extremes = computeExtremes(champData);
       console.log('[Calculator] Data:', champData);
       console.log('[Calculator] Extremes:', extremes);
