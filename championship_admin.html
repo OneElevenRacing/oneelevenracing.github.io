@@ -17,11 +17,127 @@
   <script src="tracks.js"></script>
 
   <style>
-    body {
-      display: none;
-      font-family: Arial, sans-serif;
+    :root{
+      --bg:#fff;
+      --text:#111;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --border-dark:#d1d5db;
+      --accent:#000;        /* matches site header */
+      --accent-weak:#222;
+      --accent-text:#fff;
+      --ok:#16a34a;
+      --err:#dc2626;
+      --chip:#f3f4f6;
     }
+    /* Page */
+    html,body{height:100%}
+    body{
+      display:none; /* stays until auth passes */
+      font-family:'KeepCalm', Arial, sans-serif; /* match site vibe if font available */
+      background:var(--bg);
+      color:var(--text);
+      margin:0;
+    }
+  
+    /* Layout */
+    .container{
+      max-width:1000px;
+      margin:32px auto 96px;
+      padding:0 16px;
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      background:#000; color:#fff;
+      box-shadow:0 4px 12px rgba(0,0,0,.15);
+      padding:14px 16px;
+    }
+    header h1{
+      margin:0; font-size:20px; letter-spacing:.5px;
+    }
+    .actions-bar{
+      display:flex; gap:8px; margin:16px 0 4px;
+    }
+    .grid{
+      display:grid; gap:16px;
+    }
+    @media (min-width:900px){
+      .grid.two{ grid-template-columns:1fr 1fr; }
+    }
+  
+    /* Card */
+    .card{
+      border:1px solid var(--border);
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 2px 10px rgba(0,0,0,.04);
+      overflow:hidden;
+    }
+    .card-head{
+      padding:12px 16px;
+      background:#f9fafb;
+      border-bottom:1px solid var(--border);
+      font-weight:700;
+    }
+    .card-body{ padding:16px; }
+  
+    /* Form */
+    .form-row{
+      display:grid; grid-template-columns:160px 1fr; gap:10px;
+      align-items:center; margin-bottom:10px;
+    }
+    .form-row.inline { grid-template-columns:1fr 1fr; }
+    label{ font-size:13px; color:var(--muted); }
+    input[type="text"], input[type="number"], select{
+      width:100%; box-sizing:border-box;
+      padding:8px 10px; font-size:14px;
+      border:1px solid var(--border-dark); border-radius:10px;
+      background:#fff;
+    }
+    small.hint{ color:var(--muted); margin-left:6px; }
+  
+    /* Track list */
+    #trackSelectors{ display:grid; gap:10px; }
+    .race-item{
+      display:grid; gap:8px;
+      grid-template-columns: minmax(80px,110px) 1fr auto;
+      align-items:center;
+      padding:10px; border:1px dashed var(--border);
+      border-radius:10px; background:#fff;
+    }
+    .race-title{ font-weight:700; color:#111; }
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px; background:var(--chip);
+      border:1px solid var(--border);
+      font-size:12px; color:#111;
+    }
+  
+    /* Buttons */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      gap:8px; padding:10px 14px; border-radius:999px;
+      border:1px solid var(--border-dark);
+      background:#fff; color:#111; cursor:pointer; font-weight:600;
+    }
+    .btn:hover{ background:#f9fafb; }
+    .btn-primary{
+      background:var(--accent); color:var(--accent-text);
+      border-color:var(--accent-weak);
+    }
+    .btn-primary:hover{ background:#111; }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+  
+    /* Status text */
+    .status{ margin-top:8px; font-size:13px; }
+    .status.ok{ color:var(--ok); }
+    .status.err{ color:var(--err); }
+  
+    /* Utility */
+    .spacer{ height:10px; }
+    .muted{ color:var(--muted); }
   </style>
+  
 
   <script>
     // === Firebase Setup ===
@@ -41,15 +157,16 @@
 
     // Generate track selections
     function generateTrackSelectors(numRaces) {
-    console.log(`Generating ${numRaces} race dropdowns...`);
-    const trackSelectorsDiv = document.getElementById('trackSelectors');
-    trackSelectorsDiv.innerHTML = ''; // Clear previous entries
+      const trackSelectorsDiv = document.getElementById('trackSelectors');
+      trackSelectorsDiv.innerHTML = ''; // Clear previous
 
       for (let i = 1; i <= numRaces; i++) {
-        console.log(`Creating selector for Race ${i}`);
+        const item = document.createElement('div');
+        item.className = 'race-item';
 
-        const label = document.createElement('label');
-        label.textContent = `Race ${i}: `;
+        const title = document.createElement('div');
+        title.className = 'race-title';
+        title.textContent = `Race ${i}`;
 
         const select = document.createElement('select');
         select.name = `race${i}`;
@@ -57,38 +174,36 @@
         select.required = true;
 
         if (!trackData || trackData.length === 0) {
-          console.warn("⚠️ trackData is not available or empty");
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = '(No tracks found)';
+          select.appendChild(opt);
+        } else {
+          trackData.forEach(track => {
+            const option = document.createElement('option');
+            option.value = track.name;
+            option.textContent = track.name;
+            select.appendChild(option);
+          });
         }
 
-        trackData.forEach(track => {
-          const option = document.createElement('option');
-          option.value = track.name;
-          option.textContent = track.name;
-          select.appendChild(option);
-        });
-
-        // === Special Event Checkbox ===
-        const checkboxLabel = document.createElement('label');
-        checkboxLabel.style.marginLeft = '10px';
-        checkboxLabel.style.fontSize = '0.9em';
-
+        const chip = document.createElement('label');
+        chip.className = 'chip';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = `special${i}`;
         checkbox.name = `special${i}`;
+        chip.appendChild(checkbox);
+        chip.appendChild(document.createTextNode(' Special Event'));
 
-        checkboxLabel.appendChild(checkbox);
-        checkboxLabel.appendChild(document.createTextNode(' Special Event'));
+        item.appendChild(title);
+        item.appendChild(select);
+        item.appendChild(chip);
 
-        // === Append to container ===
-        trackSelectorsDiv.appendChild(label);
-        trackSelectorsDiv.appendChild(select);
-        trackSelectorsDiv.appendChild(checkboxLabel);
-        trackSelectorsDiv.appendChild(document.createElement('br'));
+        trackSelectorsDiv.appendChild(item);
       }
-
-      console.log("✅ Finished generating dropdowns with checkboxes.");
     }
+
 
 
     function loadAdminPage() {
@@ -109,10 +224,13 @@
             dropdown.appendChild(option);
           });
           message.textContent = "✅ Seasons loaded successfully.";
+          message.className = "status ok";
+
         })
         .catch(error => {
           console.error("Error loading seasons:", error);
           message.textContent = "❌ Could not load seasons.";
+          message.className = "status err";
         });
 
       document.getElementById('setActiveBtn').addEventListener('click', async () => {
@@ -255,62 +373,94 @@
   <header>
     <h1>Championship Admin</h1>
   </header>
-  <section style="margin-bottom: 20px;">
-    <button onclick="window.location.href='championship.html';">Back to Championship Page</button>
-  </section>
-  <section id="season-creation">
-    <form id="seasonForm">
-      <label for="year">Year:</label>
-      <select id="year" required>
-        <option value="">Select year</option>
-        <option value="2024">2024</option>
-        <option value="2025">2025</option>
-        <option value="2026">2026</option>
-      </select>
+  <div class="container">
 
-      <label for="quarter">Quarter:</label>
-      <select id="quarter" required>
-        <option value="">Select quarter</option>
-        <option value="Q1">Q1</option>
-        <option value="Q2">Q2</option>
-        <option value="Q3">Q3</option>
-        <option value="Q4">Q4</option>
-      </select>
-
-      <label for="carClass">Car Class:</label>
-      <input type="text" id="carClass" placeholder="e.g. GTE" required />
-
-      <!-- This displays the selectors just before the track list -->
-      <h3>Race Locations</h3>
-      <label for="numRaces">Number of Races:</label>
-      <input type="number" id="numRaces" min="1" max="24" value="10" required />
-      <br>
-      <label for="numDrops">Number of Dropped Races:</label>
-      <input type="number" id="numDrops" min="0" value="2" required />
-      <small id="numDropsHint">(max will match the number of races)</small>
-      <br><br>
-
-      <!-- This is the track list -->
-      <div id="trackSelectors"></div>
-      <br>
-
-      <button type="submit">Create Season</button>
-    </form>
-    <p id="seasonStatusMessage"></p>
-  </section>
-  <section id="edit-current-season">
-    <h2>Edit Current Season's Results</h2>
-    <p>(Form/table for editing race results, driver standings, etc.)</p>
-  </section>
-  <section id="select-active-season">
-    <h2>Select Active Season</h2>
-    <select id="seasonSelectDropdown">
-      <option value="">-- Loading seasons... --</option>
-    </select>
-    <p id="activeSeasonMessage"></p>
-    <br>
-    <button id="setActiveBtn">Set as Active Season</button>
-    <p id="setActiveStatusMessage"></p>
-  </section>
+    <div class="actions-bar">
+      <button class="btn" onclick="window.location.href='championship.html';">← Back to Championship</button>
+    </div>
+  
+    <!-- Create Season -->
+    <section id="season-creation" class="card">
+      <div class="card-head">Create a Season</div>
+      <div class="card-body">
+        <form id="seasonForm" novalidate>
+          <div class="form-row">
+            <label for="year">Year</label>
+            <select id="year" required>
+              <option value="">Select year</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+          </div>
+  
+          <div class="form-row">
+            <label for="quarter">Quarter</label>
+            <select id="quarter" required>
+              <option value="">Select quarter</option>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+          </div>
+  
+          <div class="form-row">
+            <label for="carClass">Car Class</label>
+            <input type="text" id="carClass" placeholder="e.g. GTE" required />
+          </div>
+  
+          <div class="spacer"></div>
+  
+          <div class="grid two">
+            <div class="form-row">
+              <label for="numRaces">Number of Races</label>
+              <input type="number" id="numRaces" min="1" max="24" value="10" required />
+            </div>
+            <div class="form-row">
+              <label for="numDrops">Dropped Races <small class="hint" id="numDropsHint">(max will match the number of races)</small></label>
+              <input type="number" id="numDrops" min="0" value="2" required />
+            </div>
+          </div>
+  
+          <div class="spacer"></div>
+  
+          <h3 style="margin:0 0 8px 0;">Race Locations</h3>
+          <div id="trackSelectors"></div>
+  
+          <div class="spacer"></div>
+  
+          <button type="submit" class="btn btn-primary" id="createSeasonBtn">Create Season</button>
+          <div id="seasonStatusMessage" class="status"></div>
+        </form>
+      </div>
+    </section>
+  
+    <!-- Edit Current (placeholder) -->
+    <section id="edit-current-season" class="card">
+      <div class="card-head">Edit Current Season</div>
+      <div class="card-body">
+        <p class="muted">(Form/table for editing race results, driver standings, etc.)</p>
+      </div>
+    </section>
+  
+    <!-- Select Active Season -->
+    <section id="select-active-season" class="card">
+      <div class="card-head">Select Active Season</div>
+      <div class="card-body">
+        <div class="form-row">
+          <label for="seasonSelectDropdown">Active Season</label>
+          <select id="seasonSelectDropdown">
+            <option value="">-- Loading seasons... --</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="setActiveBtn">Set as Active Season</button>
+        <div id="activeSeasonMessage" class="status"></div>
+        <div id="setActiveStatusMessage" class="status"></div>
+      </div>
+    </section>
+  
+  </div>
+  
 </body>
 </html>

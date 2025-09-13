@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="tracks.js"></script>
+    <script src="championship_calculator.js" defer></script>
 
 
     <style>
@@ -92,6 +93,18 @@
             color: white;
             font-weight: bold;
             border: 1px solid #333;
+        }
+
+        /* Keep consistent row height even when cells are empty */
+        #race-results td.driver-col {
+        height: 18px;
+        line-height: 18px;
+        }
+
+        /* Make sure the blank spacer row for special events is visible */
+        #race-results tr.spacer-row td {
+        height: 18px;
+        line-height: 18px;
         }
       
         /* First column – race labels slightly grey*/
@@ -271,6 +284,98 @@
             filter:brightness(0);
         }
 
+        /* Simple modal for the calculator */
+        #calcModal {
+        position: fixed;
+        inset: 0;
+        display: none;             /* toggled to flex by JS */
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,.4);
+        z-index: 2000;
+        }
+
+        #calcModal .card {
+        position: relative;
+        background: #fff;
+        padding: 16px 18px;
+        border-radius: 16px;
+        width: min(92vw, 680px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.2);
+        font-family: 'KeepCalm', Arial, sans-serif;
+        }
+
+        #calcModal .close {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        }
+
+        /* Calculator modal table styles */
+        #calcModal .calc-table thead th {
+        background-color: #000 !important; /* beat the global th background */
+        color: #fff !important;
+        }
+
+        #calcModal .calc-table th,
+        #calcModal .calc-table td {
+        padding: 6px;
+        border: 1px solid #ccc;
+        font-size: 12px;
+        }
+
+        #calcModal .calc-table tbody tr:nth-child(even) td {
+        background-color: #f9f9f9; /* subtle zebra for readability */
+        }
+
+        /* Narrow, centered position columns in the calculator */
+        #calcModal .calc-table th.pos-col,
+        #calcModal .calc-table td.pos-col {
+        width: 5ch;            /* ~5 characters wide */
+        white-space: nowrap;   /* stop wrapping */
+        text-align: center;    /* center numbers */
+        }
+
+        /* Highlight rows that are mathematically locked to their current rank */
+        #calcModal .calc-table tr.locked-row td {
+        background-color: #e9ffe9; /* light green tint */
+        }
+
+        /* Keep the zebra, but let locked rows win */
+        #calcModal .calc-table tbody tr.locked-row td {
+        background-color: #e9ffe9 !important; /* override zebra on even rows */
+        }
+
+        /* Compact numeric columns ("Pos", "Best Pos", "Worst Pos") */
+        #calcModal .calc-table th.pos-col,
+        #calcModal .calc-table td.pos-col {
+        width: 5ch;
+        white-space: nowrap;
+        text-align: center;
+        }
+
+
+        /* Button style to match your UI */
+        #open-calc {
+        display: block;
+        width: 80%;
+        max-width: 400px;
+        margin: 12px auto 0;
+        padding: 12px 16px;
+        background: #000;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        font-family: 'KeepCalm', Arial, sans-serif;
+        text-transform: uppercase;
+        cursor: pointer;
+        }
+        #open-calc:hover { filter: brightness(0.9); }
+
       </style>
 
     <script>
@@ -329,15 +434,10 @@
     }
     });
 
-    // Wrapper to not run function until authorised
     function startChampionshipPage() {
-        firebase.firestore().collection('championships')
-            .where('isActive', '==', true)
-            .limit(1)
-            .get()
-            .then(snapshot => {
+    // Hoist variables so both promise steps can use them
+    let seasonData, races, sortedRaceKeys, eventCount, safeDropRaces, keepEvents;
 
-    // Step 1: Load active season and log its race data
     firebase.firestore().collection('championships')
         .where('isActive', '==', true)
         .limit(1)
@@ -345,266 +445,267 @@
         .then(snapshot => {
         if (snapshot.empty) {
             document.getElementById('standings-placeholder').innerHTML = "<p>❌ No active season found.</p>";
-            return;
+            return null; // stop chain
         }
 
         const seasonDoc = snapshot.docs[0];
-        const seasonData = seasonDoc.data();
+        seasonData = seasonDoc.data();
 
-        // === Season parameters ===
-        const races = seasonData.races || {};
-        const sortedRaceKeys = Object.keys(races).sort((a, b) => {
-        const numA = parseInt(a.replace('race', ''));
-        const numB = parseInt(b.replace('race', ''));
-        return numA - numB;
+        // === Season parameters (single source of truth) ===
+        races = seasonData.races || {};
+        sortedRaceKeys = Object.keys(races).sort((a, b) => {
+            return parseInt(a.replace('race', '')) - parseInt(b.replace('race', ''));
         });
-        const eventCount = sortedRaceKeys.length;
+        eventCount = sortedRaceKeys.length;
 
-        // Default policy if field is missing: 0 drops (or set 2 to mirror your usual)
         const dropRaces = (typeof seasonData.dropRaces === 'number') ? seasonData.dropRaces : 0;
+        safeDropRaces = Math.max(0, Math.min(dropRaces, eventCount));
+        keepEvents    = eventCount - safeDropRaces;
 
-        // Safety clamps
-        const safeDropRaces = Math.max(0, Math.min(dropRaces, eventCount));  // never more than events
-        const keepEvents    = eventCount - safeDropRaces;
+        // Header summary
+        document.getElementById('standings-placeholder').innerHTML =
+            `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
+            Season: <strong>${seasonData.seasonName}</strong>
+            &nbsp;|&nbsp; Car Class: <strong>${seasonData.carClass || 'Unknown'}</strong>
+            &nbsp;|&nbsp; Events: <strong>${eventCount}</strong>
+            &nbsp;|&nbsp; Drop Races: <strong>${safeDropRaces}</strong>
+            </p>`;
 
-        //Sanity check in console
-        console.log({
-            eventCount,
-            dropRaces,
-            safeDropRaces,
-            keepEvents,
-            sortedRaceKeys
-        });
+        return firebase.database().ref('drivers').once('value');
+        })
+        .then(driverSnap => {
+        if (!driverSnap) return; // bailed earlier
 
-        firebase.database().ref('drivers').once('value').then(driverSnap => {
-        const driversRaw = driverSnap.val();
+        // === Drivers map ===
+        const driversRaw = driverSnap.val() || {};
         const driverMap = {}; // { uid: name }
         const driverUIDs = [];
-
         for (let uid in driversRaw) {
-            if (driversRaw[uid].active) {
+            if (driversRaw[uid] && driversRaw[uid].active) {
             driverMap[uid] = driversRaw[uid].name;
             driverUIDs.push(uid);
             }
         }
 
-        // Store for next step
         window.oneElevenDrivers = {
             uids: driverUIDs,
             names: driverMap
         };
-       
-        // === Step: Calculate total points per driver ===
-        const races = seasonData.races;
-        const sortedRaceKeys = Object.keys(races).sort((a, b) => {
-        const numA = parseInt(a.replace('race', ''));
-        const numB = parseInt(b.replace('race', ''));
-        return numA - numB;
-        });
 
+        // === Points table ===
         const positionToPoints = {
-        1: 20, 2: 16, 3: 13, 4: 10, 5: 8,
-        6: 6, 7: 5, 8: 3, 9: 2, 10: 1
+            1: 20, 2: 16, 3: 13, 4: 10, 5: 8,
+            6: 6, 7: 5, 8: 3, 9: 2, 10: 1
         };
 
-        const racePointsPerEvent   = {}; // { uid : [eventCount numbers] } one entry per event
-        const bonusPointsPerDriver = {}; // { uid :   number      }
-        
-        window.oneElevenDrivers.uids.forEach(uid => {
-          racePointsPerEvent[uid]   = []; // will push 12 values later
-          bonusPointsPerDriver[uid] = 0;  // running total
-        });
-        
-        // Loop over all events (=sortedRaceKeys.length)
-        sortedRaceKeys.forEach((raceKey, evtIndex) => {
-        const race = races[raceKey];
-        const r1   = race.resultsRace1 || {};
-        const r2   = race.resultsRace2 || {};
+        const racePointsPerEvent   = {}; // { uid : [eventCount numbers] } one per event
+        const bonusPointsPerDriver = {}; // { uid : number }
 
-        // 2‑A  ▶ race‑finishing points (the part that CAN be dropped)
-        window.oneElevenDrivers.uids.forEach(uid => {
+        driverUIDs.forEach(uid => {
+            racePointsPerEvent[uid]   = [];
+            bonusPointsPerDriver[uid] = 0;
+        });
+
+        // === Per-event points + bonuses ===
+        sortedRaceKeys.forEach((raceKey, evtIndex) => {
+            const race = races[raceKey] || {};
+            const r1   = race.resultsRace1 || {};
+            const r2   = race.resultsRace2 || {};
+
+            // Finishing points (drop-eligible)
+            driverUIDs.forEach(uid => {
             let eventPts = 0;
             const p1 = r1[uid];
             const p2 = r2[uid];
 
             if (race.special === true) {
-            // Special event: Race 1 counts double, ignore Race 2
-            if (positionToPoints[r1[uid]]) eventPts += 2 * positionToPoints[r1[uid]];
+                if (positionToPoints[p1]) eventPts += 2 * positionToPoints[p1]; // double R1, ignore R2
             } else {
-            // Normal: add Race 1 and Race 2 points
-            if (positionToPoints[r1[uid]]) eventPts += positionToPoints[r1[uid]];
-            if (positionToPoints[r2[uid]]) eventPts += positionToPoints[r2[uid]];
+                if (positionToPoints[p1]) eventPts += positionToPoints[p1];
+                if (positionToPoints[p2]) eventPts += positionToPoints[p2];
             }
 
+            racePointsPerEvent[uid][evtIndex] = eventPts;
+            });
 
-            racePointsPerEvent[uid][evtIndex] = eventPts; // 0‑12 per event
+            // Bonuses (never dropped)
+            if (race.polePositionDriver)          bonusPointsPerDriver[race.polePositionDriver]           = (bonusPointsPerDriver[race.polePositionDriver]           || 0) + 1;
+            if (race.fastestLapDriverR1)          bonusPointsPerDriver[race.fastestLapDriverR1]           = (bonusPointsPerDriver[race.fastestLapDriverR1]           || 0) + 1;
+            if (race.fastestLapDriverR2)          bonusPointsPerDriver[race.fastestLapDriverR2]           = (bonusPointsPerDriver[race.fastestLapDriverR2]           || 0) + 1;
+            if (race.fastestLapOffPodiumDriverR1) bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]  = (bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]  || 0) + 1;
+            if (race.fastestLapOffPodiumDriverR2) bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]  = (bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]  || 0) + 1;
         });
 
-        // 2‑B  ▶ bonus points (NEVER dropped)
-        if (race.polePositionDriver)             bonusPointsPerDriver[race.polePositionDriver]              += 1;
-        if (race.fastestLapDriverR1)             bonusPointsPerDriver[race.fastestLapDriverR1]              += 1;
-        if (race.fastestLapDriverR2)             bonusPointsPerDriver[race.fastestLapDriverR2]              += 1;
-        if (race.fastestLapOffPodiumDriverR1)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]     += 1;
-        if (race.fastestLapOffPodiumDriverR2)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]     += 1;
-        });
-
-        // 2‑C ▶ Wins, Podiums, Pole Positions and Fastest Laps (for each driver)
-        const winsPerDriver = {};
+        // === Wins & Podiums ===
+        const winsPerDriver    = {};
         const podiumsPerDriver = {};
+        driverUIDs.forEach(uid => { winsPerDriver[uid] = 0; podiumsPerDriver[uid] = 0; });
 
-        window.oneElevenDrivers.uids.forEach(uid => {
-        winsPerDriver[uid] = 0;
-        podiumsPerDriver[uid] = 0;
-        });
-
-        sortedRaceKeys.forEach((raceKey, evtIndex) => {
-            const race = races[raceKey];
+        sortedRaceKeys.forEach((raceKey) => {
+            const race = races[raceKey] || {};
             const isSpecial = race.special === true;
-
             const r1 = race.resultsRace1 || {};
             const r2 = race.resultsRace2 || {};
 
-            window.oneElevenDrivers.uids.forEach(uid => {
-                const pos1 = r1[uid];
-                const pos2 = r2[uid];
-
-                if (pos1 === 1) winsPerDriver[uid]++;
-                if (!isSpecial && pos2 === 1) winsPerDriver[uid]++;
-
-                if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
-                if (!isSpecial && pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
-            });
-        });
-
-
-        const polePositionsPerDriver = {};
-        const fastestLapsPerDriver = {}; // store like { uid: {FL: 0, OP: 0} }
-
-        window.oneElevenDrivers.uids.forEach(uid => {
-        polePositionsPerDriver[uid] = 0;
-        fastestLapsPerDriver[uid] = { FL: 0, OP: 0 };
-        });
-
-        sortedRaceKeys.forEach((raceKey) => {
-        const race = races[raceKey];
-
-        // Pole position
-        if (race.polePositionDriver) {
-            polePositionsPerDriver[race.polePositionDriver]++;
-        }
-
-        // Fastest laps on podium
-        if (race.fastestLapDriverR1) {
-            fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
-        }
-        if (race.fastestLapDriverR2) {
-            fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
-        }
-
-        // Fastest laps off podium
-        if (race.fastestLapOffPodiumDriverR1) {
-            fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
-        }
-        if (race.fastestLapOffPodiumDriverR2) {
-            fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
-        }
-        });
-
-        // Event attendance tracker (counts 1 per weekend if participated in R1 or R2)
-        const eventsPerDriver = {};
-        window.oneElevenDrivers.uids.forEach(uid => {
-        eventsPerDriver[uid] = 0;
-        });
-
-        sortedRaceKeys.forEach((raceKey) => {
-        const race = races[raceKey];
-        const r1 = race.resultsRace1 || {};
-        const r2 = race.resultsRace2 || {};
-
-        // === R1 Participation
-        const allR1Positions = Object.values(r1);
-        const r1Counts = {};
-        allR1Positions.forEach(p => r1Counts[p] = (r1Counts[p] || 0) + 1);
-        const realR1Cutoff = Math.max(...allR1Positions.filter(p => r1Counts[p] === 1), 0);
-
-        // === R2 Participation
-        const allR2Positions = Object.values(r2);
-        const r2Counts = {};
-        allR2Positions.forEach(p => r2Counts[p] = (r2Counts[p] || 0) + 1);
-        const realR2Cutoff = Math.max(...allR2Positions.filter(p => r2Counts[p] === 1), 0);
-
-        // === Determine if driver participated in either race
-        window.oneElevenDrivers.uids.forEach(uid => {
+            driverUIDs.forEach(uid => {
             const pos1 = r1[uid];
             const pos2 = r2[uid];
 
+            if (pos1 === 1) winsPerDriver[uid]++;
+            if (!isSpecial && pos2 === 1) winsPerDriver[uid]++;
+
+            if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
+            if (!isSpecial && pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
+            });
+        });
+
+        // === Poles & Fastest Laps ===
+        const polePositionsPerDriver = {};
+        const fastestLapsPerDriver   = {}; // { uid: { FL: n, OP: n } }
+        driverUIDs.forEach(uid => {
+            polePositionsPerDriver[uid] = 0;
+            fastestLapsPerDriver[uid]   = { FL: 0, OP: 0 };
+        });
+
+        sortedRaceKeys.forEach((raceKey) => {
+            const race = races[raceKey] || {};
+
+            if (race.polePositionDriver) polePositionsPerDriver[race.polePositionDriver]++;
+
+            if (race.fastestLapDriverR1)          fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
+            if (race.fastestLapDriverR2)          fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
+            if (race.fastestLapOffPodiumDriverR1) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
+            if (race.fastestLapOffPodiumDriverR2) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
+        });
+
+        // === Attendance (per weekend if raced in R1 or R2) ===
+        const eventsPerDriver = {};
+        driverUIDs.forEach(uid => { eventsPerDriver[uid] = 0; });
+
+        sortedRaceKeys.forEach((raceKey) => {
+            const race = races[raceKey] || {};
+            const r1 = race.resultsRace1 || {};
+            const r2 = race.resultsRace2 || {};
+
+            // R1
+            const allR1 = Object.values(r1);
+            const r1Counts = {};
+            allR1.forEach(p => r1Counts[p] = (r1Counts[p] || 0) + 1);
+            const realR1Cutoff = Math.max(...allR1.filter(p => r1Counts[p] === 1), 0);
+
+            // R2
+            const allR2 = Object.values(r2);
+            const r2Counts = {};
+            allR2.forEach(p => r2Counts[p] = (r2Counts[p] || 0) + 1);
+            const realR2Cutoff = Math.max(...allR2.filter(p => r2Counts[p] === 1), 0);
+
+            // Participation
+            driverUIDs.forEach(uid => {
+            const pos1 = r1[uid];
+            const pos2 = r2[uid];
             const racedR1 = pos1 > 0 && pos1 <= realR1Cutoff;
             const racedR2 = pos2 > 0 && pos2 <= realR2Cutoff;
-
-            if (racedR1 || racedR2) {
-            eventsPerDriver[uid]++;
-            }
-        });
+            if (racedR1 || racedR2) eventsPerDriver[uid]++;
+            });
         });
 
-        // 3 ▶ Drop the weakest events per driver (generalised to season length & dropRaces)
-        const countedRacePoints = {};        // { uid: number }
-        window.oneElevenDrivers.droppedIndexes = {};  // { uid: [eventIndex, ...] }
-        window.oneElevenDrivers.keptIndexes    = {};  // (optional) { uid: [eventIndex, ...] }
+        // === Drop logic (generalised) ===
+        const countedRacePoints = {};
+        window.oneElevenDrivers.droppedIndexes = {};
+        window.oneElevenDrivers.keptIndexes    = {};
 
-        window.oneElevenDrivers.uids.forEach(uid => {
-        // Build [{ idx, pts }] so we can sort while remembering original event indexes
-        const ptsByEvent = (racePointsPerEvent[uid] || []).map((pts, idx) => ({ idx, pts: pts || 0 }));
+        driverUIDs.forEach(uid => {
+            const ptsByEvent = (racePointsPerEvent[uid] || []).map((pts, idx) => ({ idx, pts: Number(pts) || 0 }));
+            // Sort by points desc; tie-breaker: earlier event idx
+            ptsByEvent.sort((a, b) => (b.pts !== a.pts) ? (b.pts - a.pts) : (a.idx - b.idx));
 
-        // Sort descending by points; for equal points, prefer earlier event (smaller idx)
-        ptsByEvent.sort((a, b) => {
-            if (b.pts !== a.pts) return b.pts - a.pts;  // higher points first
-            return a.idx - b.idx;                       // tie-breaker: earlier event wins
+            const kept    = ptsByEvent.slice(0, keepEvents).map(x => x.idx);
+            const dropped = ptsByEvent.slice(keepEvents).map(x => x.idx);
+            const sumKept = kept.reduce((acc, idx) => acc + (Number(racePointsPerEvent[uid][idx]) || 0), 0);
+
+            countedRacePoints[uid] = sumKept;
+            window.oneElevenDrivers.droppedIndexes[uid] = dropped;
+            window.oneElevenDrivers.keptIndexes[uid]    = kept;
         });
 
-        // Keep top 'keepEvents', drop the rest
-        const kept   = ptsByEvent.slice(0, keepEvents).map(x => x.idx);
-        const dropped = ptsByEvent.slice(keepEvents).map(x => x.idx);
-
-        // Sum of kept events
-        const sumKept = kept.reduce((acc, idx) => acc + (racePointsPerEvent[uid][idx] || 0), 0);
-
-        countedRacePoints[uid] = sumKept;
-        window.oneElevenDrivers.droppedIndexes[uid] = dropped;
-        window.oneElevenDrivers.keptIndexes[uid]    = kept;
+        // === Final totals ===
+        const finalTotals = {};
+        driverUIDs.forEach(uid => {
+            finalTotals[uid] = countedRacePoints[uid] + (bonusPointsPerDriver[uid] || 0);
         });
 
-        console.log('Drop logic check', {
+        // === Column order by standings (leader left) with tie-breakers ===
+        const uidsByStandings = [...driverUIDs].sort((a, b) => {
+            const pa = finalTotals[a] || 0, pb = finalTotals[b] || 0;
+            if (pb !== pa) return pb - pa;
+            // tie-break: wins, then podiums
+            const wa = winsPerDriver[a] || 0, wb = winsPerDriver[b] || 0;
+            if (wb !== wa) return wb - wa;
+            const poda = podiumsPerDriver[a] || 0, podb = podiumsPerDriver[b] || 0;
+            if (podb !== poda) return podb - poda;
+            // stable final fallback
+            return a.localeCompare(b);
+        });
+        window.oneElevenDrivers.uidsByStandings = uidsByStandings;
+
+        const sortedStandings = Object.entries(finalTotals).sort(([, a], [, b]) => b - a);
+
+        // --- Prepare data for the calculator (min/max maths later) ---
+        const eventsCompleted = sortedRaceKeys.reduce((acc, key) => {
+        const race = races[key] || {};
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
+        const anyR1 = Object.values(r1).some(v => typeof v === 'number');
+        // for special events we ignore Race 2 points, but completion check can still be R1-only
+        const anyR2 = (race.special === true) ? false : Object.values(r2).some(v => typeof v === 'number');
+        return acc + ((anyR1 || anyR2) ? 1 : 0);
+        }, 0);
+
+        window.champCalcData = {
+        // season meta
+        seasonId: seasonData.seasonCode || '',
+        seasonName: seasonData.seasonName || '',
+        carClass: seasonData.carClass || '',
         eventCount,
         safeDropRaces,
         keepEvents,
-        sample: window.oneElevenDrivers.uids.slice(0,3).map(uid => ({
-            uid,
-            racePointsPerEvent: racePointsPerEvent[uid],
-            kept: window.oneElevenDrivers.keptIndexes[uid],
-            dropped: window.oneElevenDrivers.droppedIndexes[uid],
-            sumKept: countedRacePoints[uid],
-            bonus: bonusPointsPerDriver[uid],
-            final: (countedRacePoints[uid] + bonusPointsPerDriver[uid])
-        }))
-        });
+        eventsCompleted,
+        eventsRemaining: Math.max(0, eventCount - eventsCompleted),
+
+        // drivers & order
+        driverNames: window.oneElevenDrivers.names,
+        uidsByStandings, // current column order (leader first)
+
+        // current tallies
+        finalTotals,             // counted race points + bonuses (post-drops)
+        countedRacePoints,       // sum of kept event points (finishing points only)
+        bonusPointsPerDriver,    // standalone bonus points
+        winsPerDriver,
+        podiumsPerDriver,
+        polePositionsPerDriver,
+        fastestLapsPerDriver,
+        eventsPerDriver,
+
+        // per-event details useful for scenario maths
+        racePointsPerEvent,                    // finishing points by event index
+        droppedIndexes: window.oneElevenDrivers.droppedIndexes,
+        keptIndexes: window.oneElevenDrivers.keptIndexes,
+        specialEventIndexes: sortedRaceKeys
+            .map((key, idx) => (races[key] && races[key].special === true ? idx : -1))
+            .filter(idx => idx >= 0),
+
+        // scoring map
+        positionToPoints
+        };
 
 
-        // 4 ▶ final championship totals
-        const finalTotals = {}; // { uid : number }
-
-        window.oneElevenDrivers.uids.forEach(uid => {
-        finalTotals[uid] = countedRacePoints[uid] + bonusPointsPerDriver[uid];
-        });
-
-        window.oneElevenDrivers.uids.sort((a, b) => finalTotals[b] - finalTotals[a]);
-
-        // Sort drivers by total points (descending)
-        const sortedStandings = Object.entries(finalTotals)
-        .sort(([, a], [, b]) => b - a);
-
-        // Step 2: Build race results table structure
+        // === Build Race Results table ===
         const raceResultsSection = document.getElementById('race-results');
+
+        // (Optional) clear prior table if you ever re-render:
+        // const oldWrapper = raceResultsSection.querySelector('.scroll-container');
+        // if (oldWrapper) oldWrapper.remove();
+
         const table = document.createElement('table');
         table.setAttribute('border', '1');
         table.setAttribute('cellpadding', '5');
@@ -612,7 +713,6 @@
         table.style.borderCollapse = 'collapse';
         table.style.marginTop = '15px';
 
-        // === Header Row ===
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
 
@@ -620,161 +720,145 @@
         raceHeader.textContent = "Race";
         headerRow.appendChild(raceHeader);
 
-        // Add driver names as column headers
-        window.oneElevenDrivers.uids.forEach(uid => {
-        const th = document.createElement('th');
-        th.textContent = window.oneElevenDrivers.names[uid];
-        th.classList.add('driver-col');
-        headerRow.appendChild(th);
+        const colOrder = window.oneElevenDrivers.uidsByStandings || window.oneElevenDrivers.uids;
+        colOrder.forEach(uid => {
+            const th = document.createElement('th');
+            th.textContent = window.oneElevenDrivers.names[uid];
+            th.classList.add('driver-col');
+            headerRow.appendChild(th);
         });
 
         thead.appendChild(headerRow);
         table.appendChild(thead);
 
-        // === Table Body ===
         const tbody = document.createElement('tbody');
 
         sortedRaceKeys.forEach((raceKey, index) => {
-        const trackName = races[raceKey].trackName || 'TBD';
-        const track = window.trackMap[trackName];
-        const shortLabel = track ? track.short : trackName;
-        const fullLabel  = track ? track.full  : trackName;
+            const race = races[raceKey] || {};
+            const trackName = race.trackName || 'TBD';
+            const track = (window.trackMap && window.trackMap[trackName]) || null;
+            const fullLabel  = track ? track.full : trackName;
 
-        const race = races[raceKey];
-        const isSpecial = race.special === true;
+            const isSpecial = race.special === true;
 
-        // === Row 1
-        const row1 = document.createElement('tr');
-        row1.classList.add('race-row');
-        if (isSpecial) row1.classList.add('special-event');
+            // Row 1
+            const row1 = document.createElement('tr');
+            row1.classList.add('race-row');
+            if (isSpecial) row1.classList.add('special-event');
 
-        const labelCell = document.createElement('td');
-        labelCell.textContent = fullLabel;
-        labelCell.title = isSpecial ? `${fullLabel} (Special Event – Double Points)` : fullLabel;
-        labelCell.classList.add('race-label');
-        if (isSpecial) labelCell.classList.add('special-event');
-        labelCell.rowSpan = 2;
-        labelCell.style.verticalAlign = "middle";
-        row1.appendChild(labelCell);
+            const labelCell = document.createElement('td');
+            labelCell.textContent = fullLabel;
+            labelCell.title = isSpecial ? `${fullLabel} (Special Event – Double Points)` : fullLabel;
+            labelCell.classList.add('race-label');
+            if (isSpecial) labelCell.classList.add('special-event');
+            labelCell.rowSpan = 2;
+            labelCell.style.verticalAlign = "middle";
+            row1.appendChild(labelCell);
 
-        window.oneElevenDrivers.uids.forEach(uid => {
+            // cells for row1
+            colOrder.forEach(uid => {
             const td = document.createElement('td');
             td.dataset.uid = uid;
             td.classList.add('driver-col');
-            td.textContent = "";
-            td.style.height = "18px";
-            td.innerHTML = "&nbsp;";
+            td.textContent = '\u00A0'; // keep visual height even when empty
             row1.appendChild(td);
-        });
+            });
 
-        // === Row 2 (blank for special, real for normal)
-        const row2 = document.createElement('tr');
-        row2.classList.add('race-row', 'race-row-2');
-        if (isSpecial) row2.classList.add('spacer-row');
+            // Row 2 (spacer for special)
+            const row2 = document.createElement('tr');
+            row2.classList.add('race-row', 'race-row-2');
+            if (isSpecial) row2.classList.add('spacer-row');
 
-        window.oneElevenDrivers.uids.forEach(uid => {
+            colOrder.forEach(uid => {
             const td = document.createElement('td');
             td.dataset.uid = uid;
             td.classList.add('driver-col');
-            td.textContent = "";
-            td.style.height = "18px";
-            td.innerHTML = "&nbsp;";
+            td.textContent = '\u00A0'; // keep visible spacer
             row2.appendChild(td);
-        });
+            });
 
-        tbody.appendChild(row1);
-        tbody.appendChild(row2);
+            tbody.appendChild(row1);
+            tbody.appendChild(row2);
 
-        // Optional zebra styling
-        if (index % 2 === 1) {
+            if (index % 2 === 1) {
             row1.classList.add('alt-row');
             row2.classList.add('alt-row');
-        }
+            }
         });
 
         table.appendChild(tbody);
 
-        
-        // Wrap table in div wrapper for scrolling
         const scrollWrapper = document.createElement('div');
         scrollWrapper.className = 'scroll-container';
         scrollWrapper.appendChild(table);
         raceResultsSection.appendChild(scrollWrapper);
 
-
-        const bonusCodes = {
-        PP: "polePosition",
-        FL1: "fastestLapRace1",
-        FL2: "fastestLapRace2",
-        OP1: "fastestLapOffPodiumRace1",
-        OP2: "fastestLapOffPodiumRace2"
-        };
-
-        // Loop over races again to populate results
+        // === Populate results (with data-bonus for colours) ===
         let rowPointer = 0;
-
         sortedRaceKeys.forEach((raceKey, raceIndex) => {
-        const race = races[raceKey];
-        const isSpecial = race.special === true;
+            const race = races[raceKey] || {};
+            const isSpecial = race.special === true;
 
-        const row1 = tbody.children[rowPointer];
-        const row2 = tbody.children[rowPointer + 1];
+            const row1 = tbody.children[rowPointer];
+            const row2 = tbody.children[rowPointer + 1];
 
-        const r1 = race.resultsRace1 || {};
-        const r2 = race.resultsRace2 || {};
+            const r1 = race.resultsRace1 || {};
+            const r2 = race.resultsRace2 || {};
 
-        window.oneElevenDrivers.uids.forEach((uid, driverIndex) => {
+            const colOrder = window.oneElevenDrivers.uidsByStandings || window.oneElevenDrivers.uids;
+
+            colOrder.forEach((uid, driverIndex) => {
             const pos1 = r1[uid];
             const pos2 = r2[uid];
-            
+
             let points1 = positionToPoints[pos1] || '';
             let points2 = positionToPoints[pos2] || '';
-            if (isSpecial && points1) {
-                points1 *= 2;
-            }
-            
+            if (isSpecial && points1) points1 *= 2;
+
             const bonuses1 = [];
             const bonuses2 = [];
 
-            if (race.polePositionDriver === uid) bonuses1.push("PP");
-            if (race.fastestLapDriverR1 === uid) bonuses1.push("FL");
+            if (race.polePositionDriver === uid)          bonuses1.push("PP");
+            if (race.fastestLapDriverR1 === uid)          bonuses1.push("FL");
             if (race.fastestLapOffPodiumDriverR1 === uid) bonuses1.push("OP");
 
             if (!isSpecial) {
-            if (race.fastestLapDriverR2 === uid) bonuses2.push("FL");
-            if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
+                if (race.fastestLapDriverR2 === uid)          bonuses2.push("FL");
+                if (race.fastestLapOffPodiumDriverR2 === uid) bonuses2.push("OP");
             }
 
             const dropped = window.oneElevenDrivers.droppedIndexes[uid] || [];
 
-            // === Row 1
+            // Row 1
             const cell1 = row1.children[driverIndex + 1];
             if (cell1) {
-            if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
-            cell1.textContent = (points1 ? points1 : '') +
-                (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
-            if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');
-            if (bonuses1.includes("PP") && bonuses1.includes("FL")) cell1.dataset.combo = "pole-fl";
-            if (bonuses1.includes("PP") && bonuses1.includes("OP")) cell1.dataset.combo = "pole-op";
+                if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
+                const text1 = (points1 ? String(points1) : '') +
+                            (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
+                cell1.textContent = text1 || '\u00A0';
+                // Bonus colour tags
+                if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+'); // <-- PP/FL/OP selectors match
+                if (bonuses1.includes("PP") && bonuses1.includes("FL")) cell1.dataset.combo = "pole-fl";
+                if (bonuses1.includes("PP") && bonuses1.includes("OP")) cell1.dataset.combo = "pole-op";
             }
 
-            // === Row 2 (blank for special events)
+            // Row 2 (blank for special)
             const cell2 = row2.children[driverIndex];
             if (!isSpecial && cell2) {
-            if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
-            cell2.textContent = (points2 ? points2 : '') +
-                (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
-            if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+');
-            if (bonuses2.includes("PP") && bonuses2.includes("FL")) cell2.dataset.combo = "pole-fl";
-            if (bonuses2.includes("PP") && bonuses2.includes("OP")) cell2.dataset.combo = "pole-op";
+                if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
+                const text2 = (points2 ? String(points2) : '') +
+                            (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
+                cell2.textContent = text2 || '\u00A0';
+                if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+'); // <-- PP/FL/OP selectors match
+                if (bonuses2.includes("PP") && bonuses2.includes("FL")) cell2.dataset.combo = "pole-fl";
+                if (bonuses2.includes("PP") && bonuses2.includes("OP")) cell2.dataset.combo = "pole-op";
             }
+            });
+
+            rowPointer += 2;
         });
 
-        rowPointer += 2; // Always advance 2 rows regardless of event type
-        });
-
-
-        // === Step: Render the standings table ===
+        // === Standings table ===
         const standingsSection = document.getElementById('current-standings');
         const standingsTable = document.createElement('table');
         standingsTable.style.borderCollapse = 'collapse';
@@ -786,116 +870,95 @@
         const headRow = document.createElement('tr');
 
         ['Position', 'Driver', 'Points', 'Diff', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Events'].forEach(label => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        headRow.appendChild(th);
+            const th = document.createElement('th');
+            th.textContent = label;
+            headRow.appendChild(th);
         });
 
         standingsThead.appendChild(headRow);
         standingsTable.appendChild(standingsThead);
 
         sortedStandings.forEach(([uid, total], index) => {
-        const row = document.createElement('tr');
-        if (index === 0) row.classList.add('podium-1');
-        if (index === 1) row.classList.add('podium-2');
-        if (index === 2) row.classList.add('podium-3');
+            const row = document.createElement('tr');
+            if (index === 0) row.classList.add('podium-1');
+            if (index === 1) row.classList.add('podium-2');
+            if (index === 2) row.classList.add('podium-3');
 
-        
-        const pos = document.createElement('td');
-        pos.textContent = index + 1;
+            const pos  = document.createElement('td'); pos.textContent = index + 1;
+            const name = document.createElement('td'); name.textContent = window.oneElevenDrivers.names[uid] || '(Unknown)';
+            const pts  = document.createElement('td'); pts.textContent  = total;
 
-        const name = document.createElement('td');
-        name.textContent = window.oneElevenDrivers.names[uid] || '(Unknown)';
+            const diff = document.createElement('td');
+            if (index === 0) {
+            diff.textContent = "n/a";
+            } else {
+            const pointsAhead = sortedStandings[index - 1][1];
+            const diffValue = total - pointsAhead;
+            diff.textContent = (diffValue > 0 ? "+" : "") + diffValue;
+            }
 
-        const pts = document.createElement('td');
-        pts.textContent = total;
+            [pos, name, pts, diff].forEach(td => {
+            td.style.border = '1px solid #ccc';
+            td.style.padding = '6px';
+            });
 
-        // Difference to leader or driver ahead
-        const diff = document.createElement('td');
-        if (index === 0) {
-        diff.textContent = "n/a"; // Leader
-        } else {
-        const pointsAhead = sortedStandings[index - 1][1]; // previous driver's points
-        const diffValue = total - pointsAhead;
-        diff.textContent = (diffValue > 0 ? "+" : "") + diffValue; // usually negative
-        }
+            row.appendChild(pos);
+            row.appendChild(name);
+            row.appendChild(pts);
+            row.appendChild(diff);
 
-        // Style
-        [pos, name, pts, diff].forEach(td => {
-        td.style.border = '1px solid #ccc';
-        td.style.padding = '6px';
-        });
+            const wins    = document.createElement('td'); wins.textContent    = winsPerDriver[uid] || 0;
+            const poles   = document.createElement('td'); poles.textContent   = polePositionsPerDriver[uid] || 0;
 
+            const flObj   = fastestLapsPerDriver[uid] || { FL: 0, OP: 0 };
+            const flText  = flObj.FL && flObj.OP ? `${flObj.FL} FL + ${flObj.OP} OP`
+                        : flObj.FL            ? `${flObj.FL} FL`
+                        : flObj.OP            ? `${flObj.OP} OP`
+                                                : "0";
+            const fl      = document.createElement('td'); fl.textContent      = flText;
 
-        row.appendChild(pos);
-        row.appendChild(name);
-        row.appendChild(pts);
-        row.appendChild(diff);
+            const podiums = document.createElement('td'); podiums.textContent = podiumsPerDriver[uid] || 0;
+            const events  = document.createElement('td'); events.textContent  = eventsPerDriver[uid] || 0;
 
-        // Add the other stats to the race standings
-        const wins = document.createElement('td');
-        wins.textContent = winsPerDriver[uid] || 0;
+            [wins, poles, fl, podiums, events].forEach(td => {
+            td.style.border = '1px solid #ccc';
+            td.style.padding = '6px';
+            });
 
-        const poles = document.createElement('td');
-        poles.textContent = polePositionsPerDriver[uid] || 0;
+            row.appendChild(wins);
+            row.appendChild(poles);
+            row.appendChild(fl);
+            row.appendChild(podiums);
+            row.appendChild(events);
 
-        const flObj = fastestLapsPerDriver[uid] || { FL: 0, OP: 0 };
-        const flText = flObj.FL && flObj.OP
-            ? `${flObj.FL} FL + ${flObj.OP} OP`
-            : flObj.FL
-            ? `${flObj.FL} FL`
-            : flObj.OP
-                ? `${flObj.OP} OP`
-                : "0";
-
-        const fl = document.createElement('td');
-        fl.textContent = flText;
-
-        const podiums = document.createElement('td');
-        podiums.textContent = podiumsPerDriver[uid] || 0;
-
-        const events = document.createElement('td');
-        events.textContent = eventsPerDriver[uid] || 0;
-
-
-        [wins, poles, fl, podiums, events].forEach(td => {
-        td.style.border = '1px solid #ccc';
-        td.style.padding = '6px';
-        });
-
-        row.appendChild(wins);
-        row.appendChild(poles);
-        row.appendChild(fl);
-        row.appendChild(podiums);
-        row.appendChild(events);
-
-
-        standingsTable.appendChild(row);
+            standingsTable.appendChild(row);
         });
 
         standingsSection.appendChild(standingsTable);
 
-        });
+        // === Calculator Button (opens modal, uses the data package above) ===
+        let tools = document.getElementById('standings-tools');
+            if (!tools) {
+            tools = document.createElement('div');
+            tools.id = 'standings-tools';
+            tools.style.textAlign = 'center';
+            standingsSection.appendChild(tools);
+        }
 
-        document.getElementById('standings-placeholder').innerHTML =
-        `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
-            Season: <strong>${seasonData.seasonName}</strong>
-            &nbsp;|&nbsp; Car Class: <strong>${seasonData.carClass || 'Unknown'}</strong>
-            &nbsp;|&nbsp; Events: <strong>${eventCount}</strong>
-            &nbsp;|&nbsp; Drop Races: <strong>${safeDropRaces}</strong>
-        </p>`;
+        const calcBtn = document.createElement('button');
+        calcBtn.id = 'open-calc';
+        calcBtn.textContent = 'Calculate Title Scenarios';
+        calcBtn.onclick = () => openPointsCalculator(window.champCalcData);
+
+        tools.appendChild(calcBtn);
+
         })
-
         .catch(error => {
         console.error("Error loading season:", error);
         document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
         });
-    })
-    .catch(error => {
-      console.error("Error loading season:", error);
-      document.getElementById('standings-placeholder').innerHTML = "<p>❌ Failed to load active season.</p>";
-    });
-}
+    }
+
 
     function openLink(url) {
         window.open(url, '_blank');
@@ -944,22 +1007,30 @@
     </button>
   </section>
 
-  <footer>
+<!-- Calculator Modal -->
+<div id="calcModal" style="display:none;">
+    <div class="card">
+    <button class="close" onclick="closePointsCalculator()" aria-label="Close">✕</button>
+    <div id="calcModalBody"></div>
+    </div>
+</div>
+
+<footer>
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
         SIM RACING
     </a>
-  
+
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
         <img src="Logos_and_icons/karting.png" alt="Karting">
         KARTING
     </a>
-  
+
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
         <img src="Logos_and_icons/settings.png" alt="Settings">
         SETTINGS
     </a>
-  </footer>
+</footer>
 
 </body>
 </html>
