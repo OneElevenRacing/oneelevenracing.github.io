@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="tracks.js"></script>
+    <script src="championship_calculator.js" defer></script>
 
 
     <style>
@@ -282,6 +283,54 @@
             padding: 10px;
             filter:brightness(0);
         }
+
+        /* Simple modal for the calculator */
+        #calcModal {
+        position: fixed;
+        inset: 0;
+        display: none;             /* toggled to flex by JS */
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,.4);
+        z-index: 2000;
+        }
+
+        #calcModal .card {
+        position: relative;
+        background: #fff;
+        padding: 16px 18px;
+        border-radius: 16px;
+        width: min(92vw, 680px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.2);
+        font-family: 'KeepCalm', Arial, sans-serif;
+        }
+
+        #calcModal .close {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        }
+
+        /* Button style to match your UI */
+        #open-calc {
+        display: block;
+        width: 80%;
+        max-width: 400px;
+        margin: 12px auto 0;
+        padding: 12px 16px;
+        background: #000;
+        color: #fff;
+        border: none;
+        border-radius: 20px;
+        font-family: 'KeepCalm', Arial, sans-serif;
+        text-transform: uppercase;
+        cursor: pointer;
+        }
+        #open-calc:hover { filter: brightness(0.9); }
 
       </style>
 
@@ -557,6 +606,55 @@
 
         const sortedStandings = Object.entries(finalTotals).sort(([, a], [, b]) => b - a);
 
+        // --- Prepare data for the calculator (min/max maths later) ---
+        const eventsCompleted = sortedRaceKeys.reduce((acc, key) => {
+        const race = races[key] || {};
+        const r1 = race.resultsRace1 || {};
+        const r2 = race.resultsRace2 || {};
+        const anyR1 = Object.values(r1).some(v => typeof v === 'number');
+        // for special events we ignore Race 2 points, but completion check can still be R1-only
+        const anyR2 = (race.special === true) ? false : Object.values(r2).some(v => typeof v === 'number');
+        return acc + ((anyR1 || anyR2) ? 1 : 0);
+        }, 0);
+
+        window.champCalcData = {
+        // season meta
+        seasonId: seasonData.seasonCode || '',
+        seasonName: seasonData.seasonName || '',
+        carClass: seasonData.carClass || '',
+        eventCount,
+        safeDropRaces,
+        keepEvents,
+        eventsCompleted,
+        eventsRemaining: Math.max(0, eventCount - eventsCompleted),
+
+        // drivers & order
+        driverNames: window.oneElevenDrivers.names,
+        uidsByStandings, // current column order (leader first)
+
+        // current tallies
+        finalTotals,             // counted race points + bonuses (post-drops)
+        countedRacePoints,       // sum of kept event points (finishing points only)
+        bonusPointsPerDriver,    // standalone bonus points
+        winsPerDriver,
+        podiumsPerDriver,
+        polePositionsPerDriver,
+        fastestLapsPerDriver,
+        eventsPerDriver,
+
+        // per-event details useful for scenario maths
+        racePointsPerEvent,                    // finishing points by event index
+        droppedIndexes: window.oneElevenDrivers.droppedIndexes,
+        keptIndexes: window.oneElevenDrivers.keptIndexes,
+        specialEventIndexes: sortedRaceKeys
+            .map((key, idx) => (races[key] && races[key].special === true ? idx : -1))
+            .filter(idx => idx >= 0),
+
+        // scoring map
+        positionToPoints
+        };
+
+
         // === Build Race Results table ===
         const raceResultsSection = document.getElementById('race-results');
 
@@ -793,6 +891,23 @@
         });
 
         standingsSection.appendChild(standingsTable);
+
+        // === Calculator Button (opens modal, uses the data package above) ===
+        let tools = document.getElementById('standings-tools');
+            if (!tools) {
+            tools = document.createElement('div');
+            tools.id = 'standings-tools';
+            tools.style.textAlign = 'center';
+            standingsSection.appendChild(tools);
+        }
+
+        const calcBtn = document.createElement('button');
+        calcBtn.id = 'open-calc';
+        calcBtn.textContent = 'Calculate Title Scenarios';
+        calcBtn.onclick = () => openPointsCalculator(window.champCalcData);
+
+        tools.appendChild(calcBtn);
+
         })
         .catch(error => {
         console.error("Error loading season:", error);
@@ -848,22 +963,30 @@
     </button>
   </section>
 
-  <footer>
+<!-- Calculator Modal -->
+<div id="calcModal" style="display:none;">
+    <div class="card">
+    <button class="close" onclick="closePointsCalculator()" aria-label="Close">✕</button>
+    <div id="calcModalBody"></div>
+    </div>
+</div>
+
+<footer>
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
         SIM RACING
     </a>
-  
+
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
         <img src="Logos_and_icons/karting.png" alt="Karting">
         KARTING
     </a>
-  
+
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">
         <img src="Logos_and_icons/settings.png" alt="Settings">
         SETTINGS
     </a>
-  </footer>
+</footer>
 
 </body>
 </html>
