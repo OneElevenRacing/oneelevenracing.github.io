@@ -6,7 +6,7 @@
     // === CONFIG: non-attendance baseline ===
     // If your "one behind last" equals 0, leave these at 0.
     // If you actually award a point (or more) for skipping, set accordingly.
-    const NON_ATTEND_POINTS_NORMAL  = 5; // baseline finishing points for a normal weekend when not attending
+    const NON_ATTEND_POINTS_NORMAL  = 10; // baseline finishing points for a normal weekend when not attending
     const NON_ATTEND_POINTS_SPECIAL = 10; // baseline finishing points for a special weekend when not attending
   
     // ---------- Core helpers ----------
@@ -146,7 +146,7 @@
           Drops: <strong>${champData.safeDropRaces}</strong> (keeping best ${champData.keepEvents})
         </p>
         <div style="overflow-x:auto;">
-          <table style="border-collapse:collapse; width:100%; font-size:12px;">
+          <table class="calc-table" style="border-collapse:collapse; width:100%;">
             <thead>
               <tr style="background:#000;color:#fff;">
                 <th style="padding:6px;border:1px solid #333;text-align:left;">Driver</th>

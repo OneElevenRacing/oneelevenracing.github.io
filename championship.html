@@ -315,6 +315,24 @@
         cursor: pointer;
         }
 
+        /* Calculator modal table styles */
+        #calcModal .calc-table thead th {
+        background-color: #000 !important; /* beat the global th background */
+        color: #fff !important;
+        }
+
+        #calcModal .calc-table th,
+        #calcModal .calc-table td {
+        padding: 6px;
+        border: 1px solid #ccc;
+        font-size: 12px;
+        }
+
+        #calcModal .calc-table tbody tr:nth-child(even) td {
+        background-color: #f9f9f9; /* subtle zebra for readability */
+        }
+
+
         /* Button style to match your UI */
         #open-calc {
         display: block;
