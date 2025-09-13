@@ -332,6 +332,32 @@
         background-color: #f9f9f9; /* subtle zebra for readability */
         }
 
+        /* Narrow, centered position columns in the calculator */
+        #calcModal .calc-table th.pos-col,
+        #calcModal .calc-table td.pos-col {
+        width: 5ch;            /* ~5 characters wide */
+        white-space: nowrap;   /* stop wrapping */
+        text-align: center;    /* center numbers */
+        }
+
+        /* Highlight rows that are mathematically locked to their current rank */
+        #calcModal .calc-table tr.locked-row td {
+        background-color: #e9ffe9; /* light green tint */
+        }
+
+        /* Keep the zebra, but let locked rows win */
+        #calcModal .calc-table tbody tr.locked-row td {
+        background-color: #e9ffe9 !important; /* override zebra on even rows */
+        }
+
+        /* Compact numeric columns ("Pos", "Best Pos", "Worst Pos") */
+        #calcModal .calc-table th.pos-col,
+        #calcModal .calc-table td.pos-col {
+        width: 5ch;
+        white-space: nowrap;
+        text-align: center;
+        }
+
 
         /* Button style to match your UI */
         #open-calc {

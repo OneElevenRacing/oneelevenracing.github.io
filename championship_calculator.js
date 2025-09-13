@@ -135,64 +135,77 @@
   
     // ---------- Modal UI ----------
     function renderTable(champData, extremes) {
-      const { driverNames, uidsByStandings } = champData;
-      const uids = uidsByStandings || Object.keys(driverNames || {});
-      const { minTotals, maxTotals, minFinish, maxFinish } = extremes;
-  
-      let html = `
-        <h3 style="margin:0 0 10px 0;">Title scenarios</h3>
-        <p style="margin:0 0 8px 0;">
-          Events remaining: <strong>${champData.eventsRemaining}</strong> &nbsp;•&nbsp;
-          Drops: <strong>${champData.safeDropRaces}</strong> (keeping best ${champData.keepEvents})
-        </p>
-        <div style="overflow-x:auto;">
-          <table class="calc-table" style="border-collapse:collapse; width:100%;">
-            <thead>
-              <tr style="background:#000;color:#fff;">
-                <th style="padding:6px;border:1px solid #333;text-align:left;">Driver</th>
-                <th style="padding:6px;border:1px solid #333;">Current</th>
-                <th style="padding:6px;border:1px solid #333;">Min</th>
-                <th style="padding:6px;border:1px solid #333;">Max</th>
-                <th style="padding:6px;border:1px solid #333;">Best Pos</th>
-                <th style="padding:6px;border:1px solid #333;">Worst Pos</th>
-              </tr>
-            </thead>
-            <tbody>
-      `;
-  
-      for (const uid of uids) {
-        const name = driverNames[uid] || uid;
-        const cur = champData.finalTotals[uid] || 0;
-        const min = minTotals[uid] || 0;
-        const max = maxTotals[uid] || 0;
-        const best = minFinish[uid] || 1;
-        const worst = maxFinish[uid] || 1;
-  
-        html += `
-          <tr>
-            <td style="padding:6px;border:1px solid #ccc;text-align:left;">${name}</td>
-            <td style="padding:6px;border:1px solid #ccc;">${fmt(cur)}</td>
-            <td style="padding:6px;border:1px solid #ccc;">${fmt(min)}</td>
-            <td style="padding:6px;border:1px solid #ccc;">${fmt(max)}</td>
-            <td style="padding:6px;border:1px solid #ccc;">${fmt(best)}</td>
-            <td style="padding:6px;border:1px solid #ccc;">${fmt(worst)}</td>
-          </tr>
+        const { driverNames, uidsByStandings } = champData;
+        const uids = uidsByStandings || Object.keys(driverNames || {});
+        const { minTotals, maxTotals, minFinish, maxFinish } = extremes;
+      
+        let html = `
+          <h3 style="margin:0 0 10px 0;">Title Scenarios</h3>
+          <p style="margin:0 0 8px 0;">
+            Events remaining: <strong>${champData.eventsRemaining}</strong> &nbsp;•&nbsp;
+            Drop Races: <strong>${champData.safeDropRaces}</strong> (keeping best ${champData.keepEvents})
+          </p>
+          <div style="overflow-x:auto;">
+            <table class="calc-table" style="border-collapse:collapse; width:100%;">
+              <thead>
+                <tr>
+                  <th class="pos-col" style="padding:6px;border:1px solid #333;">Pos</th>
+                  <th style="padding:6px;border:1px solid #333;text-align:left;">Driver</th>
+                  <th style="padding:6px;border:1px solid #333;">Current Points</th>
+                  <th style="padding:6px;border:1px solid #333;">Min Pts</th>
+                  <th style="padding:6px;border:1px solid #333;">Max Pts</th>
+                  <th class="pos-col" style="padding:6px;border:1px solid #333;">Best Pos</th>
+                  <th class="pos-col" style="padding:6px;border:1px solid #333;">Worst Pos</th>
+                </tr>
+              </thead>
+              <tbody>
         `;
+      
+        for (const uid of uids) {
+          const name  = driverNames[uid] || uid;
+          const cur   = champData.finalTotals[uid] || 0;
+          const min   = minTotals[uid] || 0;
+          const max   = maxTotals[uid] || 0;
+          const best  = minFinish[uid] || 1;
+          const worst = maxFinish[uid] || 1;
+      
+          // Current rank equals the column order you passed in (uidsByStandings)
+          const currentRank = uids.indexOf(uid) + 1;
+          const locked = (best === currentRank && worst === currentRank);
+      
+          html += `
+            <tr${locked ? ' class="locked-row"' : ''}>
+              <td class="pos-col" style="padding:6px;border:1px solid #ccc;" title="${locked ? 'Locked at P' + currentRank : 'Current position'}" aria-label="${locked ? 'Locked at P' + currentRank : 'Current position'}">
+                ${locked ? '🏁' : currentRank}
+              </td>
+              <td style="padding:6px;border:1px solid #ccc;text-align:left;">${name}</td>
+              <td style="padding:6px;border:1px solid #ccc;">${cur}</td>
+              <td style="padding:6px;border:1px solid #ccc;">${min}</td>
+              <td style="padding:6px;border:1px solid #ccc;">${max}</td>
+              <td class="pos-col" style="padding:6px;border:1px solid #ccc;">${best}</td>
+              <td class="pos-col" style="padding:6px;border:1px solid #ccc;">${worst}</td>
+            </tr>
+          `;
+        }
+      
+        html += `
+                </tbody>
+            </table>
+            </div>
+            <div style="font-size:11px;color:#666;margin-top:8px;line-height:1.4;">
+            <strong>Legend:</strong><br>
+            🏁 = driver is mathematically locked to this position<br>
+            <em>Current</em> = points right now<br>
+            <em>Min</em> = points if you score only baseline non-attendance points in all remaining events<br>
+            <em>Max</em> = points if you win all remaining events and take all your own bonus points<br>
+            <em>Best Pos. / Worst Pos.</em> = range of possible finishing positions given Min/Max scenarios
+            </div>
+        `;
+      
+        document.getElementById('calcModalBody').innerHTML = html;
       }
-  
-      html += `
-            </tbody>
-          </table>
-        </div>
-        <p style="font-size:11px;color:#666;margin-top:8px;">
-          Notes:
-          <br>- “Min” recomputes the best ${champData.keepEvents} events assuming <em>non-attendance baseline</em> points for the remaining weekends.
-          <br>- “Max” assumes wins in all remaining weekends (40 finishing points each) and all own bonuses (PP + FL1 (+FL2 on normal)).
-        </p>
-      `;
-  
-      qs('calcModalBody').innerHTML = html;
-    }
+      
+      
   
     // ---------- Public API ----------
     window.openPointsCalculator = function (champData) {
