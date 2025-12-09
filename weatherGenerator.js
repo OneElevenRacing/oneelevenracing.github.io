@@ -2,12 +2,12 @@
 function generateRandomWeather() {
     const weathers = {
         "Clear": 0.168,
-        "Light Cloud": 0.129,
-        "Medium Cloud": 0.129,
-        "Heavy Cloud": 0.109,
+        "Light Cloud": 0.119,
+        "Medium Cloud": 0.119,
+        "Heavy Cloud": 0.099,
         "Overcast": 0.109,
-        "Light Rain": 0.103,
-        "Rain": 0.051,
+        "Light Rain": 0.123,
+        "Rain": 0.061,
         "Storm": 0.019,
         "Thunderstorm": 0.019,
         "Fog": 0.045,
