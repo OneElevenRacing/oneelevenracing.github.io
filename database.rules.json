@@ -1,0 +1,70 @@
+{
+  "rules": {
+    ".read": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true",
+    ".write": false,
+
+    "race_date": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+    },
+    "race_location": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+    },
+    "race_time": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
+    },
+    "weather1": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+    },
+    "weather2": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+    },
+    "xoyondo_link": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.isString() && newData.val().length <= 500"
+    },
+
+    "seasonData": {
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".validate": "newData.hasChildren(['seasonNumber', 'racingClass'])",
+      "seasonNumber": {
+        ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 20"
+      },
+      "racingClass": {
+        ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+      },
+      "$other": {
+        ".validate": false
+      }
+    },
+
+    "drivers": {
+      "$uid": {
+        ".write": "newData.exists() && (auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true || auth != null && auth.uid == $uid && root.child('drivers').child(auth.uid).child('active').val() == true && data.exists() && newData.child('active').val() == data.child('active').val() && newData.child('isAdmin').val() == data.child('isAdmin').val() && newData.child('carImage').val() == data.child('carImage').val())",
+        ".validate": "newData.hasChildren(['active', 'carImage', 'carName', 'isAdmin', 'name'])",
+        "active": {
+          ".validate": "newData.isBoolean()"
+        },
+        "isAdmin": {
+          ".validate": "newData.isBoolean()"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+        },
+        "carName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+        },
+        "carImage": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 250"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}

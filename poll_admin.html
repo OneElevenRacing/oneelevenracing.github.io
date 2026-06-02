@@ -12,6 +12,58 @@
 <title>Poll Admin</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="style_about.css">
+<style>
+  body {
+    background: #f6f6f6;
+  }
+
+  .poll-admin-panel {
+    width: min(92%, 520px);
+    margin: 80px auto 24px;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    text-align: left;
+  }
+
+  .poll-admin-panel h2 {
+    margin: 0 0 18px;
+    text-align: center;
+  }
+
+  .poll-field {
+    margin-bottom: 16px;
+  }
+
+  .poll-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .poll-field input,
+  .poll-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font: inherit;
+  }
+
+  #createPollBtn {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  #pollCreateStatus {
+    min-height: 1.4em;
+    margin: 12px 0 0;
+    text-align: center;
+  }
+</style>
 
 <!-- Include same Firebase scripts -->
   <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
@@ -34,27 +86,32 @@
     var db = firebase.firestore();
 
 
-    // Check if user is signed in & isAdmin
+    function showAccessMessage(message) {
+      document.body.innerHTML = `<h2>${message}</h2>`;
+      document.body.style.display = "block";
+    }
+
+    // Check if user is signed in, active, and an admin.
     firebase.auth().onAuthStateChanged(user => {
       if (!user) {
-        // If not signed in at all, redirect back to poll.html or show a message
-        document.body.innerHTML = "<h2>You must be signed in as admin to view this page.</h2>";
+        showAccessMessage("You must be signed in as admin to view this page.");
         return;
       }
 
-      // Check isAdmin
-      firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+      firebase.database().ref(`drivers/${user.uid}`).once("value")
         .then(snapshot => {
-          if (snapshot.exists() && snapshot.val() === true) {
+          const driver = snapshot.val();
+          if (driver && driver.active === true && driver.isAdmin === true) {
             console.log("User is admin. Show admin controls.");
+            document.body.style.display = "block";
             document.getElementById("adminControls").style.display = "block";
           } else {
-            // Not an admin
-            document.body.innerHTML = "<h2>You must be an admin to view this page.</h2>";
+            showAccessMessage("You must be an admin to view this page.");
           }
         })
         .catch(error => {
           console.error("Error checking admin status:", error);
+          showAccessMessage("Error verifying admin access. Please try again later.");
         });
     });
   </script>
@@ -64,7 +121,7 @@
 
 </head>
 
-<body>
+<body style="display:none">
 
   <header>
     <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
@@ -75,31 +132,31 @@
     </a>
 </header>
 
-    <div class="about-container" id="adminControls" style="display:none; margin-top: 50px;">
+    <main class="poll-admin-panel" id="adminControls" style="display:none;">
         <h2>Create a Poll</h2>
 
-        <label for="weekSelector">Choose a week:</label>
-        <select id="weekSelector" >
-        <option value="0">This Week</option>
-        <option value="1">Next Week</option>
-        <option value="2">Week After Next</option>
-        </select>
+        <div class="poll-field">
+            <label for="weekSelector">Choose a week</label>
+            <select id="weekSelector">
+                <option value="0">This Week</option>
+                <option value="1">Next Week</option>
+                <option value="2">Week After Next</option>
+            </select>
+        </div>
 
-        <br><br>
+        <div class="poll-field">
+            <label for="pollTitle">Poll title</label>
+            <input type="text" id="pollTitle" placeholder="Enter a title" class="poll-input" />
+        </div>
 
-        <label for="pollTitle">Poll Title:</label>
-        <input type="text" id="pollTitle" placeholder="Enter a title" class="poll-input" />
-
-        <br>
-
-        <label for="pollOptions">Options:</label>
-        <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" class="poll-input" />
-
-        <br>
+        <div class="poll-field">
+            <label for="pollOptions">Options</label>
+            <input type="text" id="pollOptions" placeholder="e.g. Mon, Tue, Wed" class="poll-input" />
+        </div>
 
         <button id="createPollBtn">Create Poll</button>
         <p id="pollCreateStatus"></p>
-    </div>
+    </main>
 
     <script>
 
@@ -155,7 +212,7 @@
         const pollTitleInput = document.getElementById('pollTitle');
         const pollOptionsInput = document.getElementById('pollOptions');
 
-        weekSelector.addEventListener('change', () => {
+        function populatePollFields() {
         const offset = parseInt(weekSelector.value, 10);
         const { mondayDate, sundayDate, daysArray } = getWeekDates(offset);
         const weekNum = getWeekNumber(mondayDate);
@@ -171,17 +228,20 @@
         // Fill in the fields
         pollTitleInput.value = newTitle;
         pollOptionsInput.value = daysArray.join(", ");
-        });
+        }
+
+        weekSelector.addEventListener('change', populatePollFields);
+        populatePollFields();
 
         // 4) Create Poll in Firestore
         document.getElementById('createPollBtn').addEventListener('click', async () => {
         const pollCreateStatus = document.getElementById('pollCreateStatus');
 
         const title = pollTitleInput.value.trim();
-        const options = pollOptionsInput.value.trim().split(",").map(opt => opt.trim());
+        const options = pollOptionsInput.value.trim().split(",").map(opt => opt.trim()).filter(Boolean);
 
-        if (!title) {
-            pollCreateStatus.textContent = "Please select a week first.";
+        if (!title || options.length === 0) {
+            pollCreateStatus.textContent = "Please choose a week and add at least one option.";
             return;
         }
 

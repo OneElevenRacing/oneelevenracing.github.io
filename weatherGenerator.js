@@ -1,3 +1,7 @@
+let currentUserIsAdmin = false;
+let raceDateMatchesToday = false;
+let raceWeatherAlreadySet = false;
+
 // This is the function with all of the probabilities and weather. Make sure they add up to 1.00
 function generateRandomWeather() {
     const weathers = {
@@ -63,7 +67,8 @@ function formatDate(date) {
 function fetchAndDisplayCurrentWeather() {
     const weather1Display = document.getElementById('weather1');
     const weather2Display = document.getElementById('weather2');
-    const generateRaceWeatherBtn = document.getElementById('generateRaceWeather');
+
+    if (!weather1Display || !weather2Display) return;
 
     firebase.database().ref('weather1').once('value').then((snapshot1) => {
         weather1Display.textContent = snapshot1.val() || "No data";
@@ -71,30 +76,79 @@ function fetchAndDisplayCurrentWeather() {
 
         firebase.database().ref('weather2').once('value').then((snapshot2) => {
             weather2Display.textContent = snapshot2.val() || "No data";
-
-            // Check if weathers are already generated
-            if (snapshot1.val() !== "TBD" && snapshot2.val() !== "TBD") {
-                generateRaceWeatherBtn.disabled = true;
-            }
+            raceWeatherAlreadySet = snapshot1.val() !== "TBD" && snapshot2.val() !== "TBD";
+            updateRaceWeatherButtonState();
         });
     });
 }
 
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Fetch and display current weather from Firebase and check date
     fetchAndDisplayCurrentWeather();
     checkCurrentDateWithFirebase();
-
-    // Event listeners for buttons
+    checkWeatherAdminStatus();
     setupButtonEventListeners();
 });
+
+function checkWeatherAdminStatus() {
+    firebase.auth().onAuthStateChanged((user) => {
+        if (!user) {
+            currentUserIsAdmin = false;
+            updateRaceWeatherButtonState();
+            return;
+        }
+
+        firebase.database().ref(`drivers/${user.uid}`).once('value')
+            .then((snapshot) => {
+                const driver = snapshot.val();
+                currentUserIsAdmin = !!(driver && driver.active === true && driver.isAdmin === true);
+                updateRaceWeatherButtonState();
+            })
+            .catch((error) => {
+                console.error("Error checking weather admin access:", error);
+                currentUserIsAdmin = false;
+                updateRaceWeatherButtonState();
+            });
+    });
+}
+
+function updateRaceWeatherButtonState() {
+    const raceWeatherButton = document.getElementById('generateRaceWeather');
+    const practiceWeatherButton = document.getElementById('generateRandomWeather');
+
+    if (!raceWeatherButton) return;
+
+    raceWeatherButton.disabled = true;
+    raceWeatherButton.title = "";
+    if (practiceWeatherButton) practiceWeatherButton.disabled = false;
+
+    if (!currentUserIsAdmin) {
+        raceWeatherButton.title = "Only admins can generate race-day weather.";
+        return;
+    }
+
+    if (raceWeatherAlreadySet) {
+        raceWeatherButton.title = "Race weather has already been generated.";
+        return;
+    }
+
+    if (!raceDateMatchesToday) {
+        raceWeatherButton.title = "Race-day weather can only be generated on the race date.";
+        return;
+    }
+
+    raceWeatherButton.disabled = false;
+    if (practiceWeatherButton) practiceWeatherButton.disabled = true;
+}
 
 function setupButtonEventListeners() {
     const generateRandomWeatherBtn = document.getElementById('generateRandomWeather');
     const generateRaceWeatherBtn = document.getElementById('generateRaceWeather');
     const weather1Display = document.getElementById('weather1');
     const weather2Display = document.getElementById('weather2');
+    const weatherMessage = document.getElementById('weatherMessage');
+
+    if (!generateRandomWeatherBtn || !generateRaceWeatherBtn || !weather1Display || !weather2Display) return;
 
     generateRandomWeatherBtn.addEventListener('click', () => {
         let weather1 = generateRandomWeather();
@@ -108,6 +162,18 @@ function setupButtonEventListeners() {
     });
 
     generateRaceWeatherBtn.addEventListener('click', () => {
+        if (!currentUserIsAdmin) {
+            if (weatherMessage) weatherMessage.textContent = 'Only admins can generate race-day weather.';
+            updateRaceWeatherButtonState();
+            return;
+        }
+
+        if (!raceDateMatchesToday) {
+            if (weatherMessage) weatherMessage.textContent = 'Race-day weather can only be generated on the race date.';
+            updateRaceWeatherButtonState();
+            return;
+        }
+
         // Check if the weather is already set
         firebase.database().ref('weather1').once('value').then((snapshot) => {
             if (snapshot.val() === "TBD") {
@@ -122,17 +188,27 @@ function setupButtonEventListeners() {
                     let weather1 = generateRandomWeather();
                     let weather2 = generateRandomWeather();
 
-                    firebase.database().ref('weather1').set(weather1);
-                    firebase.database().ref('weather2').set(weather2);
-
-                    weather1Display.textContent = weather1;
-                    weather2Display.textContent = weather2;
-
-                    document.getElementById('weatherMessage').textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group :)';
+                    Promise.all([
+                        firebase.database().ref('weather1').set(weather1),
+                        firebase.database().ref('weather2').set(weather2)
+                    ]).then(() => {
+                        raceWeatherAlreadySet = true;
+                        weather1Display.textContent = weather1;
+                        weather2Display.textContent = weather2;
+                        if (weatherMessage) {
+                            weatherMessage.textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group :)';
+                        }
+                        updateRaceWeatherButtonState();
+                    }).catch((error) => {
+                        console.error("Error saving race weather:", error);
+                        if (weatherMessage) weatherMessage.textContent = 'Failed to save race weather. Please check admin access and try again.';
+                        updateRaceWeatherButtonState();
+                    });
 
                 }
             } else {
-                generateRaceWeatherBtn.disabled = true; // Disable the button if weather is already set
+                raceWeatherAlreadySet = true;
+                updateRaceWeatherButtonState();
             }
         });
     });
@@ -178,16 +254,15 @@ function checkCurrentDateWithFirebase() {
         console.log("Firebase Date: ", firebaseDate);
         console.log("Current Date: ", currentDate);
 
-        const raceWeatherButton = document.getElementById('generateRaceWeather');
-        const practiceWeatherButton = document.getElementById('generateRandomWeather');
-        if (firebaseDate === currentDate) {
-            console.log("Dates match. Enabling race weather button.");
-            raceWeatherButton.disabled = false;
-            practiceWeatherButton.disabled = true;
-        } else {
-            console.log("Dates do not match. Disabling race weather button.");
-            raceWeatherButton.disabled = true;
-            practiceWeatherButton.disabled = false;
-        }
+        const firebaseDateDebug = document.getElementById('firebaseDate');
+        const currentDateDebug = document.getElementById('currentDate');
+        const datesMatchDebug = document.getElementById('datesMatch');
+
+        raceDateMatchesToday = firebaseDate === currentDate;
+        if (firebaseDateDebug) firebaseDateDebug.textContent = firebaseDate || "No data";
+        if (currentDateDebug) currentDateDebug.textContent = currentDate;
+        if (datesMatchDebug) datesMatchDebug.textContent = raceDateMatchesToday ? "Yes" : "No";
+
+        updateRaceWeatherButtonState();
     });
 }

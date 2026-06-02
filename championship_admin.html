@@ -317,9 +317,10 @@
         return;
       }
 
-      firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
+      firebase.database().ref(`drivers/${user.uid}`).once("value")
         .then(snapshot => {
-          if (snapshot.exists() && snapshot.val() === true) {
+          const driver = snapshot.val();
+          if (driver && driver.active === true && driver.isAdmin === true) {
             console.log("👑 User is admin:", user.uid);
             loadAdminPage();
           } else {

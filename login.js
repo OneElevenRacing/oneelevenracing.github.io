@@ -1,14 +1,16 @@
-// Initialize Firebase as shown in previous examples
-
 // Sign-in function
-document.getElementById('signin-button').addEventListener('click', function() {
-    var provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider).then(function(result) {
-        // Successful sign-in
-        window.location.href = 'main.html'; // Redirect to main page
-    }).catch(function(error) {
-        // Handle sign-in errors
-        console.log('Sign-in error:', error);
+document.addEventListener('DOMContentLoaded', function() {
+    var signInButton = document.getElementById('signin-button');
+    if (!signInButton) return;
+
+    signInButton.addEventListener('click', function() {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        firebase.auth().signInWithPopup(provider).then(function() {
+            window.location.href = 'main.html';
+        }).catch(function(error) {
+            console.log('Sign-in error:', error);
+            alert('Sign-in failed. Please try again.');
+        });
     });
 });
 

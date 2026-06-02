@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isDriver() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.active == true;
+    }
+
+    function isAdmin() {
+      return isDriver()
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    match /members/{uid} {
+      allow get: if isAdmin() || (isDriver() && request.auth.uid == uid);
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /polls/{pollId} {
+      allow read: if isDriver();
+      allow create, update, delete: if isAdmin();
+
+      match /responses/{uid} {
+        allow read: if isDriver();
+        allow create, update: if isDriver() && request.auth.uid == uid;
+        allow delete: if isAdmin() || (isDriver() && request.auth.uid == uid);
+      }
+    }
+
+    match /championships/{seasonId} {
+      allow read: if isDriver();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isDriverResultUpdate();
+    }
+
+    function isDriverResultUpdate() {
+      return isDriver()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['races']);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

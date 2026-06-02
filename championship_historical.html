@@ -286,15 +286,31 @@
 
     firebase.initializeApp(firebaseConfig);
 
-    //Check user login
+    // Check user login and active driver status before reading protected data.
     firebase.auth().onAuthStateChanged(user => {
         if (user) {
             console.log("✅ User is signed in:", user.uid);
-            loadHistoricalPage(); // 👈 call the logic only if signed in
+            firebase.database().ref(`drivers/${user.uid}`).once("value")
+            .then(snapshot => {
+                const driver = snapshot.val();
+                if (!driver || driver.active !== true) {
+                    console.warn("🚫 User is not an active driver. Redirecting...");
+                    alert("Access denied: you are not an active driver.");
+                    window.location.href = "main.html";
+                    return;
+                }
+
+                loadHistoricalPage();
+            })
+            .catch(error => {
+                console.error("Error checking driver access:", error);
+                alert("Unable to verify access. Please try again.");
+                window.location.href = "main.html";
+            });
         } else {
             console.warn("🚫 User not signed in. Redirecting...");
             alert("Please sign in to view historical data.");
-            window.location.href = "login.html"; // update if your login page is named differently
+            window.location.href = "index.html";
         }
         });
 

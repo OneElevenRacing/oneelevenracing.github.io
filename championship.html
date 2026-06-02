@@ -397,14 +397,26 @@
     if (user) {
         console.log("✅ User signed in:", user.uid);
 
-        // Check if user is a registered driver
+        // Check if user is an active registered driver
         firebase.database().ref(`drivers/${user.uid}`).once("value")
         .then(snapshot => {
-            if (snapshot.exists()) {
+            const driver = snapshot.val();
+            if (driver && driver.active === true) {
             console.log("✅ User is authorised as a driver:", user.uid);
             
             // ✅ You can now safely continue with Firestore stuff
             startChampionshipPage(); // 🔧 We'll define this next
+
+            const resultsBtn = document.getElementById("enterResultsButton");
+            if (resultsBtn) resultsBtn.style.display = "";
+
+            if (driver.isAdmin === true) {
+                console.log("👑 User is an admin");
+                const adminBtn = document.createElement("button");
+                adminBtn.textContent = "Championship Admin";
+                adminBtn.onclick = () => window.location.href = "championship_admin.html";
+                document.getElementById("championship-nav").appendChild(adminBtn);
+            }
             } else {
             console.warn("🚫 User is NOT authorised.");
             alert("Access denied: You are not authorised.");
@@ -413,18 +425,8 @@
         })
         .catch(error => {
             console.error("⚠️ Error checking authorisation:", error);
-        });
-
-        // Optional: Admin check
-        firebase.database().ref(`drivers/${user.uid}/isAdmin`).once("value")
-        .then(snapshot => {
-            if (snapshot.exists() && snapshot.val() === true) {
-            console.log("👑 User is an admin");
-            const adminBtn = document.createElement("button");
-            adminBtn.textContent = "Go to Admin Page";
-            adminBtn.onclick = () => window.location.href = "championship_admin.html";
-            document.getElementById("championship-nav").appendChild(adminBtn);
-            }
+            alert("Unable to verify access. Please try again.");
+            window.location.href = "main.html";
         });
 
     } else {
@@ -975,6 +977,10 @@
         style="display: block; text-align: left;">
         <img src="Logos_and_icons/back.png" alt="Back" style="height: 20px; padding: 20px;">
     </a>
+    <a href="javascript:void(0);" id="settings" onclick="window.location.href='settings.html'"
+        style="position: absolute; top: 0; right: 0; display: block;">
+        <img src="Logos_and_icons/settings.png" alt="Settings" style="height: 20px; padding: 20px;">
+    </a>
 </header>
 
   <!-- Current Standings Section -->
@@ -999,7 +1005,7 @@
     <button onclick="window.location.href='championship_historical.html';">
       View Historical Seasons
     </button>
-    <button onclick="window.location.href='championship_newentry.html';">
+    <button id="enterResultsButton" style="display:none;" onclick="window.location.href='championship_newentry.html';">
         Enter New Race Results
     </button>
     <button onclick="openLink('https://1drv.ms/x/c/fd3232f06653250f/Ed7HexgnogBMoaJVe509tQsB4HNSyJvfLzYfHR2qfsoICw?e=1cmJa9')">

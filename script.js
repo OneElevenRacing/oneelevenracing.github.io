@@ -1,34 +1,55 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("DOM fully loaded and parsed");
-
-    // Fetch and display season information
     fetchAndDisplaySeasonData();
-
-    // Fetch and display race info
     fetchAndUpdateRaceInfo();
-
-    // Setup menu dropdown toggle
     setupMenuDropdown();
 });
 
+function firebaseDatabaseAvailable() {
+    return typeof firebase !== 'undefined' && firebase.database;
+}
 
-// This function fetches the season data and updates the HTML elements
+function getElement(id) {
+    return document.getElementById(id);
+}
+
+function setTextIfPresent(id, value) {
+    const element = getElement(id);
+    if (element) element.textContent = value;
+}
+
+function setValueIfPresent(id, value) {
+    const element = getElement(id);
+    if (element && 'value' in element) element.value = value;
+}
+
+function setImageIfPresent(id, src) {
+    const element = getElement(id);
+    if (element) element.src = src;
+}
+
+// This function fetches the season data and updates whichever matching page elements exist.
 function fetchAndDisplaySeasonData() {
-    const seasonRef = firebase.database().ref('seasonData');
-    seasonRef.once('value', (snapshot) => {
+    if (!firebaseDatabaseAvailable()) return;
+
+    const hasSeasonElements = [
+        'seasonNumber',
+        'racingClass',
+        'currentSeasonNumber',
+        'currentRacingClass'
+    ].some(id => getElement(id));
+
+    if (!hasSeasonElements) return;
+
+    firebase.database().ref('seasonData').once('value', (snapshot) => {
         const seasonData = snapshot.val();
-        if (seasonData) {
-    // Update the display text
-    document.getElementById('seasonNumber').textContent = seasonData.seasonNumber;
-    document.getElementById('racingClass').textContent = seasonData.racingClass;
-    document.getElementById('currentSeasonNumber').textContent = seasonData.seasonNumber;
-    document.getElementById('currentRacingClass').textContent = seasonData.racingClass;
-            
-            // Populate the input fields with current values
-            document.getElementById('seasonNumber').value = seasonData.seasonNumber;
-            document.getElementById('racingClass').value = seasonData.racingClass;
-            
-        }
+        if (!seasonData) return;
+
+        setTextIfPresent('seasonNumber', seasonData.seasonNumber || '');
+        setTextIfPresent('racingClass', seasonData.racingClass || '');
+        setTextIfPresent('currentSeasonNumber', seasonData.seasonNumber || '');
+        setTextIfPresent('currentRacingClass', seasonData.racingClass || '');
+        setValueIfPresent('seasonNumber', seasonData.seasonNumber || '');
+        setValueIfPresent('racingClass', seasonData.racingClass || '');
     });
 }
 
@@ -36,8 +57,13 @@ function fetchAndDisplaySeasonData() {
 function updateSeasonData(e) {
     if (e && e.preventDefault) e.preventDefault();
     
-    const seasonNumber = document.getElementById('seasonNumber').value;
-    const racingClass = document.getElementById('racingClass').value;
+    const seasonNumberInput = getElement('seasonNumber');
+    const racingClassInput = getElement('racingClass');
+
+    if (!seasonNumberInput || !racingClassInput) return;
+
+    const seasonNumber = seasonNumberInput.value;
+    const racingClass = racingClassInput.value;
     
     if (!seasonNumber || !racingClass) {
         alert('Please fill in both Season Number and Racing Class');
@@ -60,86 +86,104 @@ function updateSeasonData(e) {
 
 // This function fetches the driver data based on the user's UID and updates the HTML elements to reflect the individual user
 function fetchAndDisplayDriverData(uid) {
+    if (!firebaseDatabaseAvailable()) return;
+
+    const hasDriverElements = ['driverName', 'carName', 'raceCarImage'].some(id => getElement(id));
+    if (!hasDriverElements) return;
+
     const driversRef = firebase.database().ref('drivers/' + uid);
     driversRef.once('value', (snapshot) => {
         const driverData = snapshot.val();
         if (driverData) {
-            // Assuming you have elements with ID 'driverName', 'carName', and 'raceCarImage' in your HTML
-            document.getElementById('driverName').textContent = driverData.name || 'Unknown Driver';
-            document.getElementById('carName').textContent = driverData.carName || 'Unknown Car';
-            document.getElementById('raceCarImage').src = driverData.carImage || 'Logos_and_icons/Car_Thumbnails/placeholder.png';
+            setTextIfPresent('driverName', driverData.name || 'Unknown Driver');
+            setTextIfPresent('carName', driverData.carName || 'Unknown Car');
+            setImageIfPresent('raceCarImage', driverData.carImage || 'Logos_and_icons/Car_Thumbnails/placeholder.png');
         }
     });
 }
 
 // When the user's authentication state changes (i.e., they log in or out)
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        // User is logged in, fetch and display their driver data
-        fetchAndDisplayDriverData(user.uid);
-    } else {
-        // User is not logged in, show default or guest data
-        document.getElementById('driverName').textContent = 'Guest';
-        document.getElementById('carName').textContent = 'Default Car';
-        document.getElementById('raceCarImage').src = 'Logos_and_icons/Car_Thumbnails/placeholder.png';
-    }
-});
+if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged((user) => {
+        const hasDriverElements = ['driverName', 'carName', 'raceCarImage'].some(id => getElement(id));
+        if (!hasDriverElements) return;
+
+        if (user) {
+            fetchAndDisplayDriverData(user.uid);
+        } else {
+            setTextIfPresent('driverName', 'Guest');
+            setTextIfPresent('carName', 'Default Car');
+            setImageIfPresent('raceCarImage', 'Logos_and_icons/Car_Thumbnails/placeholder.png');
+        }
+    });
+}
 
 function authorizeAndRedirect(targetUrl) {
-    // Get the currently authenticated user
-    var user = firebase.auth().currentUser;
+    const user = firebase.auth().currentUser;
 
-    // Specify the authorized user IDs
-    var authorizedUserIDs = ["bkfSQcOqCOchZY5xmr0dFc2ZRp43", "f88AuHLw82RPilJjY620yyc4POc2" /* Add more user IDs as needed */];
-
-    // Check if the user is authenticated and their UID is in the authorized list
-    if (user && authorizedUserIDs.includes(user.uid)) {
-        // User is authorized, redirect to the target URL
-        window.location.href = targetUrl;
-    } else {
-        // User is not authorized, show a message or handle it as needed
-        alert("Access Denied: You are not authorized to access this page.");
+    if (!user) {
+        alert("Please sign in first.");
+        window.location.href = 'index.html';
+        return;
     }
+
+    firebase.database().ref('drivers/' + user.uid).once('value')
+        .then((snapshot) => {
+            const driver = snapshot.val();
+            if (driver && driver.active === true && driver.isAdmin === true) {
+                window.location.href = targetUrl;
+            } else {
+                alert("Access Denied: You must be an admin to access this page.");
+            }
+        })
+        .catch((error) => {
+            console.error("Error checking admin access:", error);
+            alert("Unable to verify admin access. Please try again.");
+        });
 }
 
 function fetchAndUpdateRaceInfo() {
+    if (!firebaseDatabaseAvailable()) return;
+
+    const raceElementIds = ['raceDate', 'raceLocation', 'raceTime', 'weather1', 'weather2', 'raceTrackImage'];
+    if (!raceElementIds.some(id => getElement(id))) return;
+
     var databaseRef = firebase.database().ref();
 
     // Fetch and update race date
     databaseRef.child("race_date").on('value', function(snapshot) {
-        document.getElementById("raceDate").innerText = (snapshot.val() || "No data");
+        setTextIfPresent("raceDate", (snapshot.val() || "No data"));
     });
 
     // Fetch and update race location
     databaseRef.child("race_location").on('value', function(snapshot) {
         const currentTrackName = snapshot.val() || "No data";
-        document.getElementById("raceLocation").innerText = currentTrackName;
+        setTextIfPresent("raceLocation", currentTrackName);
 
         // Find the corresponding image path for the current track
-        const trackInfo = trackData.find(track => track.name === currentTrackName);
+        const trackInfo = typeof trackData !== 'undefined'
+            ? trackData.find(track => track.name === currentTrackName)
+            : null;
         if (trackInfo) {
-            // Update the image source
-            document.getElementById("raceTrackImage").src = trackInfo.imagePath;
-            console.log("Image path found: ", trackInfo.imagePath);
+            setImageIfPresent("raceTrackImage", trackInfo.imagePath);
         } else {
-            // Fallback in case no track matches
-            document.getElementById("raceTrackImage").src = "Logos_and_icons/racetracks/TBD.png";
+            setImageIfPresent("raceTrackImage", "Logos_and_icons/racetracks/TBD.png");
         }
     });
 
     // Fetch and update race time
     databaseRef.child("race_time").on('value', function(snapshot) {
-        document.getElementById("raceTime").innerText = (snapshot.val() || "No data");
+        setTextIfPresent("raceTime", (snapshot.val() || "No data"));
     });
 
     // Fetch and update weather1
     databaseRef.child("weather1").on('value', function(snapshot) {
-        document.getElementById("weather1").innerText = (snapshot.val() || "No data");
+        setTextIfPresent("weather1", (snapshot.val() || "No data"));
     });
 
     // Fetch and update weather2
     databaseRef.child("weather2").on('value', function(snapshot) {
-        document.getElementById("weather2").innerText = (snapshot.val() || "No data");
+        setTextIfPresent("weather2", (snapshot.val() || "No data"));
     });
 }
 
@@ -172,9 +216,9 @@ function showAlert() {
 }
 
 function setupMenuDropdown() {
-    console.log("Setting up menu dropdown");
-
     const dropdown = document.getElementById('dropdown');
+    const gearIcon = document.getElementById('gearIcon') || document.querySelector('.fa-gear');
+
     if (gearIcon && dropdown) {
       gearIcon.addEventListener('click', function(event) {
         dropdown.classList.toggle('show');

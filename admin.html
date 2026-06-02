@@ -37,13 +37,13 @@
 <!-- Which script to use -->
     <script src="tracks.js"></script>
     <script defer src="checkAuth.js"></script>
-    <script src="script.js"></script>
+    <script defer src="script.js"></script>
 
 
 </head>
-<body>
+<body data-require-admin="true" data-denied-url="settings.html" style="display:none">
     <header>
-        <a href="javascript:void(0);" class="back-button" id="back" onclick="goBack()">
+        <a href="javascript:void(0);" class="back-button" id="back" onclick="window.location.href='main.html'">
             <img src="Logos_and_icons/back.png" alt="Back">
         </a>
         <a href="javascript:void(0);" class="headerbuttonnotselected" id="settings" onclick="window.location.href='settings.html'">

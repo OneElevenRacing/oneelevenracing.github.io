@@ -39,6 +39,8 @@
     firebase.initializeApp(firebaseConfig);
 
 
+    let currentDriverIsAdmin = false;
+
     document.addEventListener("DOMContentLoaded", () => {
         document.body.style.display = "none";  // ⛔ hide everything initially
 
@@ -53,13 +55,14 @@
             const driverSnap = await firebase.database().ref(`drivers/${user.uid}`).once("value");
             const driverData = driverSnap.val();
 
-            if (!driverData || !driverData.active) {
+            if (!driverData || driverData.active !== true) {
             console.warn("⚠️ User is not an active driver. Redirecting...");
             window.location.href = "championship.html";
             return;
             }
 
-            console.log("✅ Driver access confirmed:", user.uid);
+            currentDriverIsAdmin = driverData.isAdmin === true;
+            console.log("✅ Active driver access confirmed:", user.uid);
             document.body.style.display = "block"; // ✅ show page
         } catch (error) {
             console.error("❌ Error checking driver access:", error);
@@ -331,6 +334,24 @@
           raceSelect.appendChild(opt);
         });
 
+        function hasSavedResults(results) {
+          return results && Object.keys(results).length > 0;
+        }
+
+        function isRaceEventComplete(raceData) {
+          if (!hasSavedResults(raceData.resultsRace1)) return false;
+          return raceData.special === true || hasSavedResults(raceData.resultsRace2);
+        }
+
+        const nextRaceKey = raceKeysSorted.find(key => !isRaceEventComplete(seasonData.races[key] || {}));
+        if (nextRaceKey) {
+          raceSelect.value = nextRaceKey;
+        } else if (raceKeysSorted.length > 0) {
+          raceSelect.value = raceKeysSorted[raceKeysSorted.length - 1];
+          document.getElementById('raceSelectionStatus').textContent =
+            'All events already have saved results. Please choose carefully before submitting.';
+        }
+
         //--------------------------------------------------
         // Fetch active drivers (Realtime DB)
         //--------------------------------------------------
@@ -589,6 +610,16 @@
 
 
       const fieldName = raceNo===1 ? 'resultsRace1' : 'resultsRace2';
+      const seasonDoc = await firebase.firestore().collection('championships').doc(seasonId).get();
+      const existingRaceData = ((seasonDoc.data() || {}).races || {})[raceKey] || {};
+      const existingResults = existingRaceData[fieldName] || {};
+      if (Object.keys(existingResults).length > 0) {
+        const confirmOverwrite = confirm(
+          `Results are already saved for Race ${raceNo} of this event. Do you want to overwrite them?`
+        );
+        if (!confirmOverwrite) return;
+      }
+
       await firebase.firestore().collection('championships').doc(seasonId).update({
         [`races.${raceKey}.${fieldName}`]: results,
         ...bonus
@@ -641,11 +672,15 @@
     document.getElementById('clearRace1').onclick = () => clearRace(1);
     document.getElementById('clearRace2').onclick = () => clearRace(2);
 
+    if (!currentDriverIsAdmin) {
+      document.getElementById('clearRace1').style.display = 'none';
+      document.getElementById('clearRace2').style.display = 'none';
+    }
+
   }
   </script>
-</body>
 
-<footer>
+  <footer>
     <a href="javascript:void(0);" class="footerbuttonnotselected" id="simracing" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/simracing.png" alt="Sim Racing">
         SIM RACING
@@ -661,5 +696,6 @@
         SETTINGS
     </a>
   </footer>
+</body>
 
 </html>
