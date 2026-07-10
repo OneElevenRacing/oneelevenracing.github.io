@@ -16,11 +16,11 @@
       ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
     },
     "weather1": {
-      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && newData.exists()",
       ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
     },
     "weather2": {
-      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && root.child('drivers').child(auth.uid).child('isAdmin').val() == true && newData.exists()",
+      ".write": "auth != null && root.child('drivers').child(auth.uid).child('active').val() == true && newData.exists()",
       ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
     },
     "xoyondo_link": {

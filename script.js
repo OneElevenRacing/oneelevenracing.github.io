@@ -145,7 +145,7 @@ function authorizeAndRedirect(targetUrl) {
 function fetchAndUpdateRaceInfo() {
     if (!firebaseDatabaseAvailable()) return;
 
-    const raceElementIds = ['raceDate', 'raceLocation', 'raceTime', 'weather1', 'weather2', 'raceTrackImage'];
+    const raceElementIds = ['raceDate', 'raceLocation', 'raceTime', 'raceTrackImage'];
     if (!raceElementIds.some(id => getElement(id))) return;
 
     var databaseRef = firebase.database().ref();

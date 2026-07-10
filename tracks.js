@@ -232,24 +232,27 @@ function fetchCurrentData() {
     }
 }
 
+const RACE_WEEKDAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const RACE_MONTH_ABBRS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 // Utility function to convert date from "Day, xth Month" format to "yyyy-mm-dd" format
 function convertToInputDateFormat(dateString) {
-    // Accepts e.g. "Wed 21st Aug" or "Wed 21 Aug"
-    const parts = dateString.trim().split(/\s+/); // ["Wed","21st","Aug"]
+    // Accepts e.g. "Wed, 21st Aug", "Wed 21st Aug", or "Wed, Aug 21"
+    const parts = dateString.replace(/,/g, '').trim().split(/\s+/);
     if (parts.length < 3) return ''; // bail if unexpected
-  
-    const dayRaw = parts[1].toLowerCase().replace(/(st|nd|rd|th)$/, ''); // "21st" -> "21"
-    const monthAbbr = parts[2]; // "Aug"
-  
+
+    const secondPartIsDay = !isNaN(parseInt(parts[1], 10));
+    const dayRaw = (secondPartIsDay ? parts[1] : parts[2]).toLowerCase().replace(/(st|nd|rd|th)$/, '');
+    const monthAbbr = secondPartIsDay ? parts[2] : parts[1];
+
     const monthMap = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
     const m = monthMap[monthAbbr];
     const d = parseInt(dayRaw, 10);
     const y = new Date().getFullYear();
-  
+
     if (isNaN(d) || m == null) return '';
-  
-    const dt = new Date(Date.UTC(y, m, d));
-    return dt.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
 // Utility function to convert time from "h.mmam/pm" format to "HH:MM" format
@@ -326,15 +329,17 @@ function submitRaceDate() {
 
 // Converting the date to the correct style
 function formatDateToDayMonth(dateString) {
-    var date = new Date(dateString);
-    var options = { weekday: 'short', month: 'short', day: 'numeric' };
-    var formattedDate = date.toLocaleDateString('en-US', options);
+    var parts = dateString.split('-').map(Number);
 
-    var parts = formattedDate.split(' ');
-    var day = parseInt(parts[2]); // Get the day as an integer
+    if (parts.length !== 3 || parts.some(isNaN)) {
+        return 'TBD';
+    }
+
+    var date = new Date(parts[0], parts[1] - 1, parts[2]);
+    var day = date.getDate();
     var dayWithSuffix = day + getDaySuffix(day);
 
-    return parts[0] + ' ' + dayWithSuffix + ' ' + parts[1]; // Construct the date string
+    return RACE_WEEKDAY_ABBRS[date.getDay()] + ', ' + dayWithSuffix + ' ' + RACE_MONTH_ABBRS[date.getMonth()];
 }
 
 function getDaySuffix(day) {
