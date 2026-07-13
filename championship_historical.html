@@ -127,7 +127,7 @@
         font-weight: bold;
         }
 
-        td[data-dropped="true"] {
+        td[data-dropped="true"] .dropped-race-points {
         text-decoration: line-through;
         color: #999;
         opacity: 0.6;
@@ -749,6 +749,38 @@ function loadHistoricalPage() {
         OP2: "fastestLapOffPodiumRace2"
         };
 
+        function renderResultCell(cell, points, bonuses, isDropped) {
+            if (!cell) return;
+
+            if (isDropped) {
+                cell.dataset.dropped = "true";
+            } else {
+                delete cell.dataset.dropped;
+            }
+
+            cell.textContent = '';
+
+            const hasPoints = points !== '' && points !== null && points !== undefined;
+            if (hasPoints) {
+                const pointsSpan = document.createElement('span');
+                pointsSpan.className = isDropped ? 'race-points dropped-race-points' : 'race-points';
+                pointsSpan.textContent = String(points);
+                cell.appendChild(pointsSpan);
+            }
+
+            if (bonuses.length) {
+                if (hasPoints) cell.appendChild(document.createTextNode(' '));
+                const bonusSpan = document.createElement('span');
+                bonusSpan.className = 'bonus-points';
+                bonusSpan.textContent = `(${bonuses.join('+')})`;
+                cell.appendChild(bonusSpan);
+            }
+
+            if (!hasPoints && !bonuses.length) {
+                cell.textContent = '\u00A0';
+            }
+        }
+
         // Loop over races again to populate results
         sortedRaceKeys.forEach((raceKey, raceIndex) => {
         const race = races[raceKey];
@@ -788,17 +820,10 @@ function loadHistoricalPage() {
             const cell2 = row2.children[driverIndex];
 
             const dropped = window.oneElevenDrivers.droppedIndexes[uid] || [];
-            if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
-            if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
+            const isDropped = dropped.includes(raceIndex);
 
-            cell1.textContent =
-                (points1 ? points1 : '') +
-                (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
-
-            cell2.textContent =
-                (points2 ? points2 : '') +
-                (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
-
+            renderResultCell(cell1, points1, bonuses1, isDropped);
+            renderResultCell(cell2, points2, bonuses2, isDropped);
 
             // Set data attribute for bonus point styling for table
             if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+');

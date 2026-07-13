@@ -141,7 +141,7 @@
         font-weight: bold;
         }
 
-        td[data-dropped="true"] {
+        td[data-dropped="true"] .dropped-race-points {
         text-decoration: line-through;
         color: #999;
         opacity: 0.6;
@@ -795,6 +795,38 @@
         scrollWrapper.appendChild(table);
         raceResultsSection.appendChild(scrollWrapper);
 
+        function renderResultCell(cell, points, bonuses, isDropped) {
+            if (!cell) return;
+
+            if (isDropped) {
+                cell.dataset.dropped = "true";
+            } else {
+                delete cell.dataset.dropped;
+            }
+
+            cell.textContent = '';
+
+            const hasPoints = points !== '' && points !== null && points !== undefined;
+            if (hasPoints) {
+                const pointsSpan = document.createElement('span');
+                pointsSpan.className = isDropped ? 'race-points dropped-race-points' : 'race-points';
+                pointsSpan.textContent = String(points);
+                cell.appendChild(pointsSpan);
+            }
+
+            if (bonuses.length) {
+                if (hasPoints) cell.appendChild(document.createTextNode(' '));
+                const bonusSpan = document.createElement('span');
+                bonusSpan.className = 'bonus-points';
+                bonusSpan.textContent = `(${bonuses.join('+')})`;
+                cell.appendChild(bonusSpan);
+            }
+
+            if (!hasPoints && !bonuses.length) {
+                cell.textContent = '\u00A0';
+            }
+        }
+
         // === Populate results (with data-bonus for colours) ===
         let rowPointer = 0;
         sortedRaceKeys.forEach((raceKey, raceIndex) => {
@@ -830,14 +862,12 @@
             }
 
             const dropped = window.oneElevenDrivers.droppedIndexes[uid] || [];
+            const isDropped = dropped.includes(raceIndex);
 
             // Row 1
             const cell1 = row1.children[driverIndex + 1];
             if (cell1) {
-                if (dropped.includes(raceIndex)) cell1.dataset.dropped = "true";
-                const text1 = (points1 ? String(points1) : '') +
-                            (bonuses1.length ? ` (${bonuses1.join('+')})` : '');
-                cell1.textContent = text1 || '\u00A0';
+                renderResultCell(cell1, points1, bonuses1, isDropped);
                 // Bonus colour tags
                 if (bonuses1.length) cell1.dataset.bonus = bonuses1.join('+'); // <-- PP/FL/OP selectors match
                 if (bonuses1.includes("PP") && bonuses1.includes("FL")) cell1.dataset.combo = "pole-fl";
@@ -847,10 +877,7 @@
             // Row 2 (blank for special)
             const cell2 = row2.children[driverIndex];
             if (!isSpecial && cell2) {
-                if (dropped.includes(raceIndex)) cell2.dataset.dropped = "true";
-                const text2 = (points2 ? String(points2) : '') +
-                            (bonuses2.length ? ` (${bonuses2.join('+')})` : '');
-                cell2.textContent = text2 || '\u00A0';
+                renderResultCell(cell2, points2, bonuses2, isDropped);
                 if (bonuses2.length) cell2.dataset.bonus = bonuses2.join('+'); // <-- PP/FL/OP selectors match
                 if (bonuses2.includes("PP") && bonuses2.includes("FL")) cell2.dataset.combo = "pole-fl";
                 if (bonuses2.includes("PP") && bonuses2.includes("OP")) cell2.dataset.combo = "pole-op";
