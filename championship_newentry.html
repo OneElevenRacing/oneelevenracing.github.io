@@ -514,10 +514,23 @@
     //--------------------------------------------------
     //   4. Pre‑loading helper
     //--------------------------------------------------
-    function preloadDropdowns(resultsObj, dropdowns) {
+    function preloadDropdowns(resultsObj, dropdowns, savedParticipants) {
       const dropdownByPos = {};
       dropdowns.forEach(sel => { sel.value=''; dropdownByPos[+sel.dataset.position] = sel; });
 
+      // Newer results store the real participants explicitly. This avoids
+      // mistaking a lone DNS driver's artificial last place for a real result.
+      if (Array.isArray(savedParticipants)) {
+        const participantSet = new Set(savedParticipants);
+        Object.entries(resultsObj).forEach(([uid,pos]) => {
+          if (!participantSet.has(uid)) return;
+          const drop = dropdownByPos[pos];
+          if (drop) drop.value = uid;
+        });
+        return;
+      }
+
+      // Legacy fallback for results saved before participant lists existed.
       const counts = {};
       Object.values(resultsObj).forEach(p => counts[p] = (counts[p]||0)+1);
       const maxPos        = Math.max(...Object.keys(counts).map(Number), 0);
@@ -541,8 +554,8 @@
           const isSpecial = raceData.special === true;
 
           // Preload results
-          preloadDropdowns(raceData.resultsRace1 || {}, race1Drops);
-          preloadDropdowns(raceData.resultsRace2 || {}, race2Drops);
+          preloadDropdowns(raceData.resultsRace1 || {}, race1Drops, raceData.participantsRace1);
+          preloadDropdowns(raceData.resultsRace2 || {}, race2Drops, raceData.participantsRace2);
 
           // Preload bonus fields
           bonusFields.forEach(f => {
@@ -610,6 +623,7 @@
 
 
       const fieldName = raceNo===1 ? 'resultsRace1' : 'resultsRace2';
+      const participantsField = raceNo===1 ? 'participantsRace1' : 'participantsRace2';
       const seasonDoc = await firebase.firestore().collection('championships').doc(seasonId).get();
       const existingRaceData = ((seasonDoc.data() || {}).races || {})[raceKey] || {};
       const existingResults = existingRaceData[fieldName] || {};
@@ -622,6 +636,7 @@
 
       await firebase.firestore().collection('championships').doc(seasonId).update({
         [`races.${raceKey}.${fieldName}`]: results,
+        [`races.${raceKey}.${participantsField}`]: chosen,
         ...bonus
       });
       alert(`Race ${raceNo} results saved!`);
@@ -638,6 +653,7 @@
       }
 
       const fieldName = raceNo === 1 ? 'resultsRace1' : 'resultsRace2';
+      const participantsField = raceNo === 1 ? 'participantsRace1' : 'participantsRace2';
 
       // Bonus fields
       const bonusFieldIds = raceNo === 1
@@ -651,6 +667,7 @@
 
       await firebase.firestore().collection('championships').doc(seasonId).update({
         [`races.${raceKey}.${fieldName}`]: firebase.firestore.FieldValue.delete(),
+        [`races.${raceKey}.${participantsField}`]: firebase.firestore.FieldValue.delete(),
         ...bonusUpdates
       });
 

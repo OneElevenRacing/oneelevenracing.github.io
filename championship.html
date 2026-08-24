@@ -588,6 +588,12 @@
             const race = races[raceKey] || {};
             const r1 = race.resultsRace1 || {};
             const r2 = race.resultsRace2 || {};
+            const participantsR1 = Array.isArray(race.participantsRace1)
+                ? new Set(race.participantsRace1)
+                : null;
+            const participantsR2 = Array.isArray(race.participantsRace2)
+                ? new Set(race.participantsRace2)
+                : null;
 
             // R1
             const allR1 = Object.values(r1);
@@ -605,8 +611,12 @@
             driverUIDs.forEach(uid => {
             const pos1 = r1[uid];
             const pos2 = r2[uid];
-            const racedR1 = pos1 > 0 && pos1 <= realR1Cutoff;
-            const racedR2 = pos2 > 0 && pos2 <= realR2Cutoff;
+            const racedR1 = participantsR1
+                ? participantsR1.has(uid)
+                : pos1 > 0 && pos1 <= realR1Cutoff;
+            const racedR2 = participantsR2
+                ? participantsR2.has(uid)
+                : pos2 > 0 && pos2 <= realR2Cutoff;
             if (racedR1 || racedR2) eventsPerDriver[uid]++;
             });
         });
