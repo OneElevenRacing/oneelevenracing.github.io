@@ -211,26 +211,57 @@ input[type="radio"]:disabled {
 
 @media screen and (max-width: 600px) {
     .poll-heading {
-        grid-template-columns: 70px minmax(0, 1fr) 70px;
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
         gap: 2px;
-        width: calc(100% - 30px);
+        width: calc(100% - 16px);
     }
 
     #responsesTable,
     .poll-table {
         width: 100%;
-        min-width: 390px;
+        min-width: 0;
+        table-layout: fixed;
     }
 
     .table-container,
     .poll-table-scroll {
-        padding: 0 15px;
+        padding: 0 8px;
     }
 
     #pollTitleHeader {
         padding-left: 2px;
         padding-right: 2px;
-        font-size: 1em;
+        overflow: hidden;
+        font-size: clamp(7px, 2.3vw, 12px);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #responsesTable th,
+    #responsesTable td,
+    .poll-table th,
+    .poll-table td {
+        overflow: hidden;
+        padding: 3px 1px;
+        font-size: clamp(7px, 2.15vw, 9px);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .poll-weekday-label,
+    .poll-date-label {
+        display: block;
+        line-height: 1.2;
+    }
+
+    #responsesTable th:first-child,
+    #responsesTable td:first-child {
+        width: 58px;
+    }
+
+    .poll-table th:first-child,
+    .poll-table td:first-child {
+        width: 32px !important;
     }
 
     .poll-nav-button {

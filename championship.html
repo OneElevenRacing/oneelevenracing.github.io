@@ -179,6 +179,10 @@
         border: 1px solid #333;
         }
 
+        .standings-header-mobile {
+        display: none;
+        }
+
         /* Podium colours for top 3 championship rows */
         #current-standings table tr.podium-1 td {
         background-color: gold;
@@ -660,6 +664,155 @@
         }
 
         @media (max-width: 600px) {
+            #current-standings .standings-scroll,
+            #race-results .scroll-container {
+            width: calc(100% - 16px);
+            }
+
+            #current-standings .standings-scroll table,
+            #race-results .scroll-container table {
+            width: 100%;
+            min-width: 0;
+            table-layout: fixed;
+            }
+
+            #current-standings .standings-scroll th,
+            #current-standings .standings-scroll td,
+            #race-results .scroll-container th,
+            #race-results .scroll-container td {
+            overflow: hidden;
+            padding: 2px !important;
+            font-size: clamp(6.5px, 2vw, 8px);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            }
+
+            #current-standings .standings-scroll th:first-child,
+            #current-standings .standings-scroll td:first-child {
+            position: sticky;
+            left: 0;
+            width: 7%;
+            min-width: 0;
+            background-color: #fff;
+            z-index: 3;
+            }
+
+            #current-standings .standings-scroll thead th:first-child {
+            background-color: #000;
+            z-index: 4;
+            }
+
+            #current-standings .standings-header-full {
+            display: none;
+            }
+
+            #current-standings .standings-header-mobile {
+            display: inline;
+            }
+
+            #current-standings .standings-scroll th,
+            #current-standings .standings-scroll td {
+            font-size: clamp(7.5px, 2.3vw, 9px);
+            }
+
+            #current-standings .standings-scroll table {
+            table-layout: auto;
+            }
+
+            #current-standings .standings-pos-col {
+            width: 7%;
+            }
+
+            #current-standings .standings-driver-col {
+            width: 1%;
+            }
+
+            #current-standings .standings-points-col {
+            width: 10%;
+            }
+
+            #current-standings .standings-diff-col,
+            #current-standings .standings-wins-col,
+            #current-standings .standings-poles-col {
+            width: 9%;
+            }
+
+            #current-standings .standings-fastest-laps-col {
+            width: 18%;
+            }
+
+            #current-standings .standings-podiums-col,
+            #current-standings .standings-events-col {
+            width: 10%;
+            }
+
+            #current-standings .standings-scroll tr.podium-1 td:first-child {
+            background-color: gold;
+            }
+
+            #current-standings .standings-scroll tr.podium-2 td:first-child {
+            background-color: silver;
+            }
+
+            #current-standings .standings-scroll tr.podium-3 td:first-child {
+            background-color: #cd7f32;
+            }
+
+            #race-results .scroll-container th.driver-col,
+            #race-results .scroll-container td.driver-col {
+            width: auto;
+            min-width: 0;
+            max-width: none;
+            }
+
+            #race-results .scroll-container th:first-child,
+            #race-results .scroll-container td.race-label {
+            width: 78px;
+            max-width: 78px;
+            }
+
+            #calcModal .calc-table {
+            width: 100% !important;
+            table-layout: fixed;
+            }
+
+            #calcModal .calc-table th,
+            #calcModal .calc-table td {
+            overflow: hidden;
+            padding: 3px 1px !important;
+            font-size: clamp(6.5px, 2vw, 8px);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            }
+
+            #calcModal .calc-table th.pos-col,
+            #calcModal .calc-table td.pos-col {
+            width: 24px;
+            }
+
+            #calcModal .calc-table th.driver-name-col,
+            #calcModal .calc-table td.driver-name-col {
+            width: 76px;
+            }
+
+            #calcModal .calc-driver-cell {
+            min-width: 0;
+            gap: 3px;
+            }
+
+            #calcModal .calc-driver-button {
+            min-width: 0;
+            overflow: hidden;
+            font-size: inherit;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            }
+
+            #calcModal .calc-compare-button {
+            padding: 2px 4px;
+            font-size: 6.5px;
+            }
+
             #calcModal .scenario-heading {
             align-items: flex-start;
             flex-direction: column;
@@ -1258,9 +1411,32 @@
         const standingsThead = document.createElement('thead');
         const headRow = document.createElement('tr');
 
-        ['Position', 'Driver', 'Points', 'Diff', 'Wins', 'Pole Positions', 'Fastest Laps', 'Podiums', 'Events'].forEach(label => {
+        const standingsColumns = [
+            { label: 'Position', mobileLabel: 'Pos', className: 'standings-pos-col' },
+            { label: 'Driver', className: 'standings-driver-col' },
+            { label: 'Points', className: 'standings-points-col' },
+            { label: 'Diff', className: 'standings-diff-col' },
+            { label: 'Wins', className: 'standings-wins-col' },
+            { label: 'Pole Positions', mobileLabel: 'Poles', className: 'standings-poles-col' },
+            { label: 'Fastest Laps', className: 'standings-fastest-laps-col' },
+            { label: 'Podiums', className: 'standings-podiums-col' },
+            { label: 'Events', className: 'standings-events-col' }
+        ];
+
+        standingsColumns.forEach(({ label, mobileLabel, className }) => {
             const th = document.createElement('th');
-            th.textContent = label;
+            th.className = className;
+
+            const fullLabel = document.createElement('span');
+            fullLabel.className = 'standings-header-full';
+            fullLabel.textContent = label;
+            th.appendChild(fullLabel);
+
+            const compactLabel = document.createElement('span');
+            compactLabel.className = 'standings-header-mobile';
+            compactLabel.textContent = mobileLabel || label;
+            th.appendChild(compactLabel);
+
             headRow.appendChild(th);
         });
 
@@ -1273,11 +1449,12 @@
             if (index === 1) row.classList.add('podium-2');
             if (index === 2) row.classList.add('podium-3');
 
-            const pos  = document.createElement('td'); pos.textContent = index + 1;
-            const name = document.createElement('td'); name.textContent = window.oneElevenDrivers.names[uid] || '(Unknown)';
-            const pts  = document.createElement('td'); pts.textContent  = total;
+            const pos  = document.createElement('td'); pos.className = 'standings-pos-col'; pos.textContent = index + 1;
+            const name = document.createElement('td'); name.className = 'standings-driver-col'; name.textContent = window.oneElevenDrivers.names[uid] || '(Unknown)';
+            const pts  = document.createElement('td'); pts.className = 'standings-points-col'; pts.textContent  = total;
 
             const diff = document.createElement('td');
+            diff.className = 'standings-diff-col';
             if (index === 0) {
             diff.textContent = "n/a";
             } else {
@@ -1296,18 +1473,18 @@
             row.appendChild(pts);
             row.appendChild(diff);
 
-            const wins    = document.createElement('td'); wins.textContent    = winsPerDriver[uid] || 0;
-            const poles   = document.createElement('td'); poles.textContent   = polePositionsPerDriver[uid] || 0;
+            const wins    = document.createElement('td'); wins.className = 'standings-wins-col'; wins.textContent = winsPerDriver[uid] || 0;
+            const poles   = document.createElement('td'); poles.className = 'standings-poles-col'; poles.textContent = polePositionsPerDriver[uid] || 0;
 
             const flObj   = fastestLapsPerDriver[uid] || { FL: 0, OP: 0 };
             const flText  = flObj.FL && flObj.OP ? `${flObj.FL} FL + ${flObj.OP} OP`
                         : flObj.FL            ? `${flObj.FL} FL`
                         : flObj.OP            ? `${flObj.OP} OP`
                                                 : "0";
-            const fl      = document.createElement('td'); fl.textContent      = flText;
+            const fl      = document.createElement('td'); fl.className = 'standings-fastest-laps-col'; fl.textContent = flText;
 
-            const podiums = document.createElement('td'); podiums.textContent = podiumsPerDriver[uid] || 0;
-            const events  = document.createElement('td'); events.textContent  = eventsPerDriver[uid] || 0;
+            const podiums = document.createElement('td'); podiums.className = 'standings-podiums-col'; podiums.textContent = podiumsPerDriver[uid] || 0;
+            const events  = document.createElement('td'); events.className = 'standings-events-col'; events.textContent = eventsPerDriver[uid] || 0;
 
             [wins, poles, fl, podiums, events].forEach(td => {
             td.style.border = '1px solid #ccc';

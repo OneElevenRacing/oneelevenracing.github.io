@@ -1091,7 +1091,7 @@
           <thead>
             <tr>
               <th class="pos-col" style="padding:6px;border:1px solid #333;">Pos</th>
-              <th style="padding:6px;border:1px solid #333;text-align:left;">Driver</th>
+              <th class="driver-name-col" style="padding:6px;border:1px solid #333;text-align:left;">Driver</th>
               <th style="padding:6px;border:1px solid #333;">Current</th>
               <th style="padding:6px;border:1px solid #333;">Min</th>
               <th style="padding:6px;border:1px solid #333;">Max</th>
@@ -1117,7 +1117,7 @@
           <td class="pos-col" style="padding:6px;border:1px solid #ccc;" title="${locked ? `Locked at P${currentRank}` : 'Current position'}" aria-label="${locked ? `Locked at P${currentRank}` : 'Current position'}">
             ${locked ? '🏁' : currentRank}
           </td>
-          <td style="padding:6px;border:1px solid #ccc;text-align:left;">
+          <td class="driver-name-col" style="padding:6px;border:1px solid #ccc;text-align:left;">
             <div class="calc-driver-cell">
               <button type="button" class="calc-driver-button" data-driver-uid="${escapeHtml(uid)}" aria-expanded="false" aria-controls="nextRaceScenarioPanel">${escapeHtml(name)}</button>
               <button type="button" class="calc-compare-button" data-compare-uid="${escapeHtml(uid)}" hidden>Compare</button>

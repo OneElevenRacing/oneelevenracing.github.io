@@ -348,7 +348,7 @@
     headerRow.appendChild(document.createElement("th"));
     pollOptions.forEach((day, index) => {
       const th = document.createElement("th");
-      th.textContent = day.replace(/\./g, "/");
+      setPollOptionHeading(th, day);
       if (pastOptions[index]) {
         th.classList.add("past-date");
         th.title = "This date has passed and is read-only";
@@ -468,7 +468,7 @@
     headerRow.innerHTML = "<th>Name</th>";
     pollOptions.forEach(option => {
       const th = document.createElement("th");
-      th.textContent = option.replace(/\./g, "/");
+      setPollOptionHeading(th, option);
       headerRow.appendChild(th);
     });
     document.querySelector("#responsesTable tbody").innerHTML = "";
@@ -478,6 +478,26 @@
       emptyTotals[option] = { yes: 0, no: 0, maybe: 0 };
     });
     updateTotalsRow(emptyTotals, pollOptions);
+  }
+
+  function setPollOptionHeading(heading, option) {
+    const displayText = option.replace(/\./g, "/");
+    const parts = displayText.match(/^(.*?)\s+(\d{1,2}\/\d{1,2})$/);
+
+    if (!parts) {
+      heading.textContent = displayText;
+      return;
+    }
+
+    const weekday = document.createElement("span");
+    weekday.className = "poll-weekday-label";
+    weekday.textContent = parts[1];
+
+    const date = document.createElement("span");
+    date.className = "poll-date-label";
+    date.textContent = parts[2];
+
+    heading.append(weekday, document.createTextNode(" "), date);
   }
 
   function subscribeToResponses(pollId, pollOptions, renderVersion) {
