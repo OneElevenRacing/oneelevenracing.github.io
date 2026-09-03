@@ -105,7 +105,17 @@
       </a>
   </header>
 
-    <h2 id="pollTitleHeader" style="font-size: 1.2em; margin-top: 35px;">Latest Poll </h2>
+    <div class="poll-heading">
+      <button type="button" id="nextPollButton" class="poll-nav-button" aria-label="View next week's poll" hidden>
+        <span class="poll-nav-arrow" aria-hidden="true"></span>
+      </button>
+
+      <h2 id="pollTitleHeader">Latest Poll</h2>
+
+      <button type="button" id="previousPollButton" class="poll-nav-button" aria-label="View previous week's poll" hidden>
+        <span class="poll-nav-arrow" aria-hidden="true"></span>
+      </button>
+    </div>
 
     <!-- Poll table for results -->
     <div class="table-container">
@@ -124,178 +134,320 @@
       </table>
     </div>
 
-    <h2 style="font-size: 1.2em; margin-top: 20px">Your Availability</h2>
+    <h2 class="availability-heading">Your Availability</h2>
 
-    <div id="latestPollContainer" style="margin: 15px;"></div>
+    <div id="latestPollContainer"></div>
 
 <!-- Main script: fetch poll data and display it -->
 <script>
+  let availablePolls = [];
+  let selectedPollIndex = 0;
+  let unsubscribeResponses = null;
+  let pollRenderVersion = 0;
+  let responseRenderVersion = 0;
+
+  const nextPollButton = document.getElementById("nextPollButton");
+  const previousPollButton = document.getElementById("previousPollButton");
+
+  nextPollButton.addEventListener("click", () => {
+    if (selectedPollIndex > 0) {
+      selectedPollIndex--;
+      renderSelectedPoll();
+    }
+  });
+
+  previousPollButton.addEventListener("click", () => {
+    if (selectedPollIndex < availablePolls.length - 1) {
+      selectedPollIndex++;
+      renderSelectedPoll();
+    }
+  });
+
   function startPollPage() {
-    console.log("Fetching latest poll...");
-    db.collection("polls").orderBy("createdAt", "desc").limit(1)
+    console.log("Fetching polls...");
+    db.collection("polls")
     .onSnapshot((snapshot) => {
       console.log("Snapshot received");
-      const latestContainer = document.getElementById('latestPollContainer');
-      latestContainer.innerHTML = "";
+      const selectedPollId = availablePolls[selectedPollIndex]?.id;
 
       if (snapshot.empty) {
         console.log("No polls found.");
-        latestContainer.textContent = "No polls found.";
+        availablePolls = [];
+        selectedPollIndex = 0;
+        clearPollDisplay("No polls found.");
         return;
       }
 
-      // The single poll doc
-      const doc = snapshot.docs[0];
-      const poll = doc.data();
-      const pollId = doc.id;
-      console.log("Poll ID:", pollId, "Data:", poll);
+      availablePolls = snapshot.docs.map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      })).sort(comparePollsNewestFirst);
 
-      // If user isn't signed in, do nothing
-      const user = firebase.auth().currentUser;
-      if (!user) {
-        console.log("User not signed in, aborting.");
+      const retainedIndex = availablePolls.findIndex(poll => poll.id === selectedPollId);
+      selectedPollIndex = retainedIndex >= 0 ? retainedIndex : 0;
+      renderSelectedPoll();
+    }, error => {
+      console.error("Error fetching polls:", error);
+      clearPollDisplay("Unable to load polls. Please try again.");
+    });
+  }
+
+  function comparePollsNewestFirst(a, b) {
+    const weekDifference = getPollWeekStartTime(b.data) - getPollWeekStartTime(a.data);
+    if (weekDifference !== 0) return weekDifference;
+    return getCreatedAtTime(b.data) - getCreatedAtTime(a.data);
+  }
+
+  function getCreatedAtTime(poll) {
+    if (poll.createdAt?.toDate) return poll.createdAt.toDate().getTime();
+    const createdAt = new Date(poll.createdAt || 0).getTime();
+    return Number.isNaN(createdAt) ? 0 : createdAt;
+  }
+
+  function getPollWeekStartTime(poll) {
+    if (typeof poll.weekStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(poll.weekStart)) {
+      return Date.parse(`${poll.weekStart}T00:00:00Z`);
+    }
+
+    if (poll.weekStart?.toDate) {
+      return poll.weekStart.toDate().getTime();
+    }
+
+    const firstOptionDate = (poll.options?.[0] || "").match(/(\d{1,2})[./](\d{1,2})/);
+    if (firstOptionDate) {
+      const titleYear = (poll.title || "").match(/^\s*(\d{4})\b/);
+      const createdDate = new Date(getCreatedAtTime(poll));
+      let year = titleYear ? Number(titleYear[1]) : createdDate.getUTCFullYear();
+
+      if (!titleYear && !Number.isNaN(createdDate.getTime())) {
+        const optionMonth = Number(firstOptionDate[2]);
+        const createdMonth = createdDate.getUTCMonth() + 1;
+        if (createdMonth === 12 && optionMonth === 1) year++;
+        if (createdMonth === 1 && optionMonth === 12) year--;
+      }
+
+      return Date.UTC(year, Number(firstOptionDate[2]) - 1, Number(firstOptionDate[1]));
+    }
+
+    return getCreatedAtTime(poll);
+  }
+
+  function formatDateKeyFromTime(time) {
+    const date = new Date(time);
+    return [
+      date.getUTCFullYear(),
+      String(date.getUTCMonth() + 1).padStart(2, "0"),
+      String(date.getUTCDate()).padStart(2, "0")
+    ].join("-");
+  }
+
+  function getOptionDateKey(poll, option, optionIndex) {
+    const expectedTime = getPollWeekStartTime(poll) + (optionIndex * 86400000);
+    const optionDate = option.match(/(\d{1,2})[./](\d{1,2})/);
+    if (!optionDate) return formatDateKeyFromTime(expectedTime);
+
+    const expectedYear = new Date(expectedTime).getUTCFullYear();
+    const day = Number(optionDate[1]);
+    const month = Number(optionDate[2]) - 1;
+    const possibleTimes = [expectedYear - 1, expectedYear, expectedYear + 1]
+      .map(year => Date.UTC(year, month, day));
+    const closestTime = possibleTimes.reduce((closest, candidate) =>
+      Math.abs(candidate - expectedTime) < Math.abs(closest - expectedTime) ? candidate : closest
+    );
+
+    return formatDateKeyFromTime(closestTime);
+  }
+
+  function getUkTodayKey() {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(new Date());
+    const value = type => parts.find(part => part.type === type)?.value;
+    return `${value("year")}-${value("month")}-${value("day")}`;
+  }
+
+  function updatePollNavigation() {
+    nextPollButton.hidden = selectedPollIndex === 0 || availablePolls.length === 0;
+    previousPollButton.hidden = selectedPollIndex >= availablePolls.length - 1;
+  }
+
+  function clearPollDisplay(message) {
+    pollRenderVersion++;
+    responseRenderVersion++;
+    if (unsubscribeResponses) {
+      unsubscribeResponses();
+      unsubscribeResponses = null;
+    }
+
+    document.getElementById("pollTitleHeader").textContent = "Race Availability";
+    document.getElementById("latestPollContainer").textContent = message;
+    document.getElementById("pollOptionsHeader").innerHTML = "<th>Name</th>";
+    document.querySelector("#responsesTable tbody").innerHTML = "";
+    document.getElementById("totalsRow").innerHTML = "<th>Total</th>";
+    updatePollNavigation();
+  }
+
+  async function renderSelectedPoll() {
+    const pollRecord = availablePolls[selectedPollIndex];
+    if (!pollRecord) {
+      clearPollDisplay("No polls found.");
+      return;
+    }
+
+    const renderVersion = ++pollRenderVersion;
+    const poll = pollRecord.data;
+    const pollId = pollRecord.id;
+    const pollOptions = poll.options || [];
+    const latestContainer = document.getElementById("latestPollContainer");
+    const user = firebase.auth().currentUser;
+
+    if (!user) return;
+
+    document.getElementById("pollTitleHeader").textContent = poll.title || "Untitled Poll";
+    latestContainer.innerHTML = '<p class="poll-loading">Loading your availability...</p>';
+    updatePollNavigation();
+    prepareResponsesTable(pollOptions);
+    subscribeToResponses(pollId, pollOptions, renderVersion);
+
+    try {
+      const responseDocument = await db.collection("polls").doc(pollId)
+        .collection("responses").doc(user.uid).get();
+      if (renderVersion !== pollRenderVersion) return;
+
+      const previousResponses = responseDocument.exists
+        ? (responseDocument.data().dayResponses || {})
+        : {};
+      buildAvailabilityTable(pollRecord, previousResponses, user, renderVersion);
+    } catch (error) {
+      if (renderVersion !== pollRenderVersion) return;
+      console.error("Error fetching previous responses:", error);
+      latestContainer.textContent = "Unable to load your availability. Please try again.";
+    }
+  }
+
+  function buildAvailabilityTable(pollRecord, previousResponses, user, renderVersion) {
+    const poll = pollRecord.data;
+    const pollOptions = poll.options || [];
+    const pollId = pollRecord.id;
+    const todayKey = getUkTodayKey();
+    const pastOptions = pollOptions.map((option, index) =>
+      getOptionDateKey(poll, option, index) < todayKey
+    );
+    const hasEditableDates = pastOptions.some(isPast => !isPast);
+    const latestContainer = document.getElementById("latestPollContainer");
+    latestContainer.innerHTML = "";
+
+    const selectionTable = document.createElement("table");
+    selectionTable.classList.add("poll-table");
+    selectionTable.border = "1";
+
+    const headerRow = document.createElement("tr");
+    headerRow.appendChild(document.createElement("th"));
+    pollOptions.forEach((day, index) => {
+      const th = document.createElement("th");
+      th.textContent = day.replace(/\./g, "/");
+      if (pastOptions[index]) {
+        th.classList.add("past-date");
+        th.title = "This date has passed and is read-only";
+      }
+      headerRow.appendChild(th);
+    });
+    selectionTable.appendChild(headerRow);
+
+    const statuses = [
+      { value: "yes", symbol: "✓", color: "lightgreen", textColor: "#2d6b2d" },
+      { value: "maybe", symbol: "o", color: "khaki", textColor: "#625a2e" },
+      { value: "no", symbol: "x", color: "lightcoral", textColor: "#752f2f" }
+    ];
+
+    statuses.forEach(({ value, symbol, color, textColor }) => {
+      const row = document.createElement("tr");
+      const rowLabelCell = document.createElement("td");
+      rowLabelCell.textContent = symbol;
+      rowLabelCell.style.backgroundColor = color;
+      rowLabelCell.style.color = textColor;
+      rowLabelCell.style.fontWeight = "bold";
+      rowLabelCell.style.textAlign = "center";
+      rowLabelCell.style.width = "60px";
+      row.appendChild(rowLabelCell);
+
+      pollOptions.forEach((day, index) => {
+        const cell = document.createElement("td");
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `option_${index}`;
+        radio.value = value;
+        radio.dataset.optionIndex = index;
+        radio.checked = previousResponses[day] === value;
+        radio.disabled = pastOptions[index];
+        radio.setAttribute("aria-label", `${value} for ${day}`);
+
+        if (pastOptions[index]) cell.classList.add("past-date");
+        cell.appendChild(radio);
+        row.appendChild(cell);
+      });
+      selectionTable.appendChild(row);
+    });
+
+    latestContainer.appendChild(selectionTable);
+
+    const submitBtn = document.createElement("button");
+    submitBtn.textContent = hasEditableDates ? "Submit Availability" : "Poll Closed";
+    submitBtn.disabled = !hasEditableDates;
+    latestContainer.appendChild(submitBtn);
+
+    const statusP = document.createElement("p");
+    statusP.className = "availability-status";
+    latestContainer.appendChild(statusP);
+
+    submitBtn.addEventListener("click", async () => {
+      if (renderVersion !== pollRenderVersion) return;
+      const currentUser = firebase.auth().currentUser;
+      if (!currentUser || currentUser.uid !== user.uid) {
+        statusP.textContent = "You must be signed in to submit availability.";
         return;
       }
 
-      console.log("User signed in:", user.uid);
+      // Recheck the UK date in case the page has remained open across midnight.
+      const currentTodayKey = getUkTodayKey();
+      const newlyClosedDate = pollOptions.some((option, index) =>
+        !pastOptions[index] && getOptionDateKey(poll, option, index) < currentTodayKey
+      );
+      if (newlyClosedDate) {
+        renderSelectedPoll();
+        return;
+      }
 
-      // Update the header with the poll title
-      document.getElementById('pollTitleHeader').textContent = poll.title || "No poll available";
+      // Begin with the saved answers so past dates remain completely unchanged.
+      const dayResponses = { ...previousResponses };
+      pollOptions.forEach((option, index) => {
+        if (pastOptions[index]) return;
+        const selectedRadio = selectionTable.querySelector(`input[data-option-index="${index}"]:checked`);
+        dayResponses[option] = selectedRadio ? selectedRadio.value : "no";
+      });
 
-      // Predefine previousResponses for availability
-      let previousResponses = {};
-
-      console.log("Fetching user's previous responses...");
-      // 1) Fetch the user's previous responses
-      db.collection("polls").doc(pollId).collection("responses").doc(user.uid)
-        .get()
-        .then(docSnapshot => {
-          if (docSnapshot.exists) {
-            console.log("User has previous responses:", docSnapshot.data().dayResponses);
-            previousResponses = docSnapshot.data().dayResponses || {};
-          } else {
-            console.log("User has no previous responses.");
-            previousResponses = {};
-          }
-
-          console.log("Building new table layout...");
-          // 1) Create the table
-          const selectionTable = document.createElement('table');
-          selectionTable.classList.add("poll-table");
-          selectionTable.style.margin = "auto";
-          selectionTable.border = "1";
-
-          // 2) Build the header row
-          const headerRow = document.createElement('tr');
-          headerRow.appendChild(document.createElement('th')); 
-          console.log("Created header row");
-
-          // Next cells: each day
-          (poll.options || []).forEach(day => {
-            const th = document.createElement('th');
-            th.textContent = day.replace(/\./g, "/"); // Replace dots with slashes;
-            headerRow.appendChild(th);
+      submitBtn.disabled = true;
+      statusP.textContent = "Saving...";
+      try {
+        await db.collection("polls").doc(pollId)
+          .collection("responses").doc(currentUser.uid)
+          .set({
+            submittedAt: new Date(),
+            dayResponses: dayResponses
           });
-
-          selectionTable.appendChild(headerRow);
-          console.log("Header row complete.");
-
-          // 3) Create a row for each status (Yes, Maybe, No)
-          const statuses = [
-            { value: "yes", symbol: "✓", color: "lightgreen", textColor: "#2d6b2d" },
-            { value: "maybe", symbol: "o", color: "khaki", textColor: "#625a2e" },
-            { value: "no", symbol: "x", color: "lightcoral", textColor: "#752f2f" }
-          ];
-          statuses.forEach(({ value, symbol, color, textColor }) => {
-            const row = document.createElement('tr');
-
-            // First cell = row label
-            const rowLabelCell = document.createElement('td');
-            rowLabelCell.textContent = symbol; 
-            rowLabelCell.style.backgroundColor = color; // Set background color
-            rowLabelCell.style.color = textColor; // Darker text color for contrast
-            rowLabelCell.style.fontWeight = "bold"; // Make it bold
-            rowLabelCell.style.textAlign = "center"; // Center the symbol
-            rowLabelCell.style.width = "60px"; // Adjust width
-            row.appendChild(rowLabelCell);
-
-            // For each day, add a radio cell
-            (poll.options || []).forEach(day => {
-              const cell = document.createElement('td');
-
-              const radio = document.createElement('input');
-              radio.type = 'radio';
-              radio.name = `option_${day}`; 
-              radio.value = value;
-
-              // If user previously responded
-              if (previousResponses[day] === value) {
-                radio.checked = true;
-              }
-
-              cell.appendChild(radio);
-              row.appendChild(cell);
-            });
-
-            selectionTable.appendChild(row);
-          });
-
-          latestContainer.appendChild(selectionTable);
-
-          // Create the SUBMIT button
-          const submitBtn = document.createElement('button');
-          submitBtn.textContent = "Submit Availability";
-          latestContainer.appendChild(submitBtn);
-
-          // Status paragraph
-          const statusP = document.createElement('p');
-          latestContainer.appendChild(statusP);
-
-          console.log("Submit button added, setting up event listener...");
-          submitBtn.addEventListener('click', async () => {
-            console.log("Submit clicked");
-            const user = firebase.auth().currentUser;
-            if (!user) {
-              console.log("User not signed in, submission aborted.");
-              statusP.textContent = "You must be signed in to submit availability.";
-              return;
-            }
-
-            const dayResponses = {};
-
-            (poll.options || []).forEach(option => {
-              const radios = latestContainer.querySelectorAll(`input[name="option_${option}"]`);
-              let selectedValue = null;
-              radios.forEach(radio => {
-                if (radio.checked) {
-                  selectedValue = radio.value;
-                }
-              });
-              dayResponses[option] = selectedValue || "no";
-            });
-
-            try {
-              console.log("Saving responses:", dayResponses);
-              await db.collection("polls").doc(pollId)
-                .collection("responses").doc(user.uid)
-                .set({
-                  submittedAt: new Date(),
-                  dayResponses: dayResponses
-                });
-              console.log("Responses saved.");
-              statusP.textContent = "Availability updated!";
-            } catch (error) {
-              console.error("Error saving availability:", error);
-              statusP.textContent = "Failed to save.";
-            }
-          });
-
-          console.log("Now loading existing responses...");
-          fetchResponses(pollId);
-        })
-        .catch(error => {
-          console.error("Error fetching previous responses:", error);
-        });
+        if (renderVersion === pollRenderVersion) {
+          Object.assign(previousResponses, dayResponses);
+          statusP.textContent = "Availability updated!";
+        }
+      } catch (error) {
+        console.error("Error saving availability:", error);
+        if (renderVersion === pollRenderVersion) statusP.textContent = "Failed to save.";
+      } finally {
+        if (renderVersion === pollRenderVersion) submitBtn.disabled = false;
+      }
     });
   }
 
@@ -304,90 +456,75 @@
     startPollPageWhenReady();
   }
 
-  function fetchResponses(pollId) {
-    db.collection("polls").doc(pollId).get().then((pollDoc) => {
-      if (!pollDoc.exists) return;
-      
-      const pollData = pollDoc.data();
-      const pollOptions = pollData.options || [];
-
-      const headerRow = document.getElementById("pollOptionsHeader");
-      headerRow.innerHTML = "<th>Name</th>"; // Reset header, keep 'Name' column
-
-      // Create table headers for each poll option (date)
-      pollOptions.forEach(option => {
-  const th = document.createElement("th");
-  th.textContent = option.replace(/\./g, "/"); // Replace dots with slashes
-  headerRow.appendChild(th);
-});
-
-      // Now fetch the responses
-      populateResponseTable(pollId, pollOptions);
+  function prepareResponsesTable(pollOptions) {
+    const headerRow = document.getElementById("pollOptionsHeader");
+    headerRow.innerHTML = "<th>Name</th>";
+    pollOptions.forEach(option => {
+      const th = document.createElement("th");
+      th.textContent = option.replace(/\./g, "/");
+      headerRow.appendChild(th);
     });
+    document.querySelector("#responsesTable tbody").innerHTML = "";
+
+    const emptyTotals = {};
+    pollOptions.forEach(option => {
+      emptyTotals[option] = { yes: 0, no: 0, maybe: 0 };
+    });
+    updateTotalsRow(emptyTotals, pollOptions);
   }
 
-  function populateResponseTable(pollId, pollOptions) {
-    db.collection("polls").doc(pollId).collection("responses")
-      .onSnapshot((responseSnapshot) => {
-        const responsesTable = document.getElementById("responsesTable").getElementsByTagName("tbody")[0];
-        responsesTable.innerHTML = ""; // Clear old rows
+  function subscribeToResponses(pollId, pollOptions, renderVersion) {
+    responseRenderVersion++;
+    if (unsubscribeResponses) unsubscribeResponses();
 
-        let totals = {};
-        pollOptions.forEach(opt => {
-          totals[opt] = { yes: 0, no: 0, maybe: 0 };
+    unsubscribeResponses = db.collection("polls").doc(pollId).collection("responses")
+      .onSnapshot(async responseSnapshot => {
+        const currentResponseVersion = ++responseRenderVersion;
+        const responses = await Promise.all(responseSnapshot.docs.map(async responseDoc => {
+          const responseData = responseDoc.data();
+          const nameSnapshot = await firebase.database().ref(`drivers/${responseDoc.id}/name`).once("value");
+          return {
+            userName: nameSnapshot.exists() ? nameSnapshot.val() : responseDoc.id,
+            dayResponses: responseData.dayResponses || {}
+          };
+        }));
+
+        if (renderVersion !== pollRenderVersion || currentResponseVersion !== responseRenderVersion) return;
+
+        const responsesTable = document.querySelector("#responsesTable tbody");
+        responsesTable.innerHTML = "";
+        const totals = {};
+        pollOptions.forEach(option => {
+          totals[option] = { yes: 0, no: 0, maybe: 0 };
         });
 
-        responseSnapshot.forEach(responseDoc => {
-          const responseData = responseDoc.data();
-          const userId = responseDoc.id; 
-          const dayResponses = responseData.dayResponses || {};
+        responses.sort((a, b) => a.userName.localeCompare(b.userName)).forEach(response => {
+          const row = responsesTable.insertRow();
+          row.insertCell(0).textContent = response.userName;
 
-          // Query user name from Realtime Database
-          firebase.database().ref(`drivers/${userId}/name`).once("value").then(snapshot => {
-            const userName = snapshot.exists() ? snapshot.val() : userId; 
+          pollOptions.forEach(option => {
+            const choice = response.dayResponses[option] || "no";
+            const cell = row.insertCell(-1);
+            const display = {
+              yes: { symbol: "✓", color: "lightgreen", textColor: "#2d6b2d" },
+              maybe: { symbol: "o", color: "khaki", textColor: "#625a2e" },
+              no: { symbol: "x", color: "lightcoral", textColor: "#752f2f" }
+            }[choice] || { symbol: "x", color: "lightcoral", textColor: "#752f2f" };
 
-            // Create a new row
-            const row = responsesTable.insertRow();
-            const nameCell = row.insertCell(0);
-            nameCell.textContent = userName;
+            cell.textContent = display.symbol;
+            cell.style.backgroundColor = display.color;
+            cell.style.color = display.textColor;
+            cell.style.fontWeight = "bold";
 
-            // For each day, show the person's choice
-            pollOptions.forEach(option => {
-              const choice = dayResponses[option] || "no"; 
-              const cell = row.insertCell(-1);
-
-              if (choice === "yes") {
-                // cell.textContent = "Yes"; This is the cell text
-                cell.textContent = "✓";
-                cell.style.backgroundColor = "lightgreen";
-                cell.style.color = "#2d6b2d"; 
-                cell.style.fontWeight = "bold";
-
-              } else if (choice === "maybe") {
-                //cell.textContent = "Maybe"; This is the text in the cell
-                cell.textContent = "o";
-                cell.style.backgroundColor = "khaki";
-                cell.style.color = "#625a2e";
-                cell.style.fontWeight = "bold";
-
-              } else {
-                // cell.textContent = "No"; This is the cell text
-                cell.textContent = "x";
-                cell.style.backgroundColor = "lightcoral";
-                cell.style.color = "#752f2f";
-                cell.style.fontWeight = "bold";
-              }
-
-              // Increment totals
-              if (choice === "yes") totals[option].yes++;
-              else if (choice === "maybe") totals[option].maybe++;
-              else totals[option].no++;
-            });
-
-            // Finally, update the totals row
-            updateTotalsRow(totals, pollOptions);
+            if (choice === "yes") totals[option].yes++;
+            else if (choice === "maybe") totals[option].maybe++;
+            else totals[option].no++;
           });
         });
+
+        updateTotalsRow(totals, pollOptions);
+      }, error => {
+        console.error("Error fetching poll responses:", error);
       });
   }
 
