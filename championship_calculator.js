@@ -1085,7 +1085,6 @@
         Drops: <strong>${champData.safeDropRaces}</strong> &nbsp;•&nbsp;
         Best <strong>${champData.keepEvents}</strong> count
       </p>
-      <p style="font-size:11px;color:#666;margin:0 0 8px;">Select a driver for next-event scenarios.</p>
       <div style="overflow-x:auto;">
         <table class="calc-table" style="border-collapse:collapse; width:100%;">
           <thead>

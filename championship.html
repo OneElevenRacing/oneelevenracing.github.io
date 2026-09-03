@@ -664,6 +664,18 @@
         }
 
         @media (max-width: 600px) {
+            #calcModal {
+            align-items: flex-start;
+            box-sizing: border-box;
+            height: 100vh;
+            height: 100dvh;
+            padding: calc(8px + env(safe-area-inset-top)) 8px calc(8px + env(safe-area-inset-bottom));
+            }
+
+            #calcModal .card {
+            max-height: 100%;
+            }
+
             #current-standings .standings-scroll,
             #race-results .scroll-container {
             width: calc(100% - 16px);
@@ -769,6 +781,15 @@
             #race-results .scroll-container td.race-label {
             width: 78px;
             max-width: 78px;
+            }
+
+            #race-results .scroll-container .bonus-points {
+            font-size: 0.82em;
+            }
+
+            #race-results .scroll-container .bonus-points.combined-bonus {
+            font-size: 0.75em;
+            letter-spacing: -0.04em;
             }
 
             #calcModal .calc-table {
@@ -1331,6 +1352,7 @@
                 if (hasPoints) cell.appendChild(document.createTextNode(' '));
                 const bonusSpan = document.createElement('span');
                 bonusSpan.className = 'bonus-points';
+                if (bonuses.length > 1) bonusSpan.classList.add('combined-bonus');
                 bonusSpan.textContent = `(${bonuses.join('+')})`;
                 cell.appendChild(bonusSpan);
             }

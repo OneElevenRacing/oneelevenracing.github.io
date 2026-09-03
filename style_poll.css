@@ -239,8 +239,8 @@ input[type="radio"]:disabled {
 
     #responsesTable th,
     #responsesTable td,
-    .poll-table th,
-    .poll-table td {
+    #latestPollContainer .poll-table th,
+    #latestPollContainer .poll-table td {
         overflow: hidden;
         padding: 3px 1px;
         font-size: clamp(7px, 2.15vw, 9px);
