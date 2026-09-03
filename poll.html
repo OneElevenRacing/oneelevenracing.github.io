@@ -386,13 +386,20 @@
         radio.setAttribute("aria-label", `${value} for ${day}`);
 
         if (pastOptions[index]) cell.classList.add("past-date");
-        cell.appendChild(radio);
+        const radioTouchTarget = document.createElement("label");
+        radioTouchTarget.className = "poll-radio-touch";
+        if (pastOptions[index]) radioTouchTarget.classList.add("is-disabled");
+        radioTouchTarget.appendChild(radio);
+        cell.appendChild(radioTouchTarget);
         row.appendChild(cell);
       });
       selectionTable.appendChild(row);
     });
 
-    latestContainer.appendChild(selectionTable);
+    const selectionTableScroll = document.createElement("div");
+    selectionTableScroll.className = "poll-table-scroll";
+    selectionTableScroll.appendChild(selectionTable);
+    latestContainer.appendChild(selectionTableScroll);
 
     const submitBtn = document.createElement("button");
     submitBtn.textContent = hasEditableDates ? "Submit Availability" : "Poll Closed";

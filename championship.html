@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <title style="text-align: center">One Eleven Racing - Championship</title>
 
@@ -297,10 +298,13 @@
 
         #calcModal .card {
         position: relative;
+        box-sizing: border-box;
         background: #fff;
         padding: 16px 18px;
         border-radius: 16px;
         width: min(92vw, 680px);
+        max-height: 88vh;
+        overflow-y: auto;
         box-shadow: 0 10px 30px rgba(0,0,0,.2);
         font-family: 'KeepCalm', Arial, sans-serif;
         }
@@ -348,6 +352,331 @@
         /* Keep the zebra, but let locked rows win */
         #calcModal .calc-table tbody tr.locked-row td {
         background-color: #e9ffe9 !important; /* override zebra on even rows */
+        }
+
+        #calcModal .calc-table tbody tr.scenario-selected td {
+        background-color: #e8eef6 !important;
+        }
+
+        #calcModal .calc-driver-button {
+        appearance: none;
+        border: 0;
+        padding: 2px 0;
+        background: transparent;
+        color: #111;
+        font: inherit;
+        font-weight: bold;
+        text-align: left;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+        }
+
+        #calcModal .calc-driver-button::after {
+        content: " ›";
+        text-decoration: none;
+        }
+
+        #calcModal .calc-driver-button:hover,
+        #calcModal .calc-driver-button:focus-visible {
+        color: #555;
+        }
+
+        #calcModal .calc-driver-cell {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        }
+
+        #calcModal .calc-compare-button {
+        flex: 0 0 auto;
+        padding: 3px 7px;
+        border: 1px solid #999;
+        border-radius: 999px;
+        background: #fff;
+        color: #333;
+        font-family: inherit;
+        font-size: 9px;
+        line-height: 1.2;
+        cursor: pointer;
+        }
+
+        #calcModal .calc-compare-button:hover,
+        #calcModal .calc-compare-button:focus-visible {
+        border-color: #222;
+        background: #222;
+        color: #fff;
+        }
+
+        #calcModal .calc-compare-button[hidden] {
+        display: none;
+        }
+
+        #calcModal .next-race-scenario {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 12px;
+        background: #f1f1f1;
+        }
+
+        #calcModal .next-race-scenario[hidden] {
+        display: none;
+        }
+
+        #calcModal .scenario-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        }
+
+        #calcModal .scenario-heading h4,
+        #calcModal .scenario-heading p {
+        margin: 0;
+        }
+
+        #calcModal .scenario-heading p {
+        color: #606060;
+        font-size: 11px;
+        }
+
+        #calcModal .scenario-position-flow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        }
+
+        #calcModal .scenario-position-step {
+        display: grid;
+        justify-items: center;
+        gap: 3px;
+        }
+
+        #calcModal .scenario-position-step small {
+        color: #666;
+        font-size: 8px;
+        line-height: 1;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        }
+
+        #calcModal .scenario-position-result {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        height: 32px;
+        padding: 0 8px;
+        border: 1px solid #bbb;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 12px;
+        }
+
+        #calcModal .scenario-current-position {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: #000;
+        color: #fff;
+        font-weight: bold;
+        }
+
+        #calcModal .scenario-moves {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        margin-top: 12px;
+        }
+
+        #calcModal .scenario-move {
+        padding: 10px;
+        border-left: 4px solid #222;
+        background: #fff;
+        font-size: 12px;
+        }
+
+        #calcModal .scenario-move strong,
+        #calcModal .scenario-move span {
+        display: block;
+        }
+
+        #calcModal .scenario-move span {
+        margin-top: 4px;
+        color: #555;
+        }
+
+        #calcModal .scenario-matrices {
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #ccc;
+        }
+
+        #calcModal .scenario-matrices-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 10px;
+        }
+
+        #calcModal .scenario-matrix-key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: #555;
+        font-size: 10px;
+        }
+
+        #calcModal .scenario-matrix-key span {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        }
+
+        #calcModal .scenario-matrix-key i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+
+        #calcModal .scenario-matrix-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 12px;
+        }
+
+        #calcModal .scenario-matrix-block {
+        min-width: 0;
+        }
+
+        #calcModal .scenario-matrix-block:only-child {
+        grid-column: 1 / -1;
+        justify-self: center;
+        width: min(100%, 310px);
+        }
+
+        #calcModal .scenario-matrix-block h5 {
+        margin: 0 0 3px;
+        font-size: 12px;
+        }
+
+        #calcModal .scenario-matrix-axis {
+        margin-bottom: 4px;
+        color: #555;
+        font-size: 10px;
+        text-align: center;
+        }
+
+        #calcModal .scenario-matrix-scroll {
+        overflow-x: auto;
+        }
+
+        #calcModal .scenario-matrix-table {
+        width: auto;
+        margin: 0 auto;
+        border-collapse: collapse;
+        table-layout: fixed;
+        }
+
+        #calcModal .scenario-matrix-table th,
+        #calcModal .scenario-matrix-table td {
+        width: 34px;
+        min-width: 34px;
+        height: 31px;
+        padding: 2px;
+        border: 1px solid #bbb;
+        font-size: 9px;
+        text-align: center;
+        white-space: nowrap;
+        }
+
+        #calcModal .scenario-matrix-table th {
+        background: #222;
+        color: #fff;
+        }
+
+        #calcModal .scenario-matrix-table th:first-child {
+        width: 56px;
+        min-width: 56px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        }
+
+        #calcModal .clinching-scenarios {
+        margin-top: 12px;
+        padding: 11px 12px;
+        border: 1px solid #b9d8bf;
+        border-left: 4px solid #2e7d32;
+        border-radius: 8px;
+        background: #f0f8f1;
+        }
+
+        #calcModal .clinching-scenarios h4 {
+        margin: 0 0 6px;
+        font-size: 12px;
+        }
+
+        #calcModal .clinching-scenarios ul {
+        margin: 0;
+        padding-left: 18px;
+        }
+
+        #calcModal .clinching-scenarios li {
+        margin: 3px 0;
+        font-size: 11px;
+        line-height: 1.4;
+        }
+
+        #calcModal .matrix-ahead {
+        background: #d9f2df;
+        color: #184d24;
+        font-weight: bold;
+        }
+
+        #calcModal .matrix-behind {
+        background: #f6d9d9;
+        color: #702525;
+        font-weight: bold;
+        }
+
+        #calcModal .matrix-uncertain {
+        background: #ffe6a3;
+        color: #5f4500;
+        font-weight: bold;
+        }
+
+        #calcModal .matrix-impossible {
+        background: #e4e4e4;
+        color: #777;
+        }
+
+        @media (max-width: 600px) {
+            #calcModal .scenario-heading {
+            align-items: flex-start;
+            flex-direction: column;
+            }
+
+            #calcModal .scenario-position-flow {
+            align-self: center;
+            }
+
+            #calcModal .scenario-moves {
+            grid-template-columns: 1fr;
+            }
+
+            #calcModal .scenario-matrix-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
+            }
         }
 
         /* Compact numeric columns ("Pos", "Best Pos", "Worst Pos") */
@@ -706,6 +1035,27 @@
             .map((key, idx) => (races[key] && races[key].special === true ? idx : -1))
             .filter(idx => idx >= 0),
 
+        // Schedule state lets the scenario panel distinguish a full event
+        // from the period between Race 1 and Race 2.
+        eventDetails: sortedRaceKeys.map((key, idx) => {
+            const race = races[key] || {};
+            return {
+            index: idx,
+            key,
+            trackName: race.trackName || `Event ${idx + 1}`,
+            special: race.special === true,
+            hasRace1Results: Object.keys(race.resultsRace1 || {}).length > 0,
+            hasRace2Results: Object.keys(race.resultsRace2 || {}).length > 0,
+            hasPoleResult: Boolean(race.polePositionDriver),
+            hasFastestLapR1Result: Boolean(
+                race.fastestLapDriverR1 || race.fastestLapOffPodiumDriverR1
+            ),
+            hasFastestLapR2Result: Boolean(
+                race.fastestLapDriverR2 || race.fastestLapOffPodiumDriverR2
+            )
+            };
+        }),
+
         // scoring map
         positionToPoints
         };
@@ -973,7 +1323,10 @@
             standingsTable.appendChild(row);
         });
 
-        standingsSection.appendChild(standingsTable);
+        const standingsScrollWrapper = document.createElement('div');
+        standingsScrollWrapper.className = 'scroll-container standings-scroll';
+        standingsScrollWrapper.appendChild(standingsTable);
+        standingsSection.appendChild(standingsScrollWrapper);
 
         // === Calculator Button (opens modal, uses the data package above) ===
         let tools = document.getElementById('standings-tools');

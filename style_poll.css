@@ -127,6 +127,29 @@ h2 {
     margin: 15px 0;
 }
 
+.table-container,
+.poll-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+}
+
+.poll-radio-touch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+    margin: -6px;
+    padding: 6px;
+    cursor: pointer;
+}
+
+.poll-radio-touch.is-disabled {
+    cursor: not-allowed;
+}
+
 /* Inside the tables */
 #responsesTable th, #responsesTable td,
 #latestPollContainer th, #latestPollContainer td,
@@ -195,7 +218,13 @@ input[type="radio"]:disabled {
 
     #responsesTable,
     .poll-table {
-        width: calc(100% - 30px);
+        width: 100%;
+        min-width: 390px;
+    }
+
+    .table-container,
+    .poll-table-scroll {
+        padding: 0 15px;
     }
 
     #pollTitleHeader {
@@ -205,6 +234,9 @@ input[type="radio"]:disabled {
     }
 
     .poll-nav-button {
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
         padding: 0;
         font-size: 0.6em;
     }
