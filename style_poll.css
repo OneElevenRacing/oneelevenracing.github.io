@@ -41,11 +41,11 @@ h2 {
     text-transform: none;
 }
 
-#nextPollButton {
+#previousPollButton {
     align-items: flex-start;
 }
 
-#previousPollButton {
+#nextPollButton {
     align-items: flex-end;
 }
 
@@ -101,12 +101,12 @@ h2 {
     border-bottom: 2px solid #fff;
 }
 
-#nextPollButton .poll-nav-arrow::after {
+#previousPollButton .poll-nav-arrow::after {
     left: 10px;
     transform: rotate(135deg);
 }
 
-#previousPollButton .poll-nav-arrow::after {
+#nextPollButton .poll-nav-arrow::after {
     right: 10px;
     transform: rotate(-45deg);
 }
@@ -283,11 +283,11 @@ input[type="radio"]:disabled {
         width: 18px;
     }
 
-    #nextPollButton .poll-nav-arrow::after {
+    #previousPollButton .poll-nav-arrow::after {
         left: 8px;
     }
 
-    #previousPollButton .poll-nav-arrow::after {
+    #nextPollButton .poll-nav-arrow::after {
         right: 8px;
     }
 }
