@@ -11,12 +11,12 @@ function fixture(n=3) {
   return {uidsByStandings:ids,driverNames:map(i=>'D'+i),eventCount:2,keepEvents:2,
     positionToPoints:{1:20,2:16,3:13},racePointsPerEvent:map(i=>[20-i*2,0]),
     bonusPointsPerDriver:map(()=>0),winsPerDriver:map(()=>0),podiumsPerDriver:map(()=>0),
-    finalTotals:map(i=>20-i*2),eventDetails:[{index:1,hasRace1Results:true,hasRace2Results:false,hasFastestLapR2Result:true}]};
+    finalTotals:map(i=>20-i*2),eventDetails:[{index:1,hasRace1Results:true,hasRace2Results:false,hasFastestLapR2Result:true,hasOffPodiumR2Result:true}]};
 }
 test('remaining Race 2 adds points to Race 1, instead of disappearing',()=>{
   const d=fixture();d.racePointsPerEvent.d0=[20,16];d.eventDetails[0].hasFastestLapR2Result=false;
   const b=api.computeExtremes(d);
-  assert.equal(b.minTotals.d0,36);assert.equal(b.maxTotals.d0,57);
+  assert.equal(b.minTotals.d0,49);assert.equal(b.maxTotals.d0,57);
 });
 test('drops are recalculated and previously earned bonuses are never dropped',()=>{
   const d=fixture();d.keepEvents=1;d.racePointsPerEvent.d0=[35,16];d.bonusPointsPerDriver.d0=5;
@@ -24,15 +24,15 @@ test('drops are recalculated and previously earned bonuses are never dropped',()
   const b=api.computeExtremes(d);
   assert.equal(b.minTotals.d0,40);assert.equal(b.maxTotals.d0,42);
 });
-test('full and special events have correct maximums; future minimum is zero',()=>{
-  const d=fixture();d.eventDetails=[{index:1,hasRace1Results:false}];
-  assert.equal(api.computeExtremes(d).minTotals.d0,20);
+test('full and special events use last-place minimum points',()=>{
+  const d=fixture();d.eventDetails=[{index:1,hasRace1Results:false,hasOffPodiumR1Result:true,hasOffPodiumR2Result:true}];
+  assert.equal(api.computeExtremes(d).minTotals.d0,46);
   assert.equal(api.computeExtremes(d).maxTotals.d0,63);
   d.eventDetails[0].special=true;
   assert.equal(api.computeExtremes(d).maxTotals.d0,62);
 });
 test('possible future wins prevent a false tie lock; sufficient existing wins can prove it',()=>{
-  const d=fixture(2);d.racePointsPerEvent.d1=[0,0];
+  const d=fixture(2);d.racePointsPerEvent.d0=[4,0];d.racePointsPerEvent.d1=[0,0];
   assert.equal(api.computeExtremes(d).maxFinish.d0,2);
   d.winsPerDriver.d0=2;
   assert.equal(api.computeExtremes(d).maxFinish.d0,1);
@@ -46,14 +46,14 @@ function orders(n) {
   const result=[];
   function visit(prefix,remaining) {
     if(!remaining.length){
-      for(let mask=0;mask<2**n;mask++) result.push(prefix.map((p,i)=>mask&(1<<i)?0:p));
+      for(let finishers=0;finishers<=n;finishers++) result.push(prefix.map(p=>p<=finishers?p:finishers+1));
       return;
     }
     remaining.forEach((p,i)=>visit([...prefix,p],remaining.filter((_,j)=>j!==i)));
   }
-  visit([],Array.from({length:n},(_,i)=>i+1));return result;
+  visit([],Array.from({length:n},(_,i)=>i+1));return [...new Map(result.map(order=>[order.join(),order])).values()];
 }
-test('conservative bounds contain all 2,304 valid two-race outcomes, including DNFs and drops',()=>{
+test('conservative bounds contain all 100 valid two-race classifications, including shared-last scores and drops',()=>{
   const d=fixture();d.eventCount=3;d.keepEvents=2;
   d.eventDetails=[1,2].map(index=>({index,special:true,hasRace1Results:false,hasPoleResult:true,hasFastestLapR1Result:true}));
   const bounds=api.computeExtremes(d), all=orders(3);
@@ -69,13 +69,13 @@ test('conservative bounds contain all 2,304 valid two-race outcomes, including D
   }
 });
 test('a next-race finish condition proves a title that is not already locked',()=>{
-  const d=fixture(2);d.racePointsPerEvent.d0=[5,0];d.racePointsPerEvent.d1=[0,0];d.finalTotals.d0=5;d.finalTotals.d1=0;
+  const d=fixture(2);d.racePointsPerEvent.d0=[3,0];d.racePointsPerEvent.d1=[0,0];d.finalTotals.d0=3;d.finalTotals.d1=0;
   const bounds=api.computeExtremes(d);assert.equal(bounds.maxFinish.d0,2);
   const scenarios=api.computeSingleRaceClinchingScenarios(d,api.computeNextStageAnalysis(d));
   const leader=scenarios.find(s=>s.uid==='d0');
-  assert.equal(leader.finishCondition,'P2 or better');
+  assert.equal(leader.finishCondition,'P1');
   for(const order of orders(2)){
-    if(!order[0])continue;
-    assert.ok(5+(d.positionToPoints[order[0]]||0)>(d.positionToPoints[order[1]]||0));
+    if(order[0]!==1)continue;
+    assert.ok(3+(d.positionToPoints[order[0]]||0)>(d.positionToPoints[order[1]]||0));
   }
 });

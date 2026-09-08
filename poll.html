@@ -74,6 +74,7 @@
             }
 
             console.log("User is authorized for Firestore:", user.uid);
+            window.pollIsAdmin = driver.isAdmin === true;
             startPollPageWhenReady();
 
             if (driver.isAdmin === true) addPollAdminButton();
@@ -117,6 +118,7 @@
       </button>
     </div>
 
+    <p id="pollRaceDateStatus" role="status" style="text-align:center"></p>
     <!-- Poll table for results -->
     <div class="table-container">
      <table id="responsesTable" border="1" style="display: table; margin-left: auto; margin-right: auto;">
@@ -140,6 +142,90 @@
 
 <!-- Main script: fetch poll data and display it -->
 <script>
+  let scheduledRaceDate = '';
+  let raceDateSubscriptionStarted = false;
+  let savingRaceDate = false;
+
+  function pollRaceDateLabel(key) {
+    const date = new Date(`${key}T12:00:00Z`);
+    const day = date.getUTCDate();
+    const suffix = day >= 11 && day <= 13 ? 'th' : ({1:'st',2:'nd',3:'rd'}[day % 10] || 'th');
+    const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getUTCDay()];
+    const month = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][date.getUTCMonth()];
+    return `${weekday}, ${day}${suffix} ${month} ${date.getUTCFullYear()}`;
+  }
+
+  function scheduledDateKey(label) {
+    const match = String(label).match(/^(?:[A-Za-z]+,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})(?:\s+(\d{4}))?$/);
+    if (!match) return '';
+    const month = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].indexOf(match[2]);
+    if (month < 0) return '';
+    const today = getUkTodayKey();
+    const year = Number(match[3] || today.slice(0,4));
+    const years = match[3] ? [year] : [year-1,year,year+1];
+    const candidates = years.map(y=>Date.UTC(y,month,Number(match[1])));
+    const nearest = candidates.sort((a,b)=>Math.abs(a-Date.parse(today))-Math.abs(b-Date.parse(today)))[0];
+    return formatDateKeyFromTime(nearest);
+  }
+
+  function refreshRaceDateColumns() {
+    const poll = availablePolls[selectedPollIndex]?.data;
+    if (!poll) return;
+    const selectedKey = scheduledDateKey(scheduledRaceDate);
+    const index = (poll.options || []).findIndex((option, i) => getOptionDateKey(poll, option, i) === selectedKey);
+    document.querySelectorAll('#responsesTable').forEach(table => {
+      Array.from(table.rows).forEach((row, rowIndex, rows) => {
+        Array.from(row.cells).forEach((cell, column) => {
+          const selected = index >= 0 && column === index + 1;
+          cell.classList.toggle('scheduled-race-column', selected);
+          cell.classList.toggle('scheduled-race-top', selected && rowIndex === 0);
+          cell.classList.toggle('scheduled-race-bottom', selected && rowIndex === rows.length - 1);
+          if (rowIndex === 0) {
+            if (selected) cell.setAttribute('aria-current', 'date');
+            else cell.removeAttribute('aria-current');
+          }
+        });
+      });
+    });
+  }
+
+  function configureRaceDateHeading(heading, index) {
+    if (!window.pollIsAdmin) return;
+    const poll = availablePolls[selectedPollIndex]?.data;
+    if (!poll) return;
+    const key = getOptionDateKey(poll, poll.options[index], index);
+    if (key < getUkTodayKey()) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'poll-race-date-button';
+    button.setAttribute('aria-label', `Set next race to ${pollRaceDateLabel(key)} at 7pm`);
+    button.title = 'Set as race day at 7pm';
+    while (heading.firstChild) button.appendChild(heading.firstChild);
+    heading.appendChild(button);
+    button.addEventListener('click', () => schedulePollRace(key));
+  }
+
+  async function schedulePollRace(key) {
+    if (!window.pollIsAdmin || savingRaceDate || key < getUkTodayKey()) return;
+    if (!confirm(`Set the next race to ${pollRaceDateLabel(key)} at 7pm?`)) return;
+    savingRaceDate = true;
+    const status = document.getElementById('pollRaceDateStatus');
+    status.textContent = 'Saving race date…';
+    try {
+      const user = firebase.auth().currentUser;
+      if (!user) throw new Error('Please sign in again.');
+      const snapshot = await firebase.database().ref(`drivers/${user.uid}`).once('value');
+      const driver = snapshot.val();
+      if (!driver || !driver.active || !driver.isAdmin) throw new Error('Admin access is required.');
+      await firebase.database().ref().update({ race_date: pollRaceDateLabel(key), race_time: '7.00pm' });
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = `Could not save race date: ${error.message}`;
+    } finally {
+      savingRaceDate = false;
+    }
+  }
+
   let availablePolls = [];
   let selectedPollIndex = 0;
   let unsubscribeResponses = null;
@@ -165,6 +251,13 @@
 
   function startPollPage() {
     console.log("Fetching polls...");
+    if (!raceDateSubscriptionStarted) {
+      raceDateSubscriptionStarted = true;
+      firebase.database().ref('race_date').on('value', snapshot => {
+        scheduledRaceDate = snapshot.val() || '';
+        refreshRaceDateColumns();
+      });
+    }
     db.collection("polls")
     .onSnapshot((snapshot) => {
       console.log("Snapshot received");
@@ -349,6 +442,7 @@
     pollOptions.forEach((day, index) => {
       const th = document.createElement("th");
       setPollOptionHeading(th, day);
+      configureRaceDateHeading(th, index);
       if (pastOptions[index]) {
         th.classList.add("past-date");
         th.title = "This date has passed and is read-only";
@@ -400,6 +494,7 @@
     selectionTableScroll.className = "poll-table-scroll";
     selectionTableScroll.appendChild(selectionTable);
     latestContainer.appendChild(selectionTableScroll);
+    refreshRaceDateColumns();
 
     const submitBtn = document.createElement("button");
     submitBtn.textContent = hasEditableDates ? "Submit Availability" : "Poll Closed";
@@ -466,9 +561,10 @@
   function prepareResponsesTable(pollOptions) {
     const headerRow = document.getElementById("pollOptionsHeader");
     headerRow.innerHTML = "<th>Name</th>";
-    pollOptions.forEach(option => {
+    pollOptions.forEach((option, index) => {
       const th = document.createElement("th");
       setPollOptionHeading(th, option);
+      configureRaceDateHeading(th, index);
       headerRow.appendChild(th);
     });
     document.querySelector("#responsesTable tbody").innerHTML = "";
@@ -565,6 +661,7 @@
       totalCell.textContent = `${dayTotals.yes} (+${dayTotals.maybe})`;
       totalsRow.appendChild(totalCell);
     });
+    refreshRaceDateColumns();
   }
 </script>
 

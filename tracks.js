@@ -244,7 +244,7 @@ function convertToInputDateFormat(dateString) {
     const monthMap = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
     const m = monthMap[monthAbbr];
     const d = parseInt(dayRaw, 10);
-    const y = new Date().getFullYear();
+    const y = /^\d{4}$/.test(parts[3] || '') ? Number(parts[3]) : new Date().getFullYear();
 
     if (isNaN(d) || m == null) return '';
 
@@ -324,7 +324,7 @@ function formatDateToDayMonth(dateString) {
     var day = date.getDate();
     var dayWithSuffix = day + getDaySuffix(day);
 
-    return RACE_WEEKDAY_ABBRS[date.getDay()] + ', ' + dayWithSuffix + ' ' + RACE_MONTH_ABBRS[date.getMonth()];
+    return RACE_WEEKDAY_ABBRS[date.getDay()] + ', ' + dayWithSuffix + ' ' + RACE_MONTH_ABBRS[date.getMonth()] + ' ' + date.getFullYear();
 }
 
 function getDaySuffix(day) {

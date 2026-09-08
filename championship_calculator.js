@@ -13,7 +13,7 @@
 
   let activeComparisonState = null;
 
-  // Bounds deliberately allow zero future points (DNF/non-attendance).
+  // Bounds use last-place points for the active grid, including DNF/non-attendance.
   // Equal score/win/podium bounds remain unresolved, rather than implying a lock.
   function compareScoreBounds(a, b) {
     return b.total - a.total || b.wins - a.wins || b.podiums - a.podiums;
@@ -55,15 +55,23 @@
   }
 
   // ---------- Next race/event calculator ----------
-  function getEventMaximumBonus(event, mode) {
-    const pole = event.hasPoleResult ? 0 : 1;
-    const fastestLapR1 = event.hasFastestLapR1Result ? 0 : 1;
-    const fastestLapR2 = event.hasFastestLapR2Result ? 0 : 1;
+  function availableAwards(event, mode) {
+    const awards = [];
+    if (mode !== 'race2') {
+      if (!event.hasPoleResult) awards.push({ label: 'Pole', race: 0 });
+      if (!event.hasFastestLapR1Result) awards.push({ label: 'Race 1 fastest lap', race: 0 });
+      if (!event.hasOffPodiumR1Result) awards.push({ label: 'Race 1 off-podium fastest lap', race: 0, offPodium: true });
+    }
+    if (mode === 'race2' || mode === 'full') {
+      const race = mode === 'full' ? 1 : 0;
+      if (!event.hasFastestLapR2Result) awards.push({ label: 'Race 2 fastest lap', race });
+      if (!event.hasOffPodiumR2Result) awards.push({ label: 'Race 2 off-podium fastest lap', race, offPodium: true });
+    }
+    return awards;
+  }
 
-    if (mode === 'race1') return pole + fastestLapR1;
-    if (mode === 'race2') return fastestLapR2;
-    if (mode === 'special') return pole + fastestLapR1;
-    return pole + fastestLapR1 + fastestLapR2;
+  function getEventMaximumBonus(event, mode) {
+    return availableAwards(event, mode).length;
   }
 
   function stageFromEvent(event, mode) {
@@ -97,9 +105,9 @@
 
   function getStageMaximumBonus(stage) {
     if (Number.isFinite(stage.maximumBonus)) return stage.maximumBonus;
-    if (stage.mode === 'race2') return 1;
-    if (stage.mode === 'race1') return 2;
-    return stage.mode === 'special' ? 2 : 3;
+    if (stage.mode === 'race2') return 2;
+    if (stage.mode === 'race1') return 3;
+    return stage.mode === 'special' ? 3 : 5;
   }
 
   function buildOutcomeTemplates(champData, stage) {
@@ -172,8 +180,7 @@
     if (b.total !== a.total) return b.total - a.total;
     if (b.wins !== a.wins) return b.wins - a.wins;
     if (b.podiums !== a.podiums) return b.podiums - a.podiums;
-    const order = champData.uidsByStandings || [];
-    return order.indexOf(a.uid) - order.indexOf(b.uid);
+    return a.uid.localeCompare(b.uid);
   }
 
   function rankForStateList(states, targetUid, champData) {
@@ -182,112 +189,154 @@
       .findIndex(state => state.uid === targetUid) + 1;
   }
 
-  // Yield one order at a time; never retain the factorial-sized list of orders.
-  function* buildPositionPermutations(inputValues) {
-    const values = inputValues.slice();
-    function* permute(start) {
-      if (start === values.length) {
-        yield values;
-        return;
+  // Unique finisher positions, followed by a shared-last position for DNS/DNF.
+  // n-1 finishers has the same numerical scores as a full grid, so omit that duplicate.
+  function* classifiedOpponents(n, targetPosition) {
+    for (let finishers = 0; finishers <= n; finishers++) {
+      if (finishers === n - 1 || targetPosition > Math.min(n, finishers + 1)) continue;
+      const slots = Array.from({ length: finishers }, (_, i) => i + 1)
+        .filter(position => position !== targetPosition);
+      const values = Array(n - 1).fill(finishers + 1);
+      const used = Array(n - 1).fill(false);
+      function* assign(index) {
+        if (index === slots.length) { yield values; return; }
+        for (let driver = 0; driver < values.length; driver++) {
+          if (used[driver]) continue;
+          used[driver] = true;
+          values[driver] = slots[index];
+          yield* assign(index + 1);
+          values[driver] = finishers + 1;
+          used[driver] = false;
+        }
       }
-      for (let index = start; index < values.length; index += 1) {
-        [values[start], values[index]] = [values[index], values[start]];
-        yield* permute(start + 1);
-        [values[start], values[index]] = [values[index], values[start]];
-      }
+      yield* assign(0);
     }
-    yield* permute(0);
   }
 
   function computeValidStageRankRange(champData, stage, targetUid, advance = () => {}) {
     const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
-    const driverCount = uids.length;
-    if (!driverCount || driverCount > (stage.mode === 'full' ? 6 : 10) || !uids.includes(targetUid)) return null;
-
-    const outcomes = buildOutcomeTemplates(champData, stage);
+    const n = uids.length;
+    if (!n || n > (stage.mode === 'full' ? 6 : 10) || !uids.includes(targetUid)) return null;
     const maximumBonus = getStageMaximumBonus(stage);
-    const stateCache = {};
+    const awards = availableAwards(stage, stage.mode).slice(0, maximumBonus);
+    const outcomes = buildOutcomeTemplates(champData, stage).sort((a, b) =>
+      b.positions[0] - a.positions[0] || (b.positions[1] || 0) - (a.positions[1] || 0));
     const opponents = uids.filter(uid => uid !== targetUid);
-    const range = { bestRank: driverCount, worstRank: 1 };
-
+    const currentRank = uids.indexOf(targetUid) + 1;
+    const range = { bestRank: n, worstRank: 1 };
+    let promotion = null;
+    const cache = {};
     uids.forEach(uid => {
-      stateCache[uid] = new Map();
-      outcomes.forEach(outcome => {
-        const states = [];
-        for (let bonus = 0; bonus <= maximumBonus; bonus += 1) {
-          states.push(projectDriverState(uid, outcome, bonus, champData, stage));
-        }
-        stateCache[uid].set(outcome.positions.join(','), states);
-      });
+      cache[uid] = new Map(outcomes.map(outcome => [outcome.positions.join(','),
+        Array.from({ length: maximumBonus + 1 }, (_, bonus) =>
+          projectDriverState(uid, outcome, bonus, champData, stage))]));
     });
+    const bitCount = mask => {
+      let count = 0;
+      while (mask) { mask &= mask - 1; count++; }
+      return count;
+    };
+    const subsets = mask => {
+      const result = [0];
+      for (let sub = mask; sub; sub = (sub - 1) & mask) result.push(sub);
+      return result.sort((a, b) => bitCount(a) - bitCount(b));
+    };
 
-    function permutationsWithout(position) {
-      const remainingPositions = Array.from({ length: driverCount }, (_, index) => index + 1)
-        .filter(value => value !== position);
-      return buildPositionPermutations(remainingPositions);
-    }
-
-    function evaluateClassification(targetStates, race1Positions, race2Positions) {
-      const opponentStates = opponents.map((uid, index) => {
-        const key = stage.mode === 'full'
-          ? `${race1Positions[index]},${race2Positions[index]}`
-          : `${race1Positions[index]}`;
-        return stateCache[uid].get(key);
-      });
-
-      const targetBest = targetStates[maximumBonus];
-      let bestRank = 1;
-      opponentStates.forEach(states => {
-        if (compareProjectedStates(states[0], targetBest, champData) < 0) bestRank += 1;
-      });
-
-      const targetWorst = targetStates[0];
-      const bonusCosts = opponentStates.map(states => {
-        for (let bonus = 0; bonus <= maximumBonus; bonus += 1) {
-          if (compareProjectedStates(states[bonus], targetWorst, champData) < 0) return bonus;
+    function evaluate(targetOutcome, race1, race2) {
+      const states = [cache[targetUid].get(targetOutcome.positions.join(',')),
+        ...opponents.map((uid, i) => cache[uid].get(stage.mode === 'full'
+          ? `${race1[i]},${race2[i]}` : `${race1[i]}`))];
+      if (stage.mode !== 'full' && !promotion) {
+        const target = states[0][0];
+        const field = states.map(values => values[0]).sort((a, b) => compareProjectedStates(a, b, champData));
+        const rank = field.findIndex(value => value.uid === targetUid) + 1;
+        if (rank < currentRank) {
+          const rivalConditions = opponents.flatMap(uid => {
+            const index = uids.indexOf(uid);
+            const actual = field.find(value => value.uid === uid);
+            const passed = index < currentRank - 1 && compareProjectedStates(actual, target, champData) > 0;
+            const dangerThreshold = index > currentRank - 1
+              ? outcomes.slice().sort((a, b) => a.positions[0] - b.positions[0]).find(selectedOutcome =>
+                outcomes.some(rivalOutcome => {
+                  // Equal classifications are possible only as shared last, below Pn.
+                  if (selectedOutcome.positions[0] === n && rivalOutcome.positions[0] === n) return false;
+                  return compareProjectedStates(projectDriverState(uid, rivalOutcome, 0, champData, stage),
+                    projectDriverState(targetUid, selectedOutcome, 0, champData, stage), champData) < 0;
+                })) : null;
+            if (!passed && !dangerThreshold) return [];
+            const threshold = outcomes.slice().sort((a, b) => a.positions[0] - b.positions[0]).find(outcome =>
+              compareProjectedStates(projectDriverState(uid, outcome, 0, champData, stage), target, champData) > 0);
+            return [{ uid, kind: passed ? 'jump' : 'threat', dangerFinish: dangerThreshold?.positions[0] || null, finish: compareProjectedStates(actual, target, champData) > 0 ? threshold?.positions[0] || null : null,
+              exampleFinish: actual.outcome.positions[0] }];
+          });
+          promotion = { finish: targetOutcome.positions[0], rank, rivalConditions,
+            field: field.map((value, i) => ({ uid: value.uid, rank: i + 1, total: value.total,
+              finish: value.outcome.positions[0], awards: [] })) };
+        }
+      }
+      const eligible = states.map(values => awards.reduce((mask, award, index) =>
+        !award.offPodium || values[0].outcome.positions[award.race] > 3 ? mask | (1 << index) : mask, 0));
+      // No off-podium award is possible when nobody is classified outside the podium.
+      const all = eligible.reduce((mask, value) => mask | value, 0);
+      const targetBest = states[0][bitCount(eligible[0])];
+      const bestBound = 1 + states.slice(1).filter(values =>
+        compareProjectedStates(values[0], targetBest, champData) < 0).length;
+      const costs = states.slice(1).map((values, i) => {
+        for (let bonus = 0; bonus <= bitCount(eligible[i + 1]); bonus++) {
+          if (compareProjectedStates(values[bonus], states[0][0], champData) < 0) return bonus;
         }
         return Infinity;
       }).sort((a, b) => a - b);
+      let pool = bitCount(all), worstBound = 1;
+      costs.forEach(cost => { if (cost <= pool) { pool -= cost; worstBound++; } });
+      if (bestBound < range.bestRank || worstBound > range.worstRank) {
+        // Assign each distinct award once. DP merges allocations with the same used
+        // awards, retaining the lowest/highest number of rivals ahead of the target.
+        for (const targetMask of subsets(eligible[0])) {
+          const target = states[0][bitCount(targetMask)];
+          let dp = new Map([[targetMask, { min: 0, max: 0, allocation: [] }]]);
+          for (let i = 1; i < states.length; i++) {
+            const next = new Map();
+            for (const [used, value] of dp) {
+              for (const mask of subsets(eligible[i] & ~used)) {
+                const ahead = Number(compareProjectedStates(states[i][bitCount(mask)], target, champData) < 0);
+                const key = used | mask, min = value.min + ahead, max = value.max + ahead;
+                const old = next.get(key);
+                if (!old) next.set(key, { min, max, allocation: [...value.allocation, mask] });
+                else {
+                  if (min < old.min) { old.min = min; old.allocation = [...value.allocation, mask]; }
+                  old.max = Math.max(old.max, max);
+                }
+              }
+            }
+            dp = next;
+          }
+          const result = dp.get(all);
+          if (!result) continue;
+          range.bestRank = Math.min(range.bestRank, result.min + 1);
+          range.worstRank = Math.max(range.worstRank, result.max + 1);
 
-      let remainingBonus = maximumBonus;
-      let driversAhead = 0;
-      bonusCosts.forEach(cost => {
-        if (cost <= remainingBonus) {
-          driversAhead += 1;
-          remainingBonus -= cost;
         }
-      });
-
-      range.bestRank = Math.min(range.bestRank, bestRank);
-      range.worstRank = Math.max(range.worstRank, driversAhead + 1);
+      }
       advance(1);
     }
 
-    targetOutcomeSearch:
-    for (const targetOutcome of outcomes) {
-      const targetStates = stateCache[targetUid].get(targetOutcome.positions.join(','));
-      const race1Permutations = permutationsWithout(targetOutcome.positions[0]);
-
-      if (stage.mode === 'full') {
-        for (const race1Positions of race1Permutations) {
-          for (const race2Positions of permutationsWithout(targetOutcome.positions[1])) {
-            evaluateClassification(targetStates, race1Positions, race2Positions);
-            if (range.bestRank === 1 && range.worstRank === driverCount) {
-              break targetOutcomeSearch;
-            }
+    search:
+    for (const outcome of outcomes) {
+      for (const first of classifiedOpponents(n, outcome.positions[0])) {
+        if (stage.mode === 'full') {
+          for (const second of classifiedOpponents(n, outcome.positions[1])) {
+            evaluate(outcome, first, second);
+            if (range.bestRank === 1 && range.worstRank === n) break search;
           }
-        }
-      } else {
-        for (const racePositions of race1Permutations) {
-          evaluateClassification(targetStates, racePositions, null);
-          if (range.bestRank === 1 && range.worstRank === driverCount) {
-            break targetOutcomeSearch;
-          }
+        } else {
+          evaluate(outcome, first, null);
+          if (range.bestRank === 1 && range.worstRank === n
+            && (currentRank === 1 || promotion)) break search;
         }
       }
     }
-
-    return range;
+    return promotion ? { ...range, promotion } : range;
   }
 
   function computeNextStageAnalysis(champData, advance = () => {}) {
@@ -365,7 +414,7 @@
       mode: 'race1',
       maximumBonus: Number.isFinite(eventStage.race1MaximumBonus)
         ? eventStage.race1MaximumBonus
-        : 2
+        : 3
     };
   }
 
@@ -431,7 +480,8 @@
     remainingStages.forEach(stage => {
       const races = stage.mode === 'full' ? 2 : 1;
       const multiplier = stage.mode === 'special' ? 2 : races;
-      const outcome = { eventPoints: useMaximum ? (Number(champData.positionToPoints[1]) || 0) * multiplier : 0,
+      const lastPlace = (champData.uidsByStandings || Object.keys(champData.driverNames || {})).length;
+      const outcome = { eventPoints: (Number(champData.positionToPoints[useMaximum ? 1 : lastPlace]) || 0) * multiplier,
         winsAdded: useMaximum ? races : 0, podiumsAdded: useMaximum ? races : 0 };
 
       const currentEventPoints = Number(eventPoints[stage.eventIndex]) || 0;
@@ -508,10 +558,9 @@
         uids.forEach(otherUid => {
           if (otherUid === uid) return;
 
-          const rivalBestOutcome = outcomes.find(outcome =>
-            outcome.positions[0] !== targetPosition
-          );
-          const rivalWorstOutcome = { positions: [0], eventPoints: 0, winsAdded: 0, podiumsAdded: 0 };
+          // Shared-last classifications may put several drivers in the same position.
+          const rivalBestOutcome = outcomes[0];
+          const rivalWorstOutcome = outcomes[outcomes.length - 1];
           if (!rivalBestOutcome || !rivalWorstOutcome) return;
 
           bestField.push(projectRemainingExtreme(
@@ -585,21 +634,21 @@
         const selectedPosition = selectedOutcome.positions[0];
         const opponentPosition = opponentOutcome.positions[0];
 
-        if (selectedPosition === opponentPosition) {
-          return '<td class="matrix-impossible" aria-label="Same finishing position is impossible">—</td>';
+        if (selectedPosition === opponentPosition && selectedPosition === outcomes.length) {
+          return '<td class="matrix-impossible" aria-label="Two drivers cannot both be last in a full grid">—</td>';
         }
 
         const selectedNoBonus = projectDriverState(
           selectedUid, selectedOutcome, 0, champData, raceStage
         );
         const selectedWithBonus = projectDriverState(
-          selectedUid, selectedOutcome, maximumBonus, champData, raceStage
+          selectedUid, selectedOutcome, availableAwards(raceStage, raceStage.mode).slice(0, maximumBonus).filter(award => !award.offPodium || selectedPosition > 3).length, champData, raceStage
         );
         const opponentNoBonus = projectDriverState(
           opponentUid, opponentOutcome, 0, champData, raceStage
         );
         const opponentWithBonus = projectDriverState(
-          opponentUid, opponentOutcome, maximumBonus, champData, raceStage
+          opponentUid, opponentOutcome, availableAwards(raceStage, raceStage.mode).slice(0, maximumBonus).filter(award => !award.offPodium || opponentPosition > 3).length, champData, raceStage
         );
         const gap = selectedNoBonus.total - opponentNoBonus.total;
         const alwaysAhead = compareProjectedStates(selectedNoBonus, opponentWithBonus, champData) < 0;
@@ -620,7 +669,7 @@
           outcomeText = `${selectedName} behind`;
         }
 
-        const label = `${selectedName} P${selectedPosition}, ${opponentName} P${opponentPosition}: ${formatPointsGap(gap)} points, ${outcomeText}`;
+        const label = `${selectedPosition === opponentPosition ? 'Shared-last result. ' : ''}${selectedName} P${selectedPosition}, ${opponentName} P${opponentPosition}: ${formatPointsGap(gap)} points, ${outcomeText}`;
         return `<td class="${className}" aria-label="${escapeHtml(label)}">${formatPointsGap(gap)}${marker}</td>`;
       }).join('');
 
@@ -690,6 +739,29 @@
     }
 
     renderNextRacePanel(activeComparisonState.uid, champData, analysis);
+  }
+
+  function renderPromotionExample(uid, champData, analysis) {
+    if ((champData.uidsByStandings || []).indexOf(uid) === 0) return '';
+    const range = analysis.individualRanges[uid];
+    if (!range) return '';
+    const example = range.promotion;
+    if (!example) return '<p class="scenario-promotion">No next-race move up found without bonus points.</p>';
+    const rivals = example.rivalConditions || [];
+    const ahead = rivals.filter(rival => rival.kind === 'jump').map(rival =>
+      `<li>${escapeHtml(champData.driverNames[rival.uid] || rival.uid)}: P${rival.finish} or lower.</li>`).join('');
+    const order = champData.uidsByStandings || [];
+    const hasDriversBehind = order.indexOf(uid) < order.length - 1;
+    const dangerPositions = rivals.filter(rival => rival.kind === 'threat').map(rival => rival.dangerFinish);
+    const safeFinish = dangerPositions.length ? Math.min(...dangerPositions) - 1 : order.length;
+    const safetyText = safeFinish > 0
+      ? `Safe from drivers behind you if you finish P${safeFinish} or higher`
+      : 'No finishing position guarantees staying ahead of every driver behind you';
+    return `<section class="scenario-promotion">
+      <h4>Lowest finish to move up to P${example.rank}: P${example.finish}</h4>
+      ${ahead ? `<strong>Drivers ahead you can pass if P${example.finish}</strong><ul>${ahead}</ul>` : ''}
+      ${hasDriversBehind ? `<p><strong>${safetyText}</strong></p>` : ''}
+    </section>`;
   }
 
   // ---------- Modal UI ----------
@@ -833,6 +905,7 @@
       </div>
 
       ` : ''}
+      ${renderPromotionExample(uid, champData, analysis)}
       ${(aheadMatrix || behindMatrix) ? `
         <div class="scenario-matrices">
           <div class="scenario-matrices-heading">
@@ -944,8 +1017,10 @@
         const n = (data.champData.uidsByStandings || Object.keys(data.champData.driverNames || {})).length;
         const stage = data.stage || getNextStage(data.champData);
         const factorial = value => value <= 1 ? 1 : value * factorial(value - 1);
+        const classificationCount = factorial(n) + Array.from({ length: Math.max(0, n - 1) }, (_, k) =>
+          factorial(n) / factorial(n - k)).reduce((sum, count) => sum + count, 0);
         const searchSize = mode => n > (mode === 'full' ? 6 : 10) ? 0
-          : factorial(n) ** (mode === 'full' ? 2 : 1);
+          : classificationCount ** (mode === 'full' ? 2 : 1);
         const eventSize = stage ? searchSize(stage.mode) : 0;
         const individualSize = stage?.mode === 'full' ? searchSize('race1') : 0;
         const total = Math.max(1, data.type === 'ranges' ? eventSize + individualSize

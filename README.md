@@ -7,7 +7,7 @@ From this project folder, run `python3 tools/preview.py`, then open
 [the local preview](http://127.0.0.1:8000/). Leave the command running while reviewing;
 press Ctrl+C to stop it. Refresh a page after editing its files.
 
-The preview shows the actual Home, Championship and Admin pages with sample data.
+The preview shows the actual Home, Championship, Admin and Availability pages with sample data.
 Use the controls at the top to switch pages and mobile/desktop sizes. Sample changes
 last for the current browser tab; **Reset sample data** restores the starting example.
 It does not sign in to Firebase or change live data, commit files, or publish anything.
@@ -30,14 +30,18 @@ Race date, time and weather continue to use their existing controls.
 Exact championship-position ranges support up to 10 drivers for one race and
 6 drivers for a two-race event. Larger grids show an unavailable message for the
 unsupported range; a supported single-race range is still calculated separately.
-Each finishing position is assigned to one driver per race.
+Finisher positions are unique; absent/DNF drivers can share the position after the
+last finisher. Pole, fastest lap and off-podium fastest lap are separate +1 awards.
+Each award is assigned once; off-podium awards require a position outside the top three.
 
 Calculations run in a background worker with a calculating message. Selecting a
 different driver or closing the calculator cancels pending work. Completed driver
 ranges are reused while the calculator stays open. Finishing orders are generated
 one at a time to keep memory use low. These limits apply to the next-race/event
-outlook. The season table uses conservative position bounds, allowing zero future
-points and calculating remaining Race 2, special events, drops and bonuses.
+outlook. The season table uses conservative position bounds, with last-place points
+for the active grid as the future minimum, and accounts for remaining Race 2,
+special events, drops and bonuses. Minimum totals can remain unchanged if the new
+finishing scores are dropped.
 Future wins and podiums are included in the bounds; unresolved ties prevent a
 position from being declared locked. Completed seasons use their established order.
 Next-race finish conditions use the same remaining-season bounds. A position may
@@ -48,4 +52,18 @@ whole-event clinch messages have been removed.
 Both the title overview and selected-driver calculation have percentage progress
 bars based on completed work. Early exits can advance the percentage in jumps.
 
+Selecting a driver also finds the lowest next-race finish that permits a move up.
+The example assumes nobody receives bonus points and lists only drivers ahead who
+can be passed and drivers behind who could move ahead. The main rank ranges still
+account for bonus awards.
+
 Run the automated checks with Node.js 18 or newer: `node --test tests/*.test.js`.
+
+
+## Scheduling from availability
+
+The saved race day has a thicker outline in the availability results table. Active admins
+can select a current/future date heading and confirm setting the race date and 7pm
+time together. Other drivers see ordinary headings. Existing availability answers
+are preserved. New date saves include the year; older yearless dates are interpreted
+as the closest matching date to today, including across New Year.

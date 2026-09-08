@@ -323,3 +323,24 @@ input[type="radio"]:disabled {
     transform: translate(-50%, -50%);
     border-radius: 50%;
 }
+
+/* Outline the scheduled date without obscuring availability colours. */
+#responsesTable .scheduled-race-column {
+    border-left: 3px solid #111 !important;
+    border-right: 3px solid #111 !important;
+}
+#responsesTable .scheduled-race-top { border-top: 3px solid #111 !important; }
+#responsesTable .scheduled-race-bottom { border-bottom: 3px solid #111 !important; }
+.poll-race-date-button {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+.poll-race-date-button:focus-visible { outline: 2px solid #245bb2; outline-offset: -2px; }

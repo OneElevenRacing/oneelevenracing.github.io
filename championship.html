@@ -143,6 +143,11 @@
             white-space: nowrap;
         }
 
+        .scenario-promotion { margin: 14px 0; padding: 12px; background: #f1f5f1; border-radius: 8px; }
+        .scenario-promotion h4 { margin: 0 0 8px; }
+        .scenario-promotion p, .scenario-promotion ul { margin: 8px 0; }
+        .scenario-promotion summary { cursor: pointer; font-weight: bold; }
+
         .points-legend {
             width: calc(100% - 24px);
             max-width: 720px;
@@ -1251,12 +1256,10 @@
             hasRace1Results: Object.keys(race.resultsRace1 || {}).length > 0,
             hasRace2Results: Object.keys(race.resultsRace2 || {}).length > 0,
             hasPoleResult: Boolean(race.polePositionDriver),
-            hasFastestLapR1Result: Boolean(
-                race.fastestLapDriverR1 || race.fastestLapOffPodiumDriverR1
-            ),
-            hasFastestLapR2Result: Boolean(
-                race.fastestLapDriverR2 || race.fastestLapOffPodiumDriverR2
-            )
+            hasFastestLapR1Result: Boolean(race.fastestLapDriverR1),
+            hasOffPodiumR1Result: Boolean(race.fastestLapOffPodiumDriverR1),
+            hasFastestLapR2Result: Boolean(race.fastestLapDriverR2),
+            hasOffPodiumR2Result: Boolean(race.fastestLapOffPodiumDriverR2)
             };
         }),
 
