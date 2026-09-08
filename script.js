@@ -155,21 +155,7 @@ function fetchAndUpdateRaceInfo() {
         setTextIfPresent("raceDate", (snapshot.val() || "No data"));
     });
 
-    // Fetch and update race location
-    databaseRef.child("race_location").on('value', function(snapshot) {
-        const currentTrackName = snapshot.val() || "No data";
-        setTextIfPresent("raceLocation", currentTrackName);
-
-        // Find the corresponding image path for the current track
-        const trackInfo = typeof trackData !== 'undefined'
-            ? trackData.find(track => track.name === currentTrackName)
-            : null;
-        if (trackInfo) {
-            setImageIfPresent("raceTrackImage", trackInfo.imagePath);
-        } else {
-            setImageIfPresent("raceTrackImage", "Logos_and_icons/racetracks/TBD.png");
-        }
-    });
+    // Track name and image are kept in sync with the championship by race-track.js.
 
     // Fetch and update race time
     databaseRef.child("race_time").on('value', function(snapshot) {

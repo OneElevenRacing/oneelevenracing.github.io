@@ -124,9 +124,39 @@
         }
 
         /* Bonus point cells */
-        td[data-bonus*="PP"] { background-color: orange; }
-        td[data-bonus*="FL"] { background-color: yellow; }
-        td[data-bonus*="OP"] { background-color: cyan; }
+        td[data-bonus*="PP"], .results-legend [data-bonus="PP"] { background-color: orange; }
+        td[data-bonus*="FL"], .results-legend [data-bonus="FL"] { background-color: yellow; }
+        td[data-bonus*="OP"], .results-legend [data-bonus="OP"] { background-color: cyan; }
+
+        .results-legend {
+            width: calc(100% - 16px);
+            margin: 8px auto 0;
+            overflow-x: auto;
+            font-size: clamp(9px, 2.4vw, 12px);
+        }
+
+        .results-legend-line {
+            display: flex;
+            width: max-content;
+            gap: 12px;
+            margin: 0 auto;
+            white-space: nowrap;
+        }
+
+        .points-legend {
+            width: calc(100% - 24px);
+            max-width: 720px;
+            margin: 10px auto 0;
+            text-align: center;
+            font-size: clamp(10px, 2.5vw, 12px);
+            line-height: 1.6;
+            color: #444;
+        }
+        .points-legend p { margin: 4px 0; }
+        .points-legend-score { display: inline-block; margin: 0 5px; white-space: nowrap; }
+
+        .results-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+        .results-legend-swatch { width: 10px; height: 10px; border: 1px solid #888; }
 
         /* Combo cells: Pole + Fastest Lap */
         td[data-combo="pole-fl"] {
@@ -725,6 +755,7 @@
             #current-standings .standings-scroll th,
             #current-standings .standings-scroll td {
             font-size: clamp(7.5px, 2.3vw, 9px);
+            padding: 4px 2px !important;
             }
 
             #current-standings .standings-scroll table {
@@ -972,7 +1003,6 @@
             `<p style="text-align: center;font-family: 'KeepCalm', Arial, sans-serif;">
             Season: <strong>${seasonData.seasonName}</strong>
             &nbsp;|&nbsp; Car Class: <strong>${seasonData.carClass || 'Unknown'}</strong>
-            &nbsp;|&nbsp; Events: <strong>${eventCount}</strong>
             &nbsp;|&nbsp; Drop Races: <strong>${safeDropRaces}</strong>
             </p>`;
 
@@ -1328,6 +1358,27 @@
         scrollWrapper.className = 'scroll-container';
         scrollWrapper.appendChild(table);
         raceResultsSection.appendChild(scrollWrapper);
+
+        const legend = document.createElement('div');
+        legend.className = 'results-legend';
+        legend.setAttribute('role', 'note');
+        legend.setAttribute('aria-label', 'Race results colour legend');
+        legend.innerHTML = `<div class="results-legend-line">
+            <span class="results-legend-item"><span class="results-legend-swatch" data-bonus="PP" aria-hidden="true"></span>Pole</span>
+            <span class="results-legend-item"><span class="results-legend-swatch" data-bonus="FL" aria-hidden="true"></span>Fastest lap</span>
+            <span class="results-legend-item"><span class="results-legend-swatch" data-bonus="OP" aria-hidden="true"></span>Off-podium fastest lap</span>
+        </div>`;
+        raceResultsSection.appendChild(legend);
+
+        const pointsLegend = document.createElement('div');
+        pointsLegend.className = 'points-legend';
+        pointsLegend.setAttribute('role', 'note');
+        pointsLegend.setAttribute('aria-label', 'Championship scoring');
+        pointsLegend.innerHTML = `<p><strong>Points per race</strong><br>${Object.entries(positionToPoints)
+            .map(([position, points]) => `<span class="points-legend-score">P${position}: <strong>${points}</strong></span>`).join('')}</p>
+            <p>+1 per recorded pole, fastest-lap or off-podium fastest-lap award.<br>
+            Special events: double finishing points. Bonus points are never dropped.</p>`;
+        raceResultsSection.appendChild(pointsLegend);
 
         function renderResultCell(cell, points, bonuses, isDropped) {
             if (!cell) return;

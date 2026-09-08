@@ -19,6 +19,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
     <script>
         // Your Firebase configuration
         var firebaseConfig = {
@@ -36,6 +37,7 @@
 
 <!-- Which script to use -->
     <script src="tracks.js"></script>
+    <script src="race-track.js" defer></script>
     <script defer src="checkAuth.js"></script>
     <script defer src="script.js"></script>
 
@@ -56,9 +58,9 @@
         <div class="admin-container">
             <div class="admin-field">
                 <label for="raceTrackSelect">Next Race Track</label>
-                <select id="raceTrackSelect">
+                <select id="raceTrackSelect" disabled>
                 </select>
-                <p id="currentRaceTrack" class="current-data"></p>
+                <p id="currentRaceTrack" class="current-data" role="status"></p>
                 <button onclick="setTrackTBD()">Set to TBD</button>
             </div>
 
@@ -81,6 +83,7 @@
                 <button onclick="resetWeather()">Reset Weather</button>
                 <button onclick="resetAll()">Reset All Data</button>
             </div>
+            <p id="raceInfoStatus" role="status"></p>
         </div>
 
         <div class="season-config">

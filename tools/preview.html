@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>One Eleven — local preview</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #dedede; font: 14px Arial, sans-serif; color: #171717; }
+        header { padding: 16px; background: #111; color: #fff; }
+        p { margin: 0 0 12px; line-height: 1.5; }
+        nav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        button, select { padding: 9px 12px; border: 1px solid #aaa; border-radius: 5px; cursor: pointer; }
+        iframe { display: block; width: 390px; max-width: 100%; height: calc(100dvh - 150px); min-height: 550px; margin: 16px auto; border: 0; background: white; box-shadow: 0 2px 18px #0003; }
+    </style>
+</head>
+<body>
+    <header>
+        <p><strong>Local preview · sample data</strong> — Changes here never affect the live site. Try a manual track in Admin, save, then open Home.</p>
+        <nav aria-label="Preview controls">
+            <button data-page="main.html">Home</button>
+            <button data-page="championship.html">Championship</button>
+            <button data-page="admin.html">Admin</button>
+            <label for="width">View:</label>
+            <select id="width"><option value="390px">Mobile (390px)</option><option value="320px">Small mobile (320px)</option><option value="100%">Desktop</option></select>
+            <button id="reset">Reset sample data</button>
+        </nav>
+    </header>
+    <iframe src="championship.html" title="One Eleven preview" id="preview"></iframe>
+    <script>
+        const frame = document.getElementById('preview');
+        document.querySelectorAll('[data-page]').forEach(button => {
+            button.onclick = () => { frame.src = button.dataset.page; };
+        });
+        document.getElementById('width').onchange = event => { frame.style.width = event.target.value; };
+        document.getElementById('reset').onclick = () => {
+            sessionStorage.removeItem('oneElevenSamplePreview');
+            frame.contentWindow.location.reload();
+        };
+    </script>
+</body>
+</html>

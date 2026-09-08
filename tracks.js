@@ -168,6 +168,7 @@ function populateTrackOptions() {
 
     // Clear existing options to make sure the track selector menu is empty before populating it
     selectElement.innerHTML = '';
+    selectElement.appendChild(new Option('Automatic', '__automatic__'));
 
     // Making the menu options
     trackData.forEach(track => {
@@ -191,12 +192,7 @@ function fetchCurrentData() {
         return;
     }
 
-    // Fetch and display current race location
-    firebase.database().ref('race_location').once('value').then(snapshot => {
-        const currentTrack = snapshot.val() || 'TBD';
-        document.getElementById('raceTrackSelect').value = currentTrack;
-        document.getElementById('currentRaceTrack').textContent = currentTrack;
-    });
+    // Track settings are loaded after authorisation by race-track.js.
 
     // Fetch and display current race date
     firebase.database().ref('race_date').once('value').then(snapshot => {
@@ -276,35 +272,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 //Submitting the race data bits
 //All at once
-function submitRaceData() {
-    submitRaceTrack();
-    submitRaceDate();
-    submitRaceTime();
+async function submitRaceData() {
+    const status = document.getElementById('raceInfoStatus');
+    if (status) status.textContent = 'Saving race info…';
+    try {
+        await submitRaceTrack();
+        await Promise.all([submitRaceDate(), submitRaceTime()]);
+        if (status) status.textContent = 'Race info saved.';
+    } catch (error) {
+        if (status) status.textContent = 'Could not save all race info: ' + error.message;
+        console.error('Error saving race info:', error);
+    }
 }
 
-
-//Submitting the race Track
 function submitRaceTrack() {
-    // Get the selected race track from the dropdown
-    var selectedTrack = document.getElementById('raceTrackSelect').value;
-
-    // Reference your Firebase database
-    var databaseRef = firebase.database().ref();
-
-    // Write the selected race track to the 'race_location' node in your Firebase database
-    databaseRef.child('race_location').set(selectedTrack)
-        .then(function() {
-            console.log('Race track updated successfully!');
-
-            // Update the displayed current race track
-            document.getElementById('currentRaceTrack').textContent = selectedTrack;
-
-            // You can also show a confirmation message to the user
-        })
-        .catch(function(error) {
-            console.log('Error updating race track: ', error);
-            // Handle errors here (e.g., show an error message)
-        });
+    const selected = document.getElementById('raceTrackSelect').value;
+    return window.oneElevenRaceTrack.save(
+        selected === '__automatic__' ? 'auto' : 'manual', selected
+    );
 }
 
 //Submitting the Race Date
@@ -316,14 +301,14 @@ function submitRaceDate() {
     var databaseRef = firebase.database().ref();
 
     // Write the formatted race date to the 'race_date' node in your Firebase database
-    databaseRef.child('race_date').set(formattedDate)
+    return databaseRef.child('race_date').set(formattedDate)
         .then(function() {
             console.log('Race date updated successfully!');
             document.getElementById('currentRaceDate').textContent = formattedDate;
         })
         .catch(function(error) {
             console.log('Error updating race date: ', error);
-            // Handle errors here (e.g., show an error message)
+            throw error;
         });
 }
 
@@ -358,11 +343,12 @@ function submitRaceTime() {
     var formattedTime = convertTo12HourFormat(timeInput);
 
     // Submit to Firebase
-    firebase.database().ref('race_time').set(formattedTime).then(() => {
+    return firebase.database().ref('race_time').set(formattedTime).then(() => {
         // Update the current race time display
         document.getElementById('currentRaceTime').textContent = formattedTime;
     }).catch((error) => {
         console.error("Error updating race time: ", error);
+        throw error;
     });
 }
 // Converting the time to the correct format
@@ -399,9 +385,7 @@ function resetWeather() {
 function resetAll() {
     const resetValue = "TBD";
 
-    firebase.database().ref('race_location').set(resetValue).then(() => {
-        document.getElementById('currentRaceTrack').textContent = resetValue;
-    });
+    setTrackTBD();
     firebase.database().ref('race_date').set(resetValue).then(() => {
         document.getElementById('currentRaceDate').textContent = resetValue;
     });
@@ -412,14 +396,14 @@ function resetAll() {
     firebase.database().ref('weather2').set(resetValue);
 }
 
-function setTrackTBD() {
-    const tbdValue = "TBD";
-
-    firebase.database().ref('race_location').set(tbdValue).then(() => {
-        document.getElementById('currentRaceTrack').textContent = tbdValue;
-    }).catch((error) => {
-        console.error("Error setting race date to TBD: ", error);
-    });
+async function setTrackTBD() {
+    const status = document.getElementById('raceInfoStatus');
+    try {
+        await window.oneElevenRaceTrack.save('manual', 'TBD');
+        if (status) status.textContent = 'Track set to TBD. Choose Automatic and save to follow the championship again.';
+    } catch (error) {
+        if (status) status.textContent = 'Could not set track: ' + error.message;
+    }
 }
 
 

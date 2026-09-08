@@ -11,109 +11,47 @@
       .replace(/'/g, '&#039;');
   }
 
-  // These baselines are only used by the existing season-long rough estimate.
-  const NON_ATTEND_POINTS_NORMAL = 10;
-  const NON_ATTEND_POINTS_SPECIAL = 10;
   let activeComparisonState = null;
 
-  // ---------- Existing season-long extremes calculator ----------
-  function getRemainingEventIndexes(champData) {
-    const { eventCount, racePointsPerEvent } = champData;
+  // Bounds deliberately allow zero future points (DNF/non-attendance).
+  // Equal score/win/podium bounds remain unresolved, rather than implying a lock.
+  function compareScoreBounds(a, b) {
+    return b.total - a.total || b.wins - a.wins || b.podiums - a.podiums;
+  }
+
+  function countEventPoints(points, keepEvents) {
+    return points.slice().sort((a, b) => b - a).slice(0, keepEvents)
+      .reduce((sum, value) => sum + (Number(value) || 0), 0);
+  }
+
+  function currentDriverState(uid, champData) {
+    return { uid, eventPointsByEvent: (champData.racePointsPerEvent[uid] || []).slice(),
+      addedBonus: 0, wins: Number(champData.winsPerDriver[uid]) || 0,
+      podiums: Number(champData.podiumsPerDriver[uid]) || 0 };
+  }
+
+  function computeExtremes(champData, advance = () => {}) {
     const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
-    const remaining = [];
-
-    for (let index = 0; index < eventCount; index++) {
-      const hasPoints = uids.some(uid => Number((racePointsPerEvent[uid] || [])[index]) > 0);
-      if (!hasPoints) remaining.push(index);
-    }
-    return remaining;
-  }
-
-  function isSpecialIndex(index, champData) {
-    return (champData.specialEventIndexes || []).includes(index);
-  }
-
-  function maxEventFinishingPointsForIndex() { return 40; }
-
-  function minEventFinishingPointsForIndex(index, champData) {
-    return isSpecialIndex(index, champData)
-      ? NON_ATTEND_POINTS_SPECIAL
-      : NON_ATTEND_POINTS_NORMAL;
-  }
-
-  function maxEventBonusForIndex(index, champData) {
-    return isSpecialIndex(index, champData) ? 2 : 3;
-  }
-
-  function computeExtremes(champData) {
-    const {
-      eventCount, keepEvents, driverNames,
-      racePointsPerEvent, bonusPointsPerDriver,
-      uidsByStandings
-    } = champData;
-    const uids = uidsByStandings || Object.keys(driverNames || {});
-    const remainingIndexes = getRemainingEventIndexes(champData);
-    const minTotals = {};
-    const maxTotals = {};
-    const minFinish = {};
-    const maxFinish = {};
-    const finishingMin = {};
-    const finishingMax = {};
-    const bonusMax = {};
-
-    for (const uid of uids) {
-      const base = (racePointsPerEvent[uid] || []).slice();
-      while (base.length < eventCount) base.push(0);
-
-      const hypotheticalMaximum = base.map((value, index) =>
-        remainingIndexes.includes(index)
-          ? maxEventFinishingPointsForIndex(index, champData)
-          : (Number(value) || 0)
-      );
-      finishingMax[uid] = hypotheticalMaximum
-        .slice().sort((a, b) => b - a).slice(0, keepEvents)
-        .reduce((sum, value) => sum + value, 0);
-
-      const hypotheticalMinimum = base.map((value, index) =>
-        remainingIndexes.includes(index)
-          ? minEventFinishingPointsForIndex(index, champData)
-          : (Number(value) || 0)
-      );
-      finishingMin[uid] = hypotheticalMinimum
-        .slice().sort((a, b) => b - a).slice(0, keepEvents)
-        .reduce((sum, value) => sum + value, 0);
-
-      const currentBonus = bonusPointsPerDriver[uid] || 0;
-      const availableBonus = remainingIndexes.reduce(
-        (sum, index) => sum + maxEventBonusForIndex(index, champData), 0
-      );
-      bonusMax[uid] = currentBonus + availableBonus;
-      minTotals[uid] = finishingMin[uid] + currentBonus;
-      maxTotals[uid] = finishingMax[uid] + bonusMax[uid];
-    }
-
-    for (const target of uids) {
-      const scores = uids.map(uid => ({
-        uid,
-        score: uid === target ? maxTotals[target] : minTotals[uid]
-      }));
-      scores.sort((a, b) => b.score - a.score || uids.indexOf(a.uid) - uids.indexOf(b.uid));
-      minFinish[target] = scores.findIndex(score => score.uid === target) + 1;
-    }
-
-    for (const target of uids) {
-      const scores = uids.map(uid => ({
-        uid,
-        score: uid === target ? minTotals[target] : maxTotals[uid]
-      }));
-      scores.sort((a, b) => b.score - a.score || uids.indexOf(a.uid) - uids.indexOf(b.uid));
-      maxFinish[target] = scores.findIndex(score => score.uid === target) + 1;
-    }
-
-    return {
-      minTotals, maxTotals, finishingMin, finishingMax,
-      bonusMax, minFinish, maxFinish, remainingIdxs: remainingIndexes
-    };
+    const stages = getAllRemainingStages(champData);
+    const lows = {}, highs = {}, minTotals = {}, maxTotals = {}, minFinish = {}, maxFinish = {};
+    uids.forEach(uid => {
+      const state = currentDriverState(uid, champData);
+      lows[uid] = projectRemainingExtreme(state, uid, champData, stages, false);
+      highs[uid] = projectRemainingExtreme(state, uid, champData, stages, true);
+      minTotals[uid] = lows[uid].total;
+      maxTotals[uid] = highs[uid].total;
+      advance(1);
+    });
+    uids.forEach((uid, index) => {
+      minFinish[uid] = stages.length ? 1 + uids.filter(other => other !== uid
+        && compareScoreBounds(lows[other], highs[uid]) < 0).length : index + 1;
+      advance(1);
+      maxFinish[uid] = stages.length ? 1 + uids.filter(other => other !== uid
+        && compareScoreBounds(highs[other], lows[uid]) <= 0).length : index + 1;
+      advance(1);
+    });
+    return { minTotals, maxTotals, minFinish, maxFinish,
+      remainingIdxs: [...new Set(stages.map(stage => stage.eventIndex))] };
   }
 
   // ---------- Next race/event calculator ----------
@@ -212,9 +150,7 @@
       ? currentEventPoints + outcome.eventPoints
       : outcome.eventPoints;
 
-    const countedFinishingPoints = eventPoints
-      .slice().sort((a, b) => b - a).slice(0, champData.keepEvents)
-      .reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const countedFinishingPoints = countEventPoints(eventPoints, champData.keepEvents);
     const total = countedFinishingPoints
       + (Number(champData.bonusPointsPerDriver[uid]) || 0)
       + addedBonus;
@@ -246,38 +182,33 @@
       .findIndex(state => state.uid === targetUid) + 1;
   }
 
-  function buildPositionPermutations(inputValues) {
+  // Yield one order at a time; never retain the factorial-sized list of orders.
+  function* buildPositionPermutations(inputValues) {
     const values = inputValues.slice();
-    const permutations = [];
-
-    function permute(start) {
+    function* permute(start) {
       if (start === values.length) {
-        permutations.push(values.slice());
+        yield values;
         return;
       }
-
       for (let index = start; index < values.length; index += 1) {
         [values[start], values[index]] = [values[index], values[start]];
-        permute(start + 1);
+        yield* permute(start + 1);
         [values[start], values[index]] = [values[index], values[start]];
       }
     }
-
-    permute(0);
-    return permutations;
+    yield* permute(0);
   }
 
-  function computeValidStageRankRange(champData, stage, targetUid) {
+  function computeValidStageRankRange(champData, stage, targetUid, advance = () => {}) {
     const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
     const driverCount = uids.length;
-    if (!driverCount || driverCount > 6 || !uids.includes(targetUid)) return null;
+    if (!driverCount || driverCount > (stage.mode === 'full' ? 6 : 10) || !uids.includes(targetUid)) return null;
 
     const outcomes = buildOutcomeTemplates(champData, stage);
     const maximumBonus = getStageMaximumBonus(stage);
     const stateCache = {};
     const opponents = uids.filter(uid => uid !== targetUid);
     const range = { bestRank: driverCount, worstRank: 1 };
-    const permutationCache = new Map();
 
     uids.forEach(uid => {
       stateCache[uid] = new Map();
@@ -291,13 +222,9 @@
     });
 
     function permutationsWithout(position) {
-      if (!permutationCache.has(position)) {
-        const remainingPositions = Array.from(
-          { length: driverCount }, (_, index) => index + 1
-        ).filter(value => value !== position);
-        permutationCache.set(position, buildPositionPermutations(remainingPositions));
-      }
-      return permutationCache.get(position);
+      const remainingPositions = Array.from({ length: driverCount }, (_, index) => index + 1)
+        .filter(value => value !== position);
+      return buildPositionPermutations(remainingPositions);
     }
 
     function evaluateClassification(targetStates, race1Positions, race2Positions) {
@@ -333,6 +260,7 @@
 
       range.bestRank = Math.min(range.bestRank, bestRank);
       range.worstRank = Math.max(range.worstRank, driversAhead + 1);
+      advance(1);
     }
 
     targetOutcomeSearch:
@@ -341,9 +269,8 @@
       const race1Permutations = permutationsWithout(targetOutcome.positions[0]);
 
       if (stage.mode === 'full') {
-        const race2Permutations = permutationsWithout(targetOutcome.positions[1]);
         for (const race1Positions of race1Permutations) {
-          for (const race2Positions of race2Permutations) {
+          for (const race2Positions of permutationsWithout(targetOutcome.positions[1])) {
             evaluateClassification(targetStates, race1Positions, race2Positions);
             if (range.bestRank === 1 && range.worstRank === driverCount) {
               break targetOutcomeSearch;
@@ -363,7 +290,7 @@
     return range;
   }
 
-  function computeNextStageAnalysis(champData) {
+  function computeNextStageAnalysis(champData, advance = () => {}) {
     const stage = getNextStage(champData);
     if (!stage) return { stage: null, forecasts: {} };
 
@@ -389,6 +316,7 @@
         bestState: bestStates[0],
         worstState: worstStates[worstStates.length - 1]
       };
+      advance(1);
     });
 
     uids.forEach((uid, currentIndex) => {
@@ -408,6 +336,7 @@
       forecasts[uid].worstRank = worstRank;
       forecasts[uid].aboveUid = aboveUid;
       forecasts[uid].belowUid = belowUid;
+      advance(1);
     });
 
     return {
@@ -419,20 +348,13 @@
     };
   }
 
-  function ensureValidRangesForDriver(uid, champData, analysis) {
+  async function ensureValidRangesForDriver(uid, champData, analysis, onProgress) {
     if (!analysis.stage || analysis.validRangesComputed[uid]) return;
-
-    const eventRange = computeValidStageRankRange(champData, analysis.stage, uid);
-    const individualStage = getNextIndividualRaceStage(analysis.stage);
-    const individualRange = analysis.stage.mode === 'full'
-      ? computeValidStageRankRange(champData, individualStage, uid)
-      : eventRange;
-
-    if (eventRange) {
-      analysis.forecasts[uid].bestRank = eventRange.bestRank;
-      analysis.forecasts[uid].worstRank = eventRange.worstRank;
-    }
-    if (individualRange) analysis.individualRanges[uid] = individualRange;
+    const result = await runCalculation({ type: 'ranges', uid, champData, stage: analysis.stage }, onProgress);
+    analysis.eventRanges ||= {};
+    analysis.eventRanges[uid] = result.eventRange;
+    analysis.individualRanges[uid] = result.individualRange;
+    if (result.eventRange) Object.assign(analysis.forecasts[uid], result.eventRange);
     analysis.validRangesComputed[uid] = true;
   }
 
@@ -502,18 +424,15 @@
 
   function projectRemainingExtreme(state, uid, champData, remainingStages, useMaximum) {
     const eventPoints = state.eventPointsByEvent.slice();
-    const driverCount = (
-      champData.uidsByStandings || Object.keys(champData.driverNames || {})
-    ).length;
-    const position = useMaximum ? 1 : driverCount;
     let addedBonus = state.addedBonus;
     let wins = state.wins;
     let podiums = state.podiums;
 
     remainingStages.forEach(stage => {
-      const outcome = buildOutcomeTemplates(champData, stage)
-        .find(template => template.positions.every(value => value === position));
-      if (!outcome) return;
+      const races = stage.mode === 'full' ? 2 : 1;
+      const multiplier = stage.mode === 'special' ? 2 : races;
+      const outcome = { eventPoints: useMaximum ? (Number(champData.positionToPoints[1]) || 0) * multiplier : 0,
+        winsAdded: useMaximum ? races : 0, podiumsAdded: useMaximum ? races : 0 };
 
       const currentEventPoints = Number(eventPoints[stage.eventIndex]) || 0;
       eventPoints[stage.eventIndex] = stage.mode === 'race2'
@@ -524,9 +443,7 @@
       if (useMaximum) addedBonus += getStageMaximumBonus(stage);
     });
 
-    const countedFinishingPoints = eventPoints
-      .slice().sort((a, b) => b - a).slice(0, champData.keepEvents)
-      .reduce((sum, value) => sum + (Number(value) || 0), 0);
+    const countedFinishingPoints = countEventPoints(eventPoints, champData.keepEvents);
 
     return {
       uid,
@@ -552,28 +469,11 @@
   }
 
   function isCurrentPositionLocked(uid, currentRank, champData) {
-    const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
-    const remainingStages = getAllRemainingStages(champData);
-    const currentState = targetUid => ({
-      uid: targetUid,
-      eventPointsByEvent: (champData.racePointsPerEvent[targetUid] || []).slice(),
-      addedBonus: 0,
-      wins: Number(champData.winsPerDriver[targetUid]) || 0,
-      podiums: Number(champData.podiumsPerDriver[targetUid]) || 0
-    });
-
-    const bestField = uids.map(otherUid => projectRemainingExtreme(
-      currentState(otherUid), otherUid, champData, remainingStages, otherUid === uid
-    ));
-    const worstField = uids.map(otherUid => projectRemainingExtreme(
-      currentState(otherUid), otherUid, champData, remainingStages, otherUid !== uid
-    ));
-
-    return rankForStateList(bestField, uid, champData) === currentRank
-      && rankForStateList(worstField, uid, champData) === currentRank;
+    const bounds = computeExtremes(champData);
+    return bounds.minFinish[uid] === currentRank && bounds.maxFinish[uid] === currentRank;
   }
 
-  function computeSingleRaceClinchingScenarios(champData, analysis) {
+  function computeSingleRaceClinchingScenarios(champData, analysis, advance = () => {}) {
     if (!analysis.stage) return [];
 
     const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
@@ -585,7 +485,10 @@
 
     uids.forEach((uid, currentIndex) => {
       const currentRank = currentIndex + 1;
-      if (isCurrentPositionLocked(uid, currentRank, champData)) return;
+      if (isCurrentPositionLocked(uid, currentRank, champData)) {
+        advance(outcomes.length);
+        return;
+      }
 
       const lockingPositions = [];
       outcomes.forEach(targetOutcome => {
@@ -608,9 +511,7 @@
           const rivalBestOutcome = outcomes.find(outcome =>
             outcome.positions[0] !== targetPosition
           );
-          const rivalWorstOutcome = outcomes.slice().reverse().find(outcome =>
-            outcome.positions[0] !== targetPosition
-          );
+          const rivalWorstOutcome = { positions: [0], eventPoints: 0, winsAdded: 0, podiumsAdded: 0 };
           if (!rivalBestOutcome || !rivalWorstOutcome) return;
 
           bestField.push(projectRemainingExtreme(
@@ -623,11 +524,14 @@
           ));
         });
 
-        const bestRank = rankForStateList(bestField, uid, champData);
-        const worstRank = rankForStateList(worstField, uid, champData);
+        const bestRank = 1 + bestField.filter(state => state.uid !== uid
+          && compareScoreBounds(state, targetBest) < 0).length;
+        const worstRank = 1 + worstField.filter(state => state.uid !== uid
+          && compareScoreBounds(state, targetWorst) <= 0).length;
         if (bestRank === currentRank && worstRank === currentRank) {
           lockingPositions.push(targetPosition);
         }
+        advance(1);
       });
 
       if (lockingPositions.length) {
@@ -643,156 +547,14 @@
     return scenarios;
   }
 
-  function outcomesAreCompatible(first, second) {
-    return first.positions.every((position, index) =>
-      position !== second.positions[index]
-    );
-  }
-
-  function getStagesAfterEvent(champData, eventStage) {
-    return getAllRemainingStages(champData)
-      .filter(stage => stage.eventIndex > eventStage.eventIndex);
-  }
-
-  function buildEventOptions(uid, champData, eventStage, remainingStages, useMaximumFuture) {
-    const outcomes = buildOutcomeTemplates(champData, eventStage);
-    const maximumBonus = getStageMaximumBonus(eventStage);
-    const options = [];
-
-    outcomes.forEach(outcome => {
-      for (let bonus = 0; bonus <= maximumBonus; bonus += 1) {
-        options.push({
-          outcome,
-          eventScore: outcome.eventPoints + bonus,
-          state: projectRemainingExtreme(
-            projectDriverState(uid, outcome, bonus, champData, eventStage),
-            uid, champData, remainingStages, useMaximumFuture
-          )
-        });
-      }
-    });
-
-    return options;
-  }
-
-  function getStrongestCompatibleOption(options, occupiedOutcomes, champData) {
-    return options
-      .filter(option => occupiedOutcomes.every(occupied =>
-        outcomesAreCompatible(option.outcome, occupied)
-      ))
-      .sort((a, b) => compareProjectedStates(a.state, b.state, champData))[0] || null;
-  }
-
-  function computeWholeEventClinch(champData, analysis, singleRaceScenarios) {
-    if (!analysis.stage) return null;
-
-    const uids = champData.uidsByStandings || Object.keys(champData.driverNames || {});
-    const leaderUid = uids[0];
-    if (!leaderUid || uids.length < 2) return null;
-    if (singleRaceScenarios.some(scenario => scenario.uid === leaderUid)) return null;
-    if (isCurrentPositionLocked(leaderUid, 1, champData)) return null;
-
-    const eventStage = analysis.stage;
-    const remainingStages = getStagesAfterEvent(champData, eventStage);
-    const targetOptions = buildEventOptions(
-      leaderUid, champData, eventStage, remainingStages, false
-    );
-    const rivalOptionsByUid = {};
-    uids.slice(1).forEach(uid => {
-      rivalOptionsByUid[uid] = buildEventOptions(
-        uid, champData, eventStage, remainingStages, true
-      );
-    });
-
-    for (const rivalUid of uids.slice(1)) {
-      const rivalOptions = rivalOptionsByUid[rivalUid];
-      const compatibilityCache = new Map();
-      let greatestFailingDifference = -Infinity;
-      const successfulDifferences = [];
-
-      targetOptions.forEach(targetOption => {
-        rivalOptions.forEach(rivalOption => {
-          if (!outcomesAreCompatible(targetOption.outcome, rivalOption.outcome)) return;
-
-          const field = [targetOption.state, rivalOption.state];
-          let completeField = true;
-
-          uids.forEach(otherUid => {
-            if (!completeField || otherUid === leaderUid || otherUid === rivalUid) return;
-
-            const key = `${otherUid}|${targetOption.outcome.positions.join(',')}|${rivalOption.outcome.positions.join(',')}`;
-            if (!compatibilityCache.has(key)) {
-              compatibilityCache.set(key, getStrongestCompatibleOption(
-                rivalOptionsByUid[otherUid],
-                [targetOption.outcome, rivalOption.outcome],
-                champData
-              ));
-            }
-
-            const option = compatibilityCache.get(key);
-            if (!option) {
-              completeField = false;
-              return;
-            }
-            field.push(option.state);
-          });
-
-          if (!completeField) return;
-          const difference = targetOption.eventScore - rivalOption.eventScore;
-          if (rankForStateList(field, leaderUid, champData) === 1) {
-            successfulDifferences.push(difference);
-          } else {
-            greatestFailingDifference = Math.max(greatestFailingDifference, difference);
-          }
-        });
-      });
-
-      if (!successfulDifferences.length) continue;
-      const requiredDifference = Number.isFinite(greatestFailingDifference)
-        ? greatestFailingDifference + 1
-        : Math.min(...successfulDifferences);
-      if (!successfulDifferences.some(difference => difference >= requiredDifference)) continue;
-
-      return {
-        type: 'event',
-        uid: leaderUid,
-        rank: 1,
-        rivalUid,
-        requiredDifference
-      };
-    }
-
-    return null;
-  }
-
-  function formatEventPointsCondition(requiredDifference, rivalName) {
-    if (requiredDifference > 0) {
-      return `scores at least ${requiredDifference} more points than ${rivalName}`;
-    }
-    if (requiredDifference === 0) {
-      return `matches or outscores ${rivalName}`;
-    }
-    return `finishes no more than ${Math.abs(requiredDifference)} points behind ${rivalName}`;
-  }
-
-  function renderClinchingScenarios(champData, analysis) {
-    const scenarios = computeSingleRaceClinchingScenarios(champData, analysis);
-    const wholeEventClinch = computeWholeEventClinch(champData, analysis, scenarios);
-    if (wholeEventClinch) scenarios.push(wholeEventClinch);
+  function renderClinchingScenarios(champData, analysis, advance = () => {}) {
+    const scenarios = computeSingleRaceClinchingScenarios(champData, analysis, advance);
     if (!scenarios.length) return '';
 
     const raceLabel = getNextIndividualRaceLabel(analysis.stage);
     const items = scenarios.map(scenario => {
       const name = champData.driverNames[scenario.uid] || scenario.uid;
-      if (scenario.type === 'race') {
-        return `<li>If <strong>${escapeHtml(name)}</strong> finishes ${escapeHtml(scenario.finishCondition)} in ${escapeHtml(raceLabel)}, P${scenario.rank} is locked in.</li>`;
-      }
-
-      const rivalName = champData.driverNames[scenario.rivalUid] || scenario.rivalUid;
-      const condition = formatEventPointsCondition(
-        scenario.requiredDifference, rivalName
-      );
-      return `<li>If <strong>${escapeHtml(name)}</strong> ${escapeHtml(condition)} across the next event, P${scenario.rank} is locked in.</li>`;
+      return `<li>If <strong>${escapeHtml(name)}</strong> finishes ${escapeHtml(scenario.finishCondition)} in ${escapeHtml(raceLabel)}, P${scenario.rank} is locked in.</li>`;
     }).join('');
 
     return `
@@ -931,7 +693,8 @@
   }
 
   // ---------- Modal UI ----------
-  function renderNextRacePanel(uid, champData, analysis) {
+  async function renderNextRacePanel(uid, champData, analysis) {
+    const request = ++panelRequest;
     const panel = qs('nextRaceScenarioPanel');
     if (!panel) return;
 
@@ -956,21 +719,40 @@
       return;
     }
 
-    ensureValidRangesForDriver(uid, champData, analysis);
+    if (!analysis.validRangesComputed[uid]) {
+      panel.setAttribute('aria-busy', 'true');
+      panel.innerHTML = `<div role="status"><p>Calculating race positions for ${escapeHtml(champData.driverNames[uid] || uid)}… <span data-calculation-percent>0%</span></p>
+        <progress data-calculation-progress value="0" max="100" aria-label="Race position calculation progress" style="width:100%;height:18px;accent-color:#222;"></progress></div>`;
+      panel.scrollIntoView?.({ block: 'nearest' });
+      try {
+        await ensureValidRangesForDriver(uid, champData, analysis, percent => {
+          if (request !== panelRequest) return;
+          panel.querySelector('[data-calculation-progress]').value = percent;
+          panel.querySelector('[data-calculation-percent]').textContent = `${percent}%`;
+        });
+      } catch (error) {
+        if (request !== panelRequest || error.name === 'AbortError') return;
+        panel.removeAttribute('aria-busy');
+        showCalculationError(panel, () => renderNextRacePanel(uid, champData, analysis));
+        return;
+      }
+    } else {
+      cancelCalculation();
+    }
+    if (request !== panelRequest) return;
+    panel.removeAttribute('aria-busy');
     const forecast = analysis.forecasts[uid];
     const stage = analysis.stage;
     const name = champData.driverNames[uid] || uid;
     const aboveName = forecast.aboveUid ? champData.driverNames[forecast.aboveUid] || forecast.aboveUid : '';
     const belowName = forecast.belowUid ? champData.driverNames[forecast.belowUid] || forecast.belowUid : '';
     const currentTotal = Number(champData.finalTotals[uid]) || 0;
-    const individualRange = analysis.individualRanges?.[uid] || {
-      bestRank: forecast.bestRank,
-      worstRank: forecast.worstRank
-    };
-    const individualRangeText = formatRankRange(
-      individualRange.bestRank, individualRange.worstRank
-    );
-    const eventRangeText = formatRankRange(forecast.bestRank, forecast.worstRank);
+    const individualRange = analysis.individualRanges[uid];
+    const eventRange = analysis.eventRanges?.[uid];
+    const individualRangeText = individualRange
+      ? formatRankRange(individualRange.bestRank, individualRange.worstRank) : 'Unavailable';
+    const eventRangeText = eventRange
+      ? formatRankRange(eventRange.bestRank, eventRange.worstRank) : 'Unavailable';
     const hasTwoRaceOutlook = stage.mode === 'full';
 
     let upwardTitle;
@@ -1038,7 +820,8 @@
         </div>
       </div>
 
-      <div class="scenario-moves">
+      ${!individualRange ? '<p>Exact single-race ranges are available for grids of up to 10 drivers.</p>' : ''}
+      ${eventRange ? `<div class="scenario-moves">
         <div class="scenario-move">
           <strong>${escapeHtml(upwardTitle)}</strong>
           <span>${escapeHtml(upwardText)}</span>
@@ -1049,6 +832,7 @@
         </div>
       </div>
 
+      ` : ''}
       ${(aheadMatrix || behindMatrix) ? `
         <div class="scenario-matrices">
           <div class="scenario-matrices-heading">
@@ -1072,18 +856,16 @@
     }
   }
 
-  function renderTable(champData, extremes, nextRaceAnalysis) {
+  function renderTable(champData, extremes, nextRaceAnalysis, clinchingScenarios) {
     const { driverNames, uidsByStandings } = champData;
     const uids = uidsByStandings || Object.keys(driverNames || {});
     const { minTotals, maxTotals, minFinish, maxFinish } = extremes;
-    const clinchingScenarios = renderClinchingScenarios(champData, nextRaceAnalysis);
 
     let html = `
       <h3 style="margin:0 0 10px 0;">Title Scenarios</h3>
       <p style="margin:0 0 8px 0;">
-        Events: <strong>${champData.eventsRemaining} remaining</strong> &nbsp;•&nbsp;
-        Drops: <strong>${champData.safeDropRaces}</strong> &nbsp;•&nbsp;
-        Best <strong>${champData.keepEvents}</strong> count
+        Events: <strong>${extremes.remainingIdxs.length} remaining</strong> &nbsp;•&nbsp;
+        Drops: <strong>${champData.safeDropRaces}</strong>
       </p>
       <div style="overflow-x:auto;">
         <table class="calc-table" style="border-collapse:collapse; width:100%;">
@@ -1094,8 +876,8 @@
               <th style="padding:6px;border:1px solid #333;">Current</th>
               <th style="padding:6px;border:1px solid #333;">Min</th>
               <th style="padding:6px;border:1px solid #333;">Max</th>
-              <th class="pos-col" style="padding:6px;border:1px solid #333;">Best</th>
-              <th class="pos-col" style="padding:6px;border:1px solid #333;">Worst</th>
+              <th class="pos-col" style="padding:6px;border:1px solid #333;" title="Best championship position bound">Best<br>Pos</th>
+              <th class="pos-col" style="padding:6px;border:1px solid #333;" title="Worst championship position bound">Worst<br>Pos</th>
             </tr>
           </thead>
           <tbody>
@@ -1154,25 +936,145 @@
     });
   }
 
+  // This same script runs in a dedicated worker, without accessing the page.
+  if (typeof document === 'undefined') {
+    self.onmessage = ({ data }) => {
+      try {
+        let result;
+        const n = (data.champData.uidsByStandings || Object.keys(data.champData.driverNames || {})).length;
+        const stage = data.stage || getNextStage(data.champData);
+        const factorial = value => value <= 1 ? 1 : value * factorial(value - 1);
+        const searchSize = mode => n > (mode === 'full' ? 6 : 10) ? 0
+          : factorial(n) ** (mode === 'full' ? 2 : 1);
+        const eventSize = stage ? searchSize(stage.mode) : 0;
+        const individualSize = stage?.mode === 'full' ? searchSize('race1') : 0;
+        const total = Math.max(1, data.type === 'ranges' ? eventSize + individualSize
+          : (stage ? 5 * n + n * n : 3 * n));
+        let completed = 0, lastPercent = 0;
+        self.postMessage({ progress: 0 });
+        const advance = count => {
+          completed += count;
+          const percent = Math.min(99, Math.floor(completed * 100 / total));
+          if (percent > lastPercent) {
+            lastPercent = percent;
+            self.postMessage({ progress: percent });
+          }
+        };
+        if (data.type === 'ranges') {
+          const eventRange = computeValidStageRankRange(data.champData, stage, data.uid, advance);
+          // An early exhaustive-range exit finishes this part of the work.
+          advance(eventSize - completed);
+          const individualRange = stage.mode === 'full'
+            ? computeValidStageRankRange(data.champData, getNextIndividualRaceStage(stage), data.uid, advance)
+            : eventRange;
+          result = { eventRange, individualRange };
+        } else {
+          const analysis = computeNextStageAnalysis(data.champData, advance);
+          result = { analysis, extremes: computeExtremes(data.champData, advance),
+            clinchingScenarios: renderClinchingScenarios(data.champData, analysis, advance) };
+        }
+        self.postMessage({ progress: 100 });
+        self.postMessage({ result });
+      } catch (error) {
+        self.postMessage({ error: error.message });
+      }
+    };
+    return;
+  }
+
+  let calculationWorker = null;
+  let rejectCalculation = null;
+  let panelRequest = 0;
+  let modalRequest = 0;
+
+  function cancelCalculation() {
+    calculationWorker?.terminate();
+    calculationWorker = null;
+    if (rejectCalculation) {
+      const error = new Error('Calculation cancelled');
+      error.name = 'AbortError';
+      rejectCalculation(error);
+      rejectCalculation = null;
+    }
+  }
+
+  function runCalculation(payload, onProgress = () => {}) {
+    cancelCalculation();
+    return new Promise((resolve, reject) => {
+      try {
+        const worker = new Worker('championship_calculator.js');
+        calculationWorker = worker;
+        rejectCalculation = reject;
+        const finish = () => {
+          worker.terminate();
+          if (calculationWorker === worker) {
+            calculationWorker = null;
+            rejectCalculation = null;
+          }
+        };
+        worker.onmessage = ({ data }) => {
+          if (calculationWorker !== worker) return;
+          if (typeof data.progress === 'number') {
+            onProgress(data.progress);
+            return;
+          }
+          finish();
+          if (data.error) reject(new Error(data.error));
+          else resolve(data.result);
+        };
+        worker.onerror = () => { finish(); reject(new Error('Calculation failed')); };
+        worker.onmessageerror = worker.onerror;
+        worker.postMessage(payload);
+      } catch (error) {
+        calculationWorker?.terminate();
+        calculationWorker = null;
+        rejectCalculation = null;
+        reject(error);
+      }
+    });
+  }
+
+  function showCalculationError(element, retry) {
+    element.innerHTML = '<p role="alert">Unable to calculate right now.</p><button type="button">Try again</button>';
+    element.querySelector('button').addEventListener('click', retry);
+  }
+
   // ---------- Public API ----------
-  window.openPointsCalculator = function (champData) {
+  window.openPointsCalculator = async function (champData) {
     if (!champData) {
       alert('No championship data available yet.');
       return;
     }
-
-    const extremes = computeExtremes(champData);
-    const nextRaceAnalysis = computeNextStageAnalysis(champData);
+    const request = ++modalRequest;
+    ++panelRequest;
     activeComparisonState = null;
-    console.log('[Calculator] Data:', champData);
-    console.log('[Calculator] Extremes:', extremes);
-    console.log('[Calculator] Next race:', nextRaceAnalysis);
-
-    renderTable(champData, extremes, nextRaceAnalysis);
+    const body = qs('calcModalBody');
     qs('calcModal').style.display = 'flex';
+    body.setAttribute('aria-busy', 'true');
+    body.innerHTML = `<div role="status">
+      <p>Calculating title scenarios… <span data-calculation-percent>0%</span></p>
+      <progress data-calculation-progress value="0" max="100" aria-label="Title scenario calculation progress" style="width:100%;height:18px;accent-color:#222;"></progress>
+    </div>`;
+    try {
+      const result = await runCalculation({ type: 'overview', champData }, percent => {
+        if (request !== modalRequest) return;
+        body.querySelector('[data-calculation-progress]').value = percent;
+        body.querySelector('[data-calculation-percent]').textContent = `${percent}%`;
+      });
+      if (request !== modalRequest) return;
+      body.removeAttribute('aria-busy');
+      renderTable(champData, result.extremes, result.analysis, result.clinchingScenarios);
+    } catch (error) {
+      if (request !== modalRequest || error.name === 'AbortError') return;
+      body.removeAttribute('aria-busy');
+      showCalculationError(body, () => window.openPointsCalculator(champData));
+    }
   };
 
   window.closePointsCalculator = function () {
+    ++modalRequest;
+    ++panelRequest;
+    cancelCalculation();
     const modal = qs('calcModal');
     if (modal) modal.style.display = 'none';
   };
