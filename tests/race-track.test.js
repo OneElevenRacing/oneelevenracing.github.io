@@ -12,9 +12,14 @@ function setup(initialSeason) {
     let onFailure;
     let onFallback;
     let transactionFailure = false;
+    let duplicateSeason = null;
     const ref = {};
-    const doc = () => ({ id: 'season1', ref, exists: true, data: () => season });
-    const notify = () => onSeason({ empty: !season, docs: season ? [doc()] : [] });
+    const doc = (id = 'season1', value = season) => ({ id, ref, exists: true, data: () => value });
+    const notify = () => {
+        const docs = season ? [doc()] : [];
+        if (duplicateSeason) docs.push(doc('season2', duplicateSeason));
+        onSeason({ empty: docs.length === 0, docs });
+    };
     const context = {
         window: {}, console: { error() {} },
         trackData: [{ name: 'Monza', imagePath: 'monza.png' }, { name: 'Imola', imagePath: 'imola.png' }],
@@ -44,6 +49,7 @@ function setup(initialSeason) {
     return { api: context.window.oneElevenRaceTrack, elements,
         change: value => { season = value; notify(); },
         deactivate: () => { season = { ...season, isActive: false }; },
+        duplicate: value => { duplicateSeason = value; notify(); },
         fail: () => onFailure(new Error('Offline')),
         denyWrite: () => { transactionFailure = true; }
     };
@@ -126,7 +132,17 @@ test('read failures block writes and transaction failures do not pretend to save
     await assert.rejects(state.api.save('manual', 'Imola'), /Permission denied/);
     assert.equal(state.elements.raceLocation.textContent, 'Monza');
     state.fail();
+    assert.equal(state.elements.raceLocation.textContent, 'TBD');
+    assert.equal(state.elements.raceTrackImage.src, 'Logos_and_icons/racetracks/TBD.png');
     await assert.rejects(state.api.save('manual', 'Imola'), /still loading/);
+});
+
+test('multiple active championships show no arbitrary or stale track', async () => {
+    const state = setup(season());
+    state.duplicate({ ...season(), seasonName: 'Duplicate active season' });
+    assert.equal(state.elements.raceLocation.textContent, 'TBD');
+    assert.equal(state.elements.raceTrackImage.alt, 'Track unavailable');
+    await assert.rejects(state.api.save('auto'), /still loading/);
 });
 
 test('a season deactivated while the admin form was open rejects the override', async () => {

@@ -3,9 +3,13 @@ let raceDateMatchesToday = false;
 let raceWeatherAlreadySet = false;
 let raceDateStatusKnown = false;
 let raceWeatherStatusKnown = false;
+let weatherSlotValues = ['', ''];
+let weatherSlotStatusKnown = [false, false];
+let liveWeatherRefs = [];
 
 const WEEKDAY_ABBRS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_ABBRS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const UK_TIME_ZONE = 'Europe/London';
 
 // This is the function with all of the probabilities and weather. Make sure they add up to 1.00
 function generateRandomWeather() {
@@ -60,20 +64,60 @@ function getDaySuffix(day) {
 }
 
 function formatDate(date) {
-    const day = date.getDate();
-    return `${WEEKDAY_ABBRS[date.getDay()]}, ${day}${getDaySuffix(day)} ${MONTH_ABBRS[date.getMonth()]}`;
+    const key = getUkDateKey(date);
+    const [year, month, day] = key.split('-').map(Number);
+    const ukDate = new Date(Date.UTC(year, month - 1, day, 12));
+    return `${WEEKDAY_ABBRS[ukDate.getUTCDay()]}, ${day}${getDaySuffix(day)} ${MONTH_ABBRS[month - 1]} ${year}`;
 }
 
-function normalizeRaceDateText(dateText) {
-    return String(dateText || '')
-        .trim()
-        .replace(/,/g, '')
-        .replace(/\s+/g, ' ')
-        .toLowerCase();
+function getUkDateKey(date = new Date()) {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: UK_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type)?.value;
+    return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
-function raceDateTextMatches(dateA, dateB) {
-    return normalizeRaceDateText(dateA) === normalizeRaceDateText(dateB);
+function isValidDateParts(year, month, day) {
+    const candidate = new Date(Date.UTC(year, month, day));
+    return candidate.getUTCFullYear() === year
+        && candidate.getUTCMonth() === month
+        && candidate.getUTCDate() === day;
+}
+
+function raceDateTextToKey(dateText, referenceKey = getUkDateKey()) {
+    const match = String(dateText || '').trim().match(
+        /^(?:[A-Za-z]+,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})(?:\s+(\d{4}))?$/i
+    );
+    if (!match) return '';
+
+    const month = MONTH_ABBRS.findIndex(value => value.toLowerCase() === match[2].toLowerCase());
+    const day = Number(match[1]);
+    if (month < 0) return '';
+
+    const referenceYear = Number(referenceKey.slice(0, 4));
+    const explicitYear = match[3] ? Number(match[3]) : null;
+    const years = explicitYear === null
+        ? [referenceYear - 1, referenceYear, referenceYear + 1]
+        : [explicitYear];
+    const referenceTime = Date.parse(`${referenceKey}T00:00:00Z`);
+    const candidates = years
+        .filter(year => isValidDateParts(year, month, day))
+        .map(year => ({
+            key: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+            time: Date.UTC(year, month, day)
+        }))
+        .sort((a, b) => Math.abs(a.time - referenceTime) - Math.abs(b.time - referenceTime));
+
+    return candidates[0]?.key || '';
+}
+
+function raceDateTextMatches(dateText, date = new Date()) {
+    const todayKey = getUkDateKey(date);
+    return raceDateTextToKey(dateText, todayKey) === todayKey;
 }
 
 function normalizeWeatherValue(value) {
@@ -89,34 +133,65 @@ function displayWeatherValue(value) {
     return normalizeWeatherValue(value) || "No data";
 }
 
-function fetchAndDisplayCurrentWeather() {
-    const weather1Display = document.getElementById('weather1');
-    const weather2Display = document.getElementById('weather2');
-    const weatherMessage = document.getElementById('weatherMessage');
+function updateWeatherSlot(index, value) {
+    weatherSlotValues[index] = value;
+    weatherSlotStatusKnown[index] = true;
+    const display = document.getElementById(index === 0 ? 'weather1' : 'weather2');
+    if (display) {
+        display.textContent = displayWeatherValue(value);
+        display.classList.remove('weather-result-practice');
+    }
+    raceWeatherAlreadySet = weatherSlotValues.every(isWeatherSlotSet);
+    raceWeatherStatusKnown = weatherSlotStatusKnown.every(Boolean);
+    updateRaceWeatherButtonState();
+}
 
-    if (!weather1Display || !weather2Display) return Promise.resolve();
+function updateRaceDateStatus(firebaseDate, date = new Date()) {
+    const currentDate = formatDate(date);
+    raceDateMatchesToday = raceDateTextMatches(firebaseDate, date);
+    raceDateStatusKnown = true;
 
-    return Promise.all([
-        firebase.database().ref('weather1').once('value'),
-        firebase.database().ref('weather2').once('value')
-    ]).then(([snapshot1, snapshot2]) => {
-        const weather1 = snapshot1.val();
-        const weather2 = snapshot2.val();
+    const firebaseDateDebug = document.getElementById('firebaseDate');
+    const currentDateDebug = document.getElementById('currentDate');
+    const datesMatchDebug = document.getElementById('datesMatch');
+    if (firebaseDateDebug) firebaseDateDebug.textContent = firebaseDate || "No data";
+    if (currentDateDebug) currentDateDebug.textContent = currentDate;
+    if (datesMatchDebug) datesMatchDebug.textContent = raceDateMatchesToday ? "Yes" : "No";
+    updateRaceWeatherButtonState();
+}
 
-        weather1Display.textContent = displayWeatherValue(weather1);
-        weather1Display.classList.remove('weather-result-practice'); // Remove practice class
-        weather2Display.textContent = displayWeatherValue(weather2);
-        weather2Display.classList.remove('weather-result-practice');
+function stopLiveWeatherStatus() {
+    liveWeatherRefs.forEach(({ ref, callback }) => ref.off('value', callback));
+    liveWeatherRefs = [];
+}
 
-        raceWeatherAlreadySet = isWeatherSlotSet(weather1) && isWeatherSlotSet(weather2);
-        raceWeatherStatusKnown = true;
+function startLiveWeatherStatus() {
+    stopLiveWeatherStatus();
+    raceDateStatusKnown = false;
+    raceWeatherStatusKnown = false;
+    weatherSlotStatusKnown = [false, false];
+
+    const subscribe = (path, callback, failure) => {
+        const ref = firebase.database().ref(path);
+        ref.on('value', callback, failure);
+        liveWeatherRefs.push({ ref, callback });
+    };
+    const failDate = error => {
+        console.error('Error loading race date:', error);
+        raceDateStatusKnown = false;
         updateRaceWeatherButtonState();
-    }).catch((error) => {
-        console.error("Error fetching current weather:", error);
+    };
+    const failWeather = error => {
+        console.error('Error loading saved weather:', error);
         raceWeatherStatusKnown = false;
+        const weatherMessage = document.getElementById('weatherMessage');
         if (weatherMessage) weatherMessage.textContent = 'Unable to load saved weather. Please refresh and try again.';
         updateRaceWeatherButtonState();
-    });
+    };
+
+    subscribe('race_date', snapshot => updateRaceDateStatus(snapshot.val()), failDate);
+    subscribe('weather1', snapshot => updateWeatherSlot(0, snapshot.val()), failWeather);
+    subscribe('weather2', snapshot => updateWeatherSlot(1, snapshot.val()), failWeather);
 }
 
 
@@ -127,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function checkWeatherDriverStatus() {
     firebase.auth().onAuthStateChanged((user) => {
+        stopLiveWeatherStatus();
         if (!user) {
             currentUserIsActiveDriver = false;
             raceDateStatusKnown = false;
@@ -148,10 +224,8 @@ function checkWeatherDriverStatus() {
                     return null;
                 }
 
-                return Promise.all([
-                    fetchAndDisplayCurrentWeather(),
-                    checkCurrentDateWithFirebase()
-                ]);
+                startLiveWeatherStatus();
+                return null;
             })
             .then(() => {
                 updateRaceWeatherButtonState();
@@ -225,66 +299,59 @@ function setupButtonEventListeners() {
         weather2Display.classList.add('weather-result-practice');
     });
 
-    generateRaceWeatherBtn.addEventListener('click', () => {
+    generateRaceWeatherBtn.addEventListener('click', async () => {
         if (!currentUserIsActiveDriver) {
             if (weatherMessage) weatherMessage.textContent = 'Only active drivers can generate race-day weather.';
             updateRaceWeatherButtonState();
             return;
         }
 
-        if (!raceDateMatchesToday) {
-            if (weatherMessage) weatherMessage.textContent = 'Race-day weather can only be generated on the race date.';
-            updateRaceWeatherButtonState();
-            return;
-        }
+        try {
+            // Recheck immediately before writing so another tab cannot leave this page with stale state.
+            const [dateSnapshot, snapshot1, snapshot2] = await Promise.all([
+                firebase.database().ref('race_date').once('value'),
+                firebase.database().ref('weather1').once('value'),
+                firebase.database().ref('weather2').once('value')
+            ]);
+            updateRaceDateStatus(dateSnapshot.val());
+            updateWeatherSlot(0, snapshot1.val());
+            updateWeatherSlot(1, snapshot2.val());
 
-        // Check if the weather is already set
-        Promise.all([
-            firebase.database().ref('weather1').once('value'),
-            firebase.database().ref('weather2').once('value')
-        ]).then(([snapshot1, snapshot2]) => {
-            if (!isWeatherSlotSet(snapshot1.val()) || !isWeatherSlotSet(snapshot2.val())) {
-                // Show confirmation alert
-                const confirmGeneration = confirm("Are you sure that you want to generate the race weathers? You will be responsible for any ensuing chaos!");
-                if (confirmGeneration) {
+            if (!raceDateMatchesToday) {
+                if (weatherMessage) weatherMessage.textContent = 'Race-day weather can only be generated on the race date.';
+                return;
+            }
 
-                    // Disable the button immediately
-                    generateRaceWeatherBtn.disabled = true;
-
-                    // Generate weathers and write to Firebase
-                    let weather1 = generateRandomWeather();
-                    let weather2 = generateRandomWeather();
-
-                    Promise.all([
-                        firebase.database().ref('weather1').set(weather1),
-                        firebase.database().ref('weather2').set(weather2)
-                    ]).then(() => {
-                        raceWeatherAlreadySet = true;
-                        raceWeatherStatusKnown = true;
-                        weather1Display.textContent = weather1;
-                        weather2Display.textContent = weather2;
-                        if (weatherMessage) {
-                            weatherMessage.textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group :)';
-                        }
-                        updateRaceWeatherButtonState();
-                    }).catch((error) => {
-                        console.error("Error saving race weather:", error);
-                        if (weatherMessage) weatherMessage.textContent = 'Failed to save race weather. Please check active driver access and try again.';
-                        updateRaceWeatherButtonState();
-                    });
-
-                }
-            } else {
+            if (isWeatherSlotSet(snapshot1.val()) && isWeatherSlotSet(snapshot2.val())) {
                 raceWeatherAlreadySet = true;
                 raceWeatherStatusKnown = true;
                 if (weatherMessage) weatherMessage.textContent = 'Race weather has already been generated.';
                 updateRaceWeatherButtonState();
+                return;
             }
-        }).catch((error) => {
+
+            const confirmGeneration = confirm("Are you sure that you want to generate the race weathers? You will be responsible for any ensuing chaos!");
+            if (!confirmGeneration) return;
+
+            generateRaceWeatherBtn.disabled = true;
+            // Preserve a slot that already exists and save all missing slots in one atomic update.
+            const weather1 = isWeatherSlotSet(snapshot1.val()) ? snapshot1.val() : generateRandomWeather();
+            const weather2 = isWeatherSlotSet(snapshot2.val()) ? snapshot2.val() : generateRandomWeather();
+            const updates = {};
+            if (!isWeatherSlotSet(snapshot1.val())) updates.weather1 = weather1;
+            if (!isWeatherSlotSet(snapshot2.val())) updates.weather2 = weather2;
+            await firebase.database().ref().update(updates);
+
+            updateWeatherSlot(0, weather1);
+            updateWeatherSlot(1, weather2);
+            if (weatherMessage) {
+                weatherMessage.textContent = 'Race weathers generated! Please take a screenshot of the (probably terrible) outcome and share it with the group :)';
+            }
+        } catch (error) {
             console.error("Error checking saved race weather:", error);
             if (weatherMessage) weatherMessage.textContent = 'Unable to check saved weather. Please refresh and try again.';
             updateRaceWeatherButtonState();
-        });
+        }
     });
 }
 
@@ -313,36 +380,5 @@ function takeScreenshot() {
             // Cleanup: remove the link from the DOM
             document.body.removeChild(link);
         }
-    });
-}
-
-
-
-
-function checkCurrentDateWithFirebase() {
-    console.log("Checking date with Firebase...");
-    return firebase.database().ref('race_date').once('value').then((snapshot) => {
-        const firebaseDate = snapshot.val();
-        const currentDate = formatDate(new Date());
-
-        console.log("Firebase Date: ", firebaseDate);
-        console.log("Current Date: ", currentDate);
-
-        const firebaseDateDebug = document.getElementById('firebaseDate');
-        const currentDateDebug = document.getElementById('currentDate');
-        const datesMatchDebug = document.getElementById('datesMatch');
-
-        raceDateMatchesToday = raceDateTextMatches(firebaseDate, currentDate);
-        raceDateStatusKnown = true;
-        if (firebaseDateDebug) firebaseDateDebug.textContent = firebaseDate || "No data";
-        if (currentDateDebug) currentDateDebug.textContent = currentDate;
-        if (datesMatchDebug) datesMatchDebug.textContent = raceDateMatchesToday ? "Yes" : "No";
-
-        updateRaceWeatherButtonState();
-    }).catch((error) => {
-        console.error("Error checking race date:", error);
-        raceDateMatchesToday = false;
-        raceDateStatusKnown = false;
-        updateRaceWeatherButtonState();
     });
 }

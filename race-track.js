@@ -12,15 +12,19 @@
     }
 
     function nextTrack(season) {
-        const races = season.races || {};
+        const races = season && season.races && typeof season.races === 'object'
+            ? season.races
+            : {};
         const keys = Object.keys(races).sort((a, b) =>
-            (parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0));
+            ((parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0))
+            || a.localeCompare(b));
         let lastResult = -1;
         keys.forEach((key, index) => {
             if (hasResults(races[key] || {})) lastResult = index;
         });
         const nextKey = keys[lastResult + 1];
-        return nextKey ? (races[nextKey] || {}).trackName || 'TBD' : 'TBD';
+        const trackName = nextKey ? (races[nextKey] || {}).trackName : '';
+        return typeof trackName === 'string' && trackName.trim() ? trackName.trim() : 'TBD';
     }
 
     function selectedTrack(season, fallback) {
@@ -40,7 +44,8 @@
         const name = selectedTrack(season, fallback);
         if (el('raceLocation')) el('raceLocation').textContent = name;
         if (el('raceTrackImage')) {
-            const track = trackData.find(item => item.name === name);
+            const tracks = typeof trackData !== 'undefined' && Array.isArray(trackData) ? trackData : [];
+            const track = tracks.find(item => item.name === name);
             el('raceTrackImage').src = track ? track.imagePath : 'Logos_and_icons/racetracks/TBD.png';
             el('raceTrackImage').alt = `${name} track layout`;
         }
@@ -53,8 +58,23 @@
             }
             select.value = season && !season.homepageTrackOverride ? '__automatic__' : name;
         }
-        el('currentRaceTrack').textContent = `Showing: ${name}${season && !season.homepageTrackOverride ? ' (automatic)' : ''}`;
-        select.querySelector('option[value="__automatic__"]').disabled = !season;
+        if (el('currentRaceTrack')) {
+            el('currentRaceTrack').textContent = `Showing: ${name}${season && !season.homepageTrackOverride ? ' (automatic)' : ''}`;
+        }
+        const automaticOption = select.querySelector('option[value="__automatic__"]');
+        if (automaticOption) automaticOption.disabled = !season;
+    }
+
+    function renderUnavailable(message) {
+        ready = false;
+        if (el('raceLocation')) el('raceLocation').textContent = 'TBD';
+        if (el('raceTrackImage')) {
+            el('raceTrackImage').src = 'Logos_and_icons/racetracks/TBD.png';
+            el('raceTrackImage').alt = 'Track unavailable';
+        }
+        const select = el('raceTrackSelect');
+        if (select) select.disabled = true;
+        if (el('currentRaceTrack')) el('currentRaceTrack').textContent = message;
     }
 
     async function save(mode, track) {
@@ -95,8 +115,16 @@
             fallback = snapshot.val() || 'TBD';
             if (ready) render();
         });
-        firebase.firestore().collection('championships').where('isActive', '==', true).limit(1)
+        // Read up to two so corrupt data with multiple active seasons is not resolved arbitrarily.
+        firebase.firestore().collection('championships').where('isActive', '==', true).limit(2)
             .onSnapshot(snapshot => {
+                if (snapshot.docs.length > 1) {
+                    seasonDoc = null;
+                    season = null;
+                    formDirty = false;
+                    renderUnavailable('More than one championship is active. Choose one active season in Championship Admin.');
+                    return;
+                }
                 const nextDoc = snapshot.empty ? null : snapshot.docs[0];
                 if (nextDoc?.id !== seasonDoc?.id) formDirty = false;
                 seasonDoc = nextDoc;
@@ -105,12 +133,8 @@
                 render();
             }, error => {
                 console.error('Unable to load championship track:', error);
-                ready = false;
                 season = null;
-                render();
-                if (el('currentRaceTrack')) {
-                    el('currentRaceTrack').textContent = 'Unable to load track settings. Refresh to try again.';
-                }
+                renderUnavailable('Unable to load track settings. Refresh to try again.');
             });
     });
 
