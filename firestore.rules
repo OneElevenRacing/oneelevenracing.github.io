@@ -34,9 +34,62 @@ service cloud.firestore {
       allow update: if isAdmin() || isDriverResultUpdate();
     }
 
+    // Drivers may only enter results for existing races in the active season.
+    // Track names, special events, the schedule and other seasons stay admin-only.
     function isDriverResultUpdate() {
+      let oldRaces = resource.data.get('races', {});
+      let newRaces = request.resource.data.get('races', {});
       return isDriver()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['races']);
+        && resource.data.get('isActive', false) == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['races'])
+        && newRaces.keys().toSet() == oldRaces.keys().toSet()
+        && onlyResultFieldsChanged(oldRaces, newRaces);
+    }
+
+    function onlyResultFieldsChanged(oldRaces, newRaces) {
+      let changed = newRaces.diff(oldRaces).affectedKeys();
+      return changed.hasOnly([
+          'race1', 'race2', 'race3', 'race4', 'race5', 'race6', 'race7', 'race8', 'race9', 'race10',
+          'race11', 'race12', 'race13', 'race14', 'race15', 'race16', 'race17', 'race18', 'race19', 'race20',
+          'race21', 'race22', 'race23', 'race24', 'race25', 'race26', 'race27', 'race28', 'race29', 'race30'])
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race1')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race2')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race3')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race4')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race5')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race6')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race7')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race8')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race9')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race10')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race11')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race12')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race13')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race14')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race15')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race16')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race17')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race18')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race19')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race20')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race21')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race22')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race23')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race24')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race25')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race26')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race27')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race28')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race29')
+        && raceResultsOnly(changed, oldRaces, newRaces, 'race30');
+    }
+
+    function raceResultsOnly(changed, oldRaces, newRaces, key) {
+      return !(key in changed)
+        || newRaces[key].diff(oldRaces[key]).affectedKeys().hasOnly([
+          'resultsRace1', 'resultsRace2', 'participantsRace1', 'participantsRace2',
+          'polePositionDriver', 'fastestLapDriverR1', 'fastestLapDriverR2',
+          'fastestLapOffPodiumDriverR1', 'fastestLapOffPodiumDriverR2']);
     }
 
     match /{document=**} {

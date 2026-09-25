@@ -9,10 +9,10 @@
   <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
   <title>One Eleven Racing - Championship Admin</title>
 
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="tracks.js"></script>
 
   <style>
@@ -673,18 +673,8 @@
     </form>
   </dialog>
 
+  <script src="firebase-config.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
-      authDomain: "one-eleven-app-7f282.firebaseapp.com",
-      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "one-eleven-app-7f282",
-      storageBucket: "one-eleven-app-7f282.appspot.com",
-      messagingSenderId: "503866403242",
-      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
-    };
-
-    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const MAX_RACES = 24;
     const BONUS_FIELDS = [

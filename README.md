@@ -67,3 +67,14 @@ can select a current/future date heading and confirm setting the race date and 7
 time together. Other drivers see ordinary headings. Existing availability answers
 are preserved. New date saves include the year; older yearless dates are interpreted
 as the closest matching date to today, including across New Year.
+
+## Firebase setup
+
+The Firebase project settings live in `firebase-config.js`, which every page loads after
+the Firebase SDK scripts. Security rules are kept in `firestore.rules` (Firestore) and
+`database.rules.json` (Realtime Database). Editing these files does not change the live
+rules; paste them into the Firebase console (or deploy them) after any change.
+
+Drivers can enter results only for existing races (up to race 30) in the active season.
+Track names, special events, the schedule and past seasons are admin-only. Race weather
+slots can be generated once by any driver; only admins can overwrite or reset them.

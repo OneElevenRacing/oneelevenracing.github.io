@@ -173,6 +173,15 @@ function fetchAndUpdateRaceInfo() {
     });
 }
 
+function logoutUser() {
+    firebase.auth().signOut().then(function() {
+        window.location.href = 'index.html';
+    }).catch(function(error) {
+        console.error('Error during sign out:', error);
+        alert('Sign out failed. Please try again.');
+    });
+}
+
 function openLink(url) {
     window.open(url, '_blank');
 }

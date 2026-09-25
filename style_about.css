@@ -41,3 +41,9 @@ About Page Styles
 
 
 
+
+#signin-message {
+  max-width: 320px;
+  margin: 0 auto;
+  padding: 0 16px;
+}

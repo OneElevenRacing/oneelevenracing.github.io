@@ -33,7 +33,7 @@
                             document.body.innerHTML = '<h2>Access denied.</h2>';
                             showBodyIfHidden();
                         } else {
-                            redirectTo(options.deniedUrl || 'index.html');
+                            redirectTo(options.deniedUrl || 'index.html?reason=inactive');
                         }
                         reject(new Error('User is not an active driver.'));
                         return;
@@ -50,7 +50,7 @@
                         document.body.innerHTML = '<h2>Error verifying access. Please try again later.</h2>';
                         showBodyIfHidden();
                     } else {
-                        redirectTo(options.deniedUrl || 'index.html');
+                        redirectTo('index.html?reason=error');
                     }
                     reject(error);
                 });
@@ -103,7 +103,7 @@
         }
 
         requireActiveDriver({
-            deniedUrl: document.body.dataset.deniedUrl || 'index.html',
+            deniedUrl: document.body.dataset.deniedUrl,
             showBody: document.body.dataset.showAfterAuth === 'true'
         }).catch(function() {});
     });

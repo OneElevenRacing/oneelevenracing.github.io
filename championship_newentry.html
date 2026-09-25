@@ -19,24 +19,14 @@
   </style>
 
   <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script src="tracks.js"></script>
 
+  <script src="firebase-config.js"></script>
   <script>
-    // *** INITIALISE FIREBASE and Check for user login ***
-    var firebaseConfig = {
-      apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
-      authDomain: "one-eleven-app-7f282.firebaseapp.com",
-      databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "one-eleven-app-7f282",
-      storageBucket: "one-eleven-app-7f282.appspot.com",
-      messagingSenderId: "503866403242",
-      appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
-    };
-    firebase.initializeApp(firebaseConfig);
 
 
     let currentDriverIsAdmin = false;
@@ -64,6 +54,7 @@
             currentDriverIsAdmin = driverData.isAdmin === true;
             console.log("✅ Active driver access confirmed:", user.uid);
             document.body.style.display = "block"; // ✅ show page
+            loadEntryPage();
         } catch (error) {
             console.error("❌ Error checking driver access:", error);
             document.body.innerHTML = "<h2 style='text-align:center;'>Unexpected error. Please try again later.</h2>";
@@ -294,7 +285,8 @@
   // *****************************************************
   // *                 PAGE CONTROLLER                  *
   // *****************************************************
-      // ---- Load active championship season ----
+      // ---- Load active championship season (after access is confirmed) ----
+    function loadEntryPage() {
     firebase.firestore().collection('championships')
       .where('isActive', '==', true)
       .limit(1)
@@ -366,6 +358,7 @@
         console.error('Error loading active season', err);
         document.getElementById('seasonName').textContent = '❌ Failed to load active season';
       });
+    }
   
 
   // *****************************************************
@@ -603,6 +596,25 @@
         if (sel.value) { results[sel.value] = +sel.dataset.position; chosen.push(sel.value); }
       });
 
+      // Finishers must fill P1, P2, P3… with no gaps, otherwise positions and points shift.
+      const positions = Object.values(results).sort((a, b) => a - b);
+      if (positions.length === 0) {
+        alert(`Please select at least the Race ${raceNo} winner before submitting.`);
+        return;
+      }
+      const firstGap = positions.findIndex((pos, i) => pos !== i + 1);
+      if (firstGap >= 0) {
+        alert(`Race ${raceNo} has no driver in P${firstGap + 1}. Please fill the positions in order without gaps.`);
+        return;
+      }
+
+      const offPodiumId = raceNo === 1 ? 'fastestLapOffPodiumDriverR1' : 'fastestLapOffPodiumDriverR2';
+      const offPodiumDriver = document.getElementById(offPodiumId).value;
+      if (offPodiumDriver && results[offPodiumDriver] >= 1 && results[offPodiumDriver] <= 3) {
+        alert(`The off-podium fastest lap for Race ${raceNo} can't go to a driver who finished in the top three.`);
+        return;
+      }
+
       // determine shared last value
       const currentMax = Math.max(...Object.values(results), 0);
       const sharedLast = Object.values(results).filter(p=>p===currentMax).length>1 ? currentMax : currentMax+1;
@@ -683,11 +695,17 @@
       raceSelect.dispatchEvent(new Event('change'));
     }
 
-    document.getElementById('submitRace1').onclick = () => saveRace(1);
-    document.getElementById('submitRace2').onclick = () => saveRace(2);
+    const reportSaveError = error => {
+      console.error('Error saving results', error);
+      alert(error && error.code === 'permission-denied'
+        ? 'You do not have permission to change these results. Results can only be entered for the active season.'
+        : 'The results could not be saved. Please check your connection and try again.');
+    };
+    document.getElementById('submitRace1').onclick = () => saveRace(1).catch(reportSaveError);
+    document.getElementById('submitRace2').onclick = () => saveRace(2).catch(reportSaveError);
 
-    document.getElementById('clearRace1').onclick = () => clearRace(1);
-    document.getElementById('clearRace2').onclick = () => clearRace(2);
+    document.getElementById('clearRace1').onclick = () => clearRace(1).catch(reportSaveError);
+    document.getElementById('clearRace2').onclick = () => clearRace(2).catch(reportSaveError);
 
     if (!currentDriverIsAdmin) {
       document.getElementById('clearRace1').style.display = 'none';
@@ -703,7 +721,7 @@
         SIM RACING
     </a>
   
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/karting.png" alt="Karting">
         KARTING
     </a>

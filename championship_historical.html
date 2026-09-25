@@ -5,10 +5,10 @@
     <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <title style="text-align: center">One Eleven Racing - Historical Championships</title>
 
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="tracks.js"></script>
 
 
@@ -272,19 +272,8 @@
 
       </style>
 
+    <script src="firebase-config.js"></script>
     <script>
-    // Firebase Config
-    var firebaseConfig = {
-        apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
-        authDomain: "one-eleven-app-7f282.firebaseapp.com",
-        databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "one-eleven-app-7f282",
-        storageBucket: "one-eleven-app-7f282.appspot.com",
-        messagingSenderId: "503866403242",
-        appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
-    };
-
-    firebase.initializeApp(firebaseConfig);
 
     // Check user login and active driver status before reading protected data.
     firebase.auth().onAuthStateChanged(user => {
@@ -361,6 +350,23 @@ function loadHistoricalPage() {
     });
 
 
+    const BONUS_FIELDS = ['polePositionDriver', 'fastestLapDriverR1', 'fastestLapDriverR2',
+        'fastestLapOffPodiumDriverR1', 'fastestLapOffPodiumDriverR2'];
+
+    // Everyone with a result, participation or bonus recorded in this season.
+    function seasonDriverUids(races) {
+        const uids = new Set();
+        Object.values(races || {}).forEach(race => {
+            if (!race) return;
+            ['resultsRace1', 'resultsRace2'].forEach(key => Object.keys(race[key] || {}).forEach(uid => uids.add(uid)));
+            ['participantsRace1', 'participantsRace2'].forEach(key => {
+                if (Array.isArray(race[key])) race[key].forEach(uid => uids.add(uid));
+            });
+            BONUS_FIELDS.forEach(key => { if (race[key]) uids.add(race[key]); });
+        });
+        return uids;
+    }
+
     // 🔎 Get season ID from URL if it exists
     function getSeasonIdFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -429,16 +435,24 @@ function loadHistoricalPage() {
         window.selectedSeasonId = seasonDoc.id; // optional global for reference
 
         firebase.database().ref('drivers').once('value').then(driverSnap => {
-        const driversRaw = driverSnap.val();
+        const driversRaw = driverSnap.val() || {};
         const driverMap = {}; // { uid: name }
         const driverUIDs = [];
-
-        for (let uid in driversRaw) {
-            if (driversRaw[uid].active) {
-            driverMap[uid] = driversRaw[uid].name;
+        const addDriver = uid => {
+            if (driverMap[uid] !== undefined) return;
+            driverMap[uid] = (driversRaw[uid] && driversRaw[uid].name) || 'Former driver';
             driverUIDs.push(uid);
+        };
+
+        // Past seasons list the drivers who took part then, not today's roster.
+        // The active season (or one with no results yet) also lists current drivers.
+        const seasonUids = seasonDriverUids(seasonData.races);
+        if (seasonData.isActive === true || seasonUids.size === 0) {
+            for (let uid in driversRaw) {
+            if (driversRaw[uid] && driversRaw[uid].active) addDriver(uid);
             }
         }
+        seasonUids.forEach(addDriver);
 
         // Store for next step
         window.oneElevenDrivers = {
@@ -447,7 +461,7 @@ function loadHistoricalPage() {
         };
        
         // === Step: Calculate total points per driver ===
-        const races = seasonData.races;
+        const races = seasonData.races || {};
         const sortedRaceKeys = Object.keys(races).sort((a, b) => {
         const numA = parseInt(a.replace('race', ''));
         const numB = parseInt(b.replace('race', ''));
@@ -494,11 +508,10 @@ function loadHistoricalPage() {
 
 
         // 2‑B  ▶ bonus points (NEVER dropped)
-        if (race.polePositionDriver)             bonusPointsPerDriver[race.polePositionDriver]              += 1;
-        if (race.fastestLapDriverR1)             bonusPointsPerDriver[race.fastestLapDriverR1]              += 1;
-        if (race.fastestLapDriverR2)             bonusPointsPerDriver[race.fastestLapDriverR2]              += 1;
-        if (race.fastestLapOffPodiumDriverR1)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]     += 1;
-        if (race.fastestLapOffPodiumDriverR2)    bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]     += 1;
+        BONUS_FIELDS.forEach(field => {
+            const uid = race[field];
+            if (uid && uid in bonusPointsPerDriver) bonusPointsPerDriver[uid] += 1;
+        });
         });
 
         // 2‑C ▶ Wins, Podiums, Pole Positions and Fastest Laps (for each driver)
@@ -519,11 +532,13 @@ function loadHistoricalPage() {
             const pos1 = r1[uid];
             const pos2 = r2[uid];
 
+            // Special events only have a Race 1, matching the current standings page.
+            const isSpecial = race.special === true;
             if (pos1 === 1) winsPerDriver[uid]++;
-            if (pos2 === 1) winsPerDriver[uid]++;
+            if (!isSpecial && pos2 === 1) winsPerDriver[uid]++;
 
             if (pos1 >= 1 && pos1 <= 3) podiumsPerDriver[uid]++;
-            if (pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
+            if (!isSpecial && pos2 >= 1 && pos2 <= 3) podiumsPerDriver[uid]++;
         });
         });
 
@@ -539,23 +554,23 @@ function loadHistoricalPage() {
         const race = races[raceKey];
 
         // Pole position
-        if (race.polePositionDriver) {
+        if (race.polePositionDriver in polePositionsPerDriver) {
             polePositionsPerDriver[race.polePositionDriver]++;
         }
 
         // Fastest laps on podium
-        if (race.fastestLapDriverR1) {
+        if (race.fastestLapDriverR1 in fastestLapsPerDriver) {
             fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
         }
-        if (race.fastestLapDriverR2) {
+        if (race.fastestLapDriverR2 in fastestLapsPerDriver) {
             fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
         }
 
         // Fastest laps off podium
-        if (race.fastestLapOffPodiumDriverR1) {
+        if (race.fastestLapOffPodiumDriverR1 in fastestLapsPerDriver) {
             fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
         }
-        if (race.fastestLapOffPodiumDriverR2) {
+        if (race.fastestLapOffPodiumDriverR2 in fastestLapsPerDriver) {
             fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
         }
         });
@@ -653,11 +668,14 @@ function loadHistoricalPage() {
         finalTotals[uid] = countedRacePoints[uid] + bonusPointsPerDriver[uid];
         });
 
-        window.oneElevenDrivers.uids.sort((a, b) => finalTotals[b] - finalTotals[a]);
+        // Sort by points, then wins, then podiums (same tie-breaks as the current standings)
+        window.oneElevenDrivers.uids.sort((a, b) =>
+            (finalTotals[b] - finalTotals[a])
+            || (winsPerDriver[b] - winsPerDriver[a])
+            || (podiumsPerDriver[b] - podiumsPerDriver[a])
+            || a.localeCompare(b));
 
-        // Sort drivers by total points (descending)
-        const sortedStandings = Object.entries(finalTotals)
-        .sort(([, a], [, b]) => b - a);
+        const sortedStandings = window.oneElevenDrivers.uids.map(uid => [uid, finalTotals[uid]]);
 
         // Step 2: Build race results table structure
         const raceResultsSection = document.getElementById('race-results');
@@ -1008,7 +1026,7 @@ function loadHistoricalPage() {
         SIM RACING
     </a>
   
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/karting.png" alt="Karting">
         KARTING
     </a>

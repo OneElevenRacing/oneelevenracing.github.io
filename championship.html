@@ -6,10 +6,10 @@
     <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
     <title style="text-align: center">One Eleven Racing - Championship</title>
 
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.0.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="tracks.js"></script>
     <script src="championship_calculator.js" defer></script>
 
@@ -917,19 +917,8 @@
 
       </style>
 
+    <script src="firebase-config.js"></script>
     <script>
-    // Firebase Config
-    var firebaseConfig = {
-        apiKey: "AIzaSyDpH1j5UfMlGXLqHaK7lqVWi0CkGbfN9SI",
-        authDomain: "one-eleven-app-7f282.firebaseapp.com",
-        databaseURL: "https://one-eleven-app-7f282-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "one-eleven-app-7f282",
-        storageBucket: "one-eleven-app-7f282.appspot.com",
-        messagingSenderId: "503866403242",
-        appId: "1:503866403242:ios:782e6c3e12ec99e66aa3d3"
-    };
-
-    firebase.initializeApp(firebaseConfig);
 
     // Check user is authorised
     firebase.auth().onAuthStateChanged(user => {
@@ -974,6 +963,23 @@
         window.location.href = "index.html"; // adjust path if needed
     }
     });
+
+    const BONUS_FIELDS = ['polePositionDriver', 'fastestLapDriverR1', 'fastestLapDriverR2',
+        'fastestLapOffPodiumDriverR1', 'fastestLapOffPodiumDriverR2'];
+
+    // Everyone with a result, participation or bonus recorded in this season.
+    function seasonDriverUids(races) {
+        const uids = new Set();
+        Object.values(races || {}).forEach(race => {
+            if (!race) return;
+            ['resultsRace1', 'resultsRace2'].forEach(key => Object.keys(race[key] || {}).forEach(uid => uids.add(uid)));
+            ['participantsRace1', 'participantsRace2'].forEach(key => {
+                if (Array.isArray(race[key])) race[key].forEach(uid => uids.add(uid));
+            });
+            BONUS_FIELDS.forEach(key => { if (race[key]) uids.add(race[key]); });
+        });
+        return uids;
+    }
 
     function startChampionshipPage() {
     // Hoist variables so both promise steps can use them
@@ -1020,12 +1026,20 @@
         const driversRaw = driverSnap.val() || {};
         const driverMap = {}; // { uid: name }
         const driverUIDs = [];
+        const activeUIDs = [];
         for (let uid in driversRaw) {
             if (driversRaw[uid] && driversRaw[uid].active) {
             driverMap[uid] = driversRaw[uid].name;
             driverUIDs.push(uid);
+            activeUIDs.push(uid);
             }
         }
+        // Drivers who have since been deactivated keep their results in the standings.
+        seasonDriverUids(races).forEach(uid => {
+            if (driverMap[uid] !== undefined) return;
+            driverMap[uid] = (driversRaw[uid] && driversRaw[uid].name) || 'Former driver';
+            driverUIDs.push(uid);
+        });
 
         window.oneElevenDrivers = {
             uids: driverUIDs,
@@ -1069,11 +1083,10 @@
             });
 
             // Bonuses (never dropped)
-            if (race.polePositionDriver)          bonusPointsPerDriver[race.polePositionDriver]           = (bonusPointsPerDriver[race.polePositionDriver]           || 0) + 1;
-            if (race.fastestLapDriverR1)          bonusPointsPerDriver[race.fastestLapDriverR1]           = (bonusPointsPerDriver[race.fastestLapDriverR1]           || 0) + 1;
-            if (race.fastestLapDriverR2)          bonusPointsPerDriver[race.fastestLapDriverR2]           = (bonusPointsPerDriver[race.fastestLapDriverR2]           || 0) + 1;
-            if (race.fastestLapOffPodiumDriverR1) bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]  = (bonusPointsPerDriver[race.fastestLapOffPodiumDriverR1]  || 0) + 1;
-            if (race.fastestLapOffPodiumDriverR2) bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]  = (bonusPointsPerDriver[race.fastestLapOffPodiumDriverR2]  || 0) + 1;
+            BONUS_FIELDS.forEach(field => {
+                const uid = race[field];
+                if (uid && uid in bonusPointsPerDriver) bonusPointsPerDriver[uid]++;
+            });
         });
 
         // === Wins & Podiums ===
@@ -1110,12 +1123,12 @@
         sortedRaceKeys.forEach((raceKey) => {
             const race = races[raceKey] || {};
 
-            if (race.polePositionDriver) polePositionsPerDriver[race.polePositionDriver]++;
+            if (race.polePositionDriver in polePositionsPerDriver) polePositionsPerDriver[race.polePositionDriver]++;
 
-            if (race.fastestLapDriverR1)          fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
-            if (race.fastestLapDriverR2)          fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
-            if (race.fastestLapOffPodiumDriverR1) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
-            if (race.fastestLapOffPodiumDriverR2) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
+            if (race.fastestLapDriverR1 in fastestLapsPerDriver)          fastestLapsPerDriver[race.fastestLapDriverR1].FL++;
+            if (race.fastestLapDriverR2 in fastestLapsPerDriver)          fastestLapsPerDriver[race.fastestLapDriverR2].FL++;
+            if (race.fastestLapOffPodiumDriverR1 in fastestLapsPerDriver) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR1].OP++;
+            if (race.fastestLapOffPodiumDriverR2 in fastestLapsPerDriver) fastestLapsPerDriver[race.fastestLapOffPodiumDriverR2].OP++;
         });
 
         // === Attendance (per weekend if raced in R1 or R2) ===
@@ -1198,7 +1211,8 @@
         });
         window.oneElevenDrivers.uidsByStandings = uidsByStandings;
 
-        const sortedStandings = Object.entries(finalTotals).sort(([, a], [, b]) => b - a);
+        // Same order as the results columns, including the wins/podiums tie-breaks.
+        const sortedStandings = uidsByStandings.map(uid => [uid, finalTotals[uid]]);
 
         // --- Prepare data for the calculator (min/max maths later) ---
         const eventsCompleted = sortedRaceKeys.reduce((acc, key) => {
@@ -1224,7 +1238,8 @@
 
         // drivers & order
         driverNames: window.oneElevenDrivers.names,
-        uidsByStandings, // current column order (leader first)
+        // Only active drivers can score in future races, so the calculator's grid excludes former drivers.
+        uidsByStandings: uidsByStandings.filter(uid => activeUIDs.includes(uid)),
 
         // current tallies
         finalTotals,             // counted race points + bonuses (post-drops)
@@ -1670,7 +1685,7 @@
         SIM RACING
     </a>
 
-    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="navigateToKartingPage()">
+    <a href="javascript:void(0);" class="footerbuttonnotselected" id="karting" onclick="window.location.href='main.html'">
         <img src="Logos_and_icons/karting.png" alt="Karting">
         KARTING
     </a>
