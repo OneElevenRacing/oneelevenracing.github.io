@@ -124,13 +124,22 @@
         return activeDrivers().length;
     }
 
+    // Extra sections (season tools) register themselves here.
+    const extraTabs = [];
+
     function renderMain() {
         if (state.index === null || state.drafts === null) return;
-        const tab = params.get('tab') === 'polls' ? 'polls' : 'overview';
+        const known = ['overview', 'polls', ...extraTabs.map(t => t.id)];
+        const tab = known.includes(params.get('tab')) ? params.get('tab') : 'overview';
         const tabs = h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Season planning sections' },
-            h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === 'overview'), href: 'season-planning-admin.html', text: 'Overview' }),
-            h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === 'polls'), href: 'season-planning-admin.html?tab=polls', text: 'Polls' }));
-        fill($('view'), tabs, tab === 'polls' ? pollsTab() : overviewTab());
+            [['overview', 'Overview'], ['polls', 'Polls'], ...extraTabs.map(t => [t.id, t.label])].map(([id, label]) =>
+                h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === id), href: id === 'overview' ? 'season-planning-admin.html' : `season-planning-admin.html?tab=${id}`, text: label })));
+        const extra = extraTabs.find(t => t.id === tab);
+        const body = tab === 'polls' ? pollsTab() : tab === 'overview' ? overviewTab() : extra.render();
+        // Keep a tool's own panel (and what's typed in it) when only background data changed.
+        if (extra && $('view').dataset.tab === tab && extra.keep) { extra.refresh && extra.refresh(); return; }
+        $('view').dataset.tab = tab;
+        fill($('view'), tabs, body);
     }
 
     function overviewTab() {
@@ -868,6 +877,13 @@
             setStatus(`Could not load ${key}: ${error.message}`, 'error');
         });
     }
+
+    // Shared with season-planning-tools.js.
+    window.SeasonAdmin = {
+        V1, state, params, now, newId, auditId, save, setStatus, confirmDialog, previewDialog, activePlan, driverName, activeDrivers, settings,
+        clean, plural, phaseBadge, field, KINDS, rerender: () => route(),
+        addTab: tab => { extraTabs.push(tab); }
+    };
 
     document.addEventListener('oneEleven:adminDriver', event => {
         if (state.uid) return;

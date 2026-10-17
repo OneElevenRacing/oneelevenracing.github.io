@@ -437,6 +437,11 @@
             ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true"
           }
         },
+        "planAdmin": {
+          "$plan": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true"
+          }
+        },
         "templates": {
           "$template": {
             ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true"

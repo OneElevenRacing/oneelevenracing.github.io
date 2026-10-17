@@ -5,13 +5,18 @@
         const hour = 3600000;
         const t = Date.now();
         const optionsOf = labels => Object.fromEntries(labels.map(([id, label]) => [id, { label }]));
+        const answer = (ids, writeIns = []) => ({ count: ids.length, ...(ids.length ? { slots: Object.fromEntries(ids.map((id, i) => [i, id])), byOption: Object.fromEntries(ids.map((id, i) => [id, i])) } : {}),
+            writeInCount: writeIns.length, ...(writeIns.length ? { writeIns: Object.fromEntries(writeIns.map((text, n) => [n, { n, text }])) } : {}) });
+        const pickOne = id => ({ count: 1, slots: { 0: id }, byOption: { [id]: 0 } });
+        const ballot = (submittedAt, answers) => ({ schema: 1, submissionId: 'sample', submittedAt, revision: 1, answers });
         const classes = [['gt3-gen2', 'GT3 Gen 2'], ['gt4', 'GT4'], ['group-a', 'Group A'], ['formula-junior', 'Formula Junior'], ['porsche-cup', 'Porsche Cup'], ['p2', 'P2']];
         const control = (opensAt, closesAt, extra) => ({ state: 'published', opensAt, closesAt, resultVisibility: 'live', labelsHidden: true, allDrivers: true, ...extra });
         const entry = (title, summary, c, extra) => ({ title, summary, state: c.state, opensAt: c.opensAt, closesAt: c.closesAt, resultVisibility: c.resultVisibility, labelsHidden: c.labelsHidden, standalone: false, planId: 'sample-plan', ...extra });
         const ideas = control(t - 14 * 24 * hour, t - 7 * 24 * hour, { state: 'finalised', resultVisibility: 'afterClose', labelsHidden: false });
         const cars = control(t - 2 * 24 * hour, t + 3 * 24 * hour);
-        const tracks = control(t + 5 * 24 * hour, t + 9 * 24 * hour, { resultVisibility: 'hidden', labelsHidden: false });
-        const rules = control(t + 12 * 24 * hour, t + 16 * 24 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
+        const round1 = control(t - 6 * 24 * hour, t - 3 * 24 * hour, { state: 'closed' });
+        const tracks = control(t - 5 * 24 * hour, t - 1 * 24 * hour, { resultVisibility: 'hidden', labelsHidden: false });
+        const rules = control(t - 4 * 24 * hour, t - 2 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
         const feedback = control(t - 24 * hour, t + 6 * 24 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
         const carCounts = { 'gt3-gen2': 8, gt4: 7, 'group-a': 5, 'formula-junior': 4, 'porsche-cup': 2, p2: 1 };
         return {
@@ -19,6 +24,7 @@
                 stages: [{ id: 'ideas', label: 'Suggestions' }, { id: 'cars', label: 'Car votes' }, { id: 'tracks', label: 'Tracks' }, { id: 'rules', label: 'Rules' }, { id: 'calendar', label: 'Calendar' }] } },
             index: {
                 'sample-ideas': entry('Car class suggestions', 'Suggest the classes you would like to race.', ideas, { kind: 'nomination', stageId: 'ideas' }),
+                'sample-round1': entry('Car class · Round 1', 'Choose exactly 3 of 6 classes.', round1, { kind: 'elimination', stageId: 'cars' }),
                 'sample-cars': entry('Car class · Round 2', 'Choose exactly 3 of 6 classes. Class names are hidden in results until the reveal.', cars, { kind: 'elimination', stageId: 'cars' }),
                 'sample-tracks': entry('Track choice', 'Pick one layout for the calendar.', tracks, { kind: 'track', stageId: 'tracks' }),
                 'sample-rules': entry('Rule changes', 'Vote on each proposal.', rules, { kind: 'rules', stageId: 'rules' }),
@@ -26,19 +32,34 @@
             },
             polls: {
                 'sample-ideas': { control: ideas,
-                    definition: { schema: 1, revision: 1, title: 'Car class suggestions', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'nomination', kind: 'nomination', required: true, prompt: 'Which car classes would you like to race next season?', minSelections: 0, maxSelections: 6, allowWriteIns: true, maxWriteIns: 20, options: optionsOf(classes) } } },
-                    ballots: { demo1: { schema: 1, submissionId: 'sample', submittedAt: t - 10 * 24 * hour, revision: 1, answers: { 0: { count: 2, slots: { 0: 'gt4', 1: 'p2' }, byOption: { gt4: 0, p2: 1 }, writeInCount: 1, writeIns: { 0: { n: 0, text: 'Group C' } } } } } },
+                    definition: { schema: 1, revision: 1, title: 'Car class suggestions', questionCount: 2, questions: {
+                        0: { id: 'q1', index: 0, type: 'nomination', kind: 'nomination', required: true, prompt: 'Which car classes would you like to race next season?', minSelections: 0, maxSelections: 6, allowWriteIns: true, maxWriteIns: 20, options: optionsOf(classes) },
+                        1: { id: 'q2', index: 1, type: 'text', kind: 'text', required: false, prompt: 'Any rule changes you would like?', maxLength: 2000 } } },
+                    ballots: {
+                        demo1: ballot(t - 13 * 24 * hour, { 0: answer(['gt4', 'p2'], ['Group C']), 1: { text: 'Allow ghosting on the formation lap.' } }),
+                        demo2: ballot(t - 12 * 24 * hour, { 0: answer(['gt3-gen2'], ['group c', 'Formula Vee']), 1: { skipped: true } }),
+                        demo3: ballot(t - 11 * 24 * hour, { 0: answer(['gt4', 'formula-junior'], ['Grp C']), 1: { text: 'Reverse grid for race 2, please.' } }),
+                        demo4: ballot(t - 10 * 24 * hour, { 0: answer(['gt3-gen2', 'porsche-cup'], ['GT4 ']), 1: { skipped: true } }),
+                        demo5: ballot(t - 9 * 24 * hour, { 0: answer([], ['Touring Cars']), 1: { text: 'No reverse grids.' } })
+                    },
                     totals: { respondents: 9, questions: { 0: { options: { 'gt3-gen2': 5, gt4: 7, 'group-a': 4, 'formula-junior': 6, 'porsche-cup': 3, p2: 4 } } } } },
+                'sample-round1': { control: round1,
+                    definition: { schema: 1, revision: 1, title: 'Car class · Round 1', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'class', kind: 'choice', required: true, prompt: 'Which classes should go through?', minSelections: 3, maxSelections: 3, options: optionsOf(classes) } } },
+                    totals: { respondents: 10, questions: { 0: { options: { 'gt3-gen2': 8, gt4: 7, 'group-a': 5, 'formula-junior': 5, 'porsche-cup': 3, p2: 2 } } } } },
                 'sample-cars': { control: cars,
                     definition: { schema: 1, revision: 1, title: 'Car class · Round 2', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'class', kind: 'choice', required: true, prompt: 'Which classes should go through to the final round?', minSelections: 3, maxSelections: 3, options: optionsOf(classes) } } },
                     totals: { respondents: 9, questions: { 0: { options: carCounts } } } },
                 'sample-tracks': { control: tracks,
                     definition: { schema: 1, revision: 1, title: 'Track choice', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'track', kind: 'choice', required: true, prompt: 'Which track layout would you like on the calendar?', minSelections: 1, maxSelections: 1,
-                        options: { 'brands-hatch': { label: 'Brands Hatch', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch.png' }, 'brands-hatch-indy': { label: 'Brands Hatch Indy', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch_Indy.png' }, monza: { label: 'Monza', locationId: 'monza', locationName: 'Monza', imagePath: 'Logos_and_icons/racetracks/Monza.png' } } } } },
-                    totals: { respondents: 0, questions: { 0: { options: { 'brands-hatch': 0, 'brands-hatch-indy': 0, monza: 0 } } } } },
+                        options: { 'brands-hatch': { label: 'Brands Hatch', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch.png' }, 'brands-hatch-indy': { label: 'Brands Hatch Indy', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch_Indy.png' }, monza: { label: 'Monza', locationId: 'monza', locationName: 'Monza', imagePath: 'Logos_and_icons/racetracks/Monza.png' },
+            imola: { label: 'Imola', locationId: 'imola', locationName: 'Imola', imagePath: 'Logos_and_icons/racetracks/Imola.png' }, 'donington-gp': { label: 'Donington GP', locationId: 'donington', locationName: 'Donington', imagePath: 'Logos_and_icons/racetracks/Donington_GP.png' } } } } },
+                    ballots: { demo1: ballot(t - 4 * 24 * hour, { 0: pickOne('brands-hatch') }), demo2: ballot(t - 3 * 24 * hour, { 0: pickOne('brands-hatch-indy') }), demo3: ballot(t - 2 * 24 * hour, { 0: pickOne('monza') }) },
+                    totals: { respondents: 3, questions: { 0: { options: { 'brands-hatch': 1, 'brands-hatch-indy': 1, monza: 1 } } } } },
                 'sample-rules': { control: rules,
-                    definition: { schema: 1, revision: 1, title: 'Rule changes', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'yesno', kind: 'choice', required: true, prompt: 'Allow ghosting on the formation lap?', minSelections: 1, maxSelections: 1, options: { yes: { label: 'Yes' }, no: { label: 'No' } } } } },
-                    totals: { respondents: 0, questions: { 0: { options: { yes: 0, no: 0 } } } } },
+                    definition: { schema: 1, revision: 1, title: 'Rule changes', questionCount: 2, questions: {
+                        0: { id: 'q1', index: 0, type: 'yesno', kind: 'choice', required: false, prompt: 'Allow ghosting on the formation lap?', minSelections: 1, maxSelections: 1, options: { yes: { label: 'Yes' }, no: { label: 'No' } } },
+                        1: { id: 'q2', index: 1, type: 'yesno', kind: 'choice', required: false, prompt: 'Use a reverse grid for race 2?', minSelections: 1, maxSelections: 1, options: { yes: { label: 'Yes' }, no: { label: 'No' } } } } },
+                    totals: { respondents: 10, questions: { 0: { options: { yes: 6, no: 4 } }, 1: { options: { yes: 5, no: 5 } } } } },
                 'sample-feedback': { control: feedback,
                     definition: { schema: 1, revision: 1, title: 'Race night feedback', questionCount: 2, questions: {
                         0: { id: 'q1', index: 0, type: 'yesno', kind: 'choice', required: true, prompt: 'Should race night start at 7.30pm instead of 7pm?', minSelections: 1, maxSelections: 1, options: { yes: { label: 'Yes' }, no: { label: 'No' } } },
@@ -77,7 +98,7 @@
     // Sample season planning: a plan with polls in each state, for the Polls & Forms pages.
     data.realtime.seasonPlanning ||= {};
     data.realtime.seasonPlanning.v1 ||= {};
-    if (!data.realtime.seasonPlanning.v1.index) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning());
+    if (data.realtime.seasonPlanning.v1.sampleVersion !== 2) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 2 });
     const realtimeListeners = new Map();
     const seasonListeners = new Set();
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }

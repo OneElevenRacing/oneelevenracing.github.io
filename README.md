@@ -48,6 +48,28 @@ snapshots, recount totals from the ballots, view and correct individual answers,
 each poll's history. Every change to a published poll needs a reason, which is kept in
 the history. Questions, options and quotas are frozen once published.
 
+With an active season plan, more tabs appear. Every decision on them is logged under
+**History**, and drivers' original answers are never changed:
+
+- **Suggestions:** review written car-class suggestions (grouped when the wording matches),
+  match them to a class, merge them, add them to the catalogue or exclude them with a
+  note. Then pick the shortlist and create round 1 as a draft.
+- **Voting rounds:** ranked results for each closed round. By default half the classes go
+  through, rounded up. A tie at the cutoff is never settled automatically; choose a runoff,
+  put all tied classes through, or pick them yourself with an explanation. The next round
+  is always created as a draft. When one class remains, confirm it as the winner (or record
+  a compromise decision at any time).
+- **Tracks:** locations used in the chosen previous seasons are excluded from the track
+  poll (every layout at them), with reasons. You can allow or exclude others, and saved
+  names the catalogue doesn't recognise must be resolved first. After voting, drivers who
+  chose the same location are listed: the one who submitted last keeps it. Record the
+  others' replacement choices (only free locations are offered), settle identical times,
+  or record an exception.
+- **Rules:** turn drivers' written suggestions into Yes/No proposals and flag related or
+  contradictory ones. Create the vote, then confirm each outcome once it closes. A
+  proposal passes only when Yes beats No, with an optional minimum turnout. Confirming an
+  outcome doesn't change the rules document or scoring.
+
 Default poll settings and saved templates live in **Racing Setup → Templates & defaults**.
 Defaults only shape new drafts. All dates are stored in UTC and shown in UK time.
 

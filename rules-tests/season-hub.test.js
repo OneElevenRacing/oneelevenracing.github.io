@@ -100,13 +100,17 @@ describe('result snapshots', () => {
 });
 
 describe('admin-only drafts, templates and settings', () => {
-    it('drivers can neither read nor write them', async () => {
+    it('drivers can neither read nor write them (including season admin data)', async () => {
         await assertSucceeds(set(ref(db('admin'), `${V1}/drafts/d1`), draft()));
         await assertSucceeds(set(ref(db('admin'), `${V1}/templates/t1`), { name: 'My template', draft: draft() }));
         for (const p of [`${V1}/drafts`, `${V1}/drafts/d1`, `${V1}/templates`, `${V1}/settings`]) {
             await assertFails(get(ref(db('alice'), p)));
         }
         await assertFails(set(ref(db('alice'), `${V1}/drafts/d2`), draft()));
+        await assertSucceeds(set(ref(db('admin'), `${V1}/planAdmin/season10/rounds/p1`), { number: 1 }));
+        await assertFails(get(ref(db('alice'), `${V1}/planAdmin`)));
+        await assertFails(get(ref(db('alice'), `${V1}/planAdmin/season10`)));
+        await assertFails(set(ref(db('alice'), `${V1}/planAdmin/season10/winner`), { classId: 'mine' }));
         await assertSucceeds(get(ref(db('admin'), `${V1}/drafts`)));
     });
 

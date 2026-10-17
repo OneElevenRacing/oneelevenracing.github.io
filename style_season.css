@@ -392,3 +392,10 @@
     .sp-actionbar > .sp-small.sp-muted { display: none; }
     .sp-actionbar .sp-inline-actions { width: 100%; justify-content: flex-end; }
 }
+.sp-conflict { margin-top: 14px; }
+.sp-conflict h3 { margin-bottom: 4px; }
+@media (max-width: 719px) {
+    .sp-item:has(> .sp-item-actions) { grid-template-columns: 1fr; }
+    .sp-item.sp-with-thumb:has(> .sp-item-actions) { grid-template-columns: 56px 1fr; }
+    .sp-item > .sp-item-actions { justify-content: flex-start; margin-left: -12px; }
+}
