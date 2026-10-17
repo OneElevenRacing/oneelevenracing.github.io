@@ -22,7 +22,7 @@
             else if (key in element && typeof value !== 'string') element[key] = value;
             else element.setAttribute(key, value === true ? '' : value);
         });
-        children.flat().forEach(child => {
+        children.flat(Infinity).forEach(child => {
             if (child === null || child === undefined || child === false) return;
             element.append(child instanceof Node ? child : document.createTextNode(String(child)));
         });
@@ -654,6 +654,85 @@
             : h('p', { class: 'sp-status sp-ok', text: 'No problems found.' }));
     }
 
+    // ---------- Templates and defaults for season polls ----------
+
+    const SP = window.SeasonPolls;
+    const V1 = 'seasonPlanning/v1';
+    let seasonSettings = null;
+    let templates = {};
+    let defaultsDirty = false;
+
+    function renderDefaults() {
+        if (seasonSettings === null || defaultsDirty) return;
+        const values = { ...SP.DEFAULT_SETTINGS, ...seasonSettings };
+        $('defInstructions').value = values.instructions || '';
+        $('defDuration').value = values.durationDays;
+        fillSelect($('defVisibility'), Object.entries(SP.VISIBILITY), '');
+        $('defVisibility').querySelector('option[value=""]').remove();
+        $('defVisibility').value = values.resultVisibility;
+        $('defLabels').checked = values.labelsHidden === true;
+        $('defExclusion').value = values.exclusionSeasons;
+        $('defEvents').value = values.targetEvents;
+    }
+
+    async function saveDefaults(event) {
+        event.preventDefault();
+        const number = (id, min, max) => {
+            const value = Number($(id).value);
+            return Number.isInteger(value) && value >= min && value <= max ? value : null;
+        };
+        const record = {
+            instructions: $('defInstructions').value.trim(),
+            durationDays: number('defDuration', 1, 60),
+            resultVisibility: $('defVisibility').value,
+            labelsHidden: $('defLabels').checked,
+            exclusionSeasons: number('defExclusion', 0, 10),
+            targetEvents: number('defEvents', 1, 24)
+        };
+        const bad = [['durationDays', 'Poll length must be 1–60 days.'], ['exclusionSeasons', 'Exclusions must be 0–10 seasons.'], ['targetEvents', 'Calendar events must be 1–24.']]
+            .filter(([key]) => record[key] === null).map(([, message]) => message);
+        if (bad.length) { setStatus($('defaultsStatus'), bad.join(' '), 'error'); return; }
+        try {
+            await firebase.database().ref(`${V1}/settings`).set({ ...record, updatedAt: firebase.database.ServerValue.TIMESTAMP, updatedBy: adminUid });
+            defaultsDirty = false;
+            setStatus($('defaultsStatus'), 'Defaults saved. New drafts will use them.', 'ok');
+        } catch (error) {
+            setStatus($('defaultsStatus'), `Not saved: ${error.message}`, 'error');
+        }
+    }
+
+    function renderTemplates() {
+        const kinds = { nomination: 'Car-class suggestions', elimination: 'Car-class voting round', track: 'Track choice', rules: 'Rule changes', suggestions: 'Suggestion box', custom: 'Custom poll' };
+        const saved = Object.entries(templates || {}).filter(([, t]) => t).sort(([, a], [, b]) => (a.name || '').localeCompare(b.name || ''));
+        const row = (title, meta, actions) => h('li', { class: 'sp-item' }, h('div', null, h('div', { class: 'sp-item-title', text: title }), h('div', { class: 'sp-item-meta', text: meta })), h('div', { class: 'sp-item-actions' }, actions));
+        fill($('templateList'),
+            h('h3', { style: 'margin:8px 0 4px', text: 'Your templates' }),
+            saved.length ? h('ul', { class: 'sp-list' }, saved.map(([id, t]) => row(t.name || 'Untitled template',
+                `${kinds[t.kind] || 'Poll'} · ${plural(((t.draft && t.draft.questions) || []).length, 'question')}${t.description ? ` · ${t.description}` : ''}`, [
+                    h('a', { class: 'sp-btn sp-btn-secondary', style: 'min-height:40px;padding:6px 14px', href: `season-planning-admin.html?template=${encodeURIComponent(id)}`, text: 'Edit' }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'Duplicate', onclick: () => duplicateTemplate(id, t) }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'Delete', onclick: () => deleteTemplate(id, t) })]))) : h('p', { class: 'sp-muted', text: 'None yet.' }),
+            h('h3', { style: 'margin:16px 0 4px', text: 'Built in' }),
+            h('ul', { class: 'sp-list' }, SP.BUILT_IN_TEMPLATES.map(t => row(t.name, t.description,
+                [h('a', { class: 'sp-small', href: `season-planning-admin.html?template=${encodeURIComponent(t.id)}`, text: 'Copy and edit' })]))));
+    }
+
+    async function duplicateTemplate(id, template) {
+        const newId = firebase.database().ref().push().key;
+        try {
+            await firebase.database().ref(`${V1}/templates/${newId}`).set({ ...template, name: `${template.name} (copy)`.slice(0, 120), updatedAt: firebase.database.ServerValue.TIMESTAMP, updatedBy: adminUid });
+            setStatus($('loadStatus'), `Duplicated ${template.name}.`, 'ok');
+        } catch (error) { setStatus($('loadStatus'), `Not saved: ${error.message}`, 'error'); }
+    }
+
+    async function deleteTemplate(id, template) {
+        if (!window.confirm(`Delete the template “${template.name}”? Polls already made from it are not affected.`)) return;
+        try {
+            await firebase.database().ref(`${V1}/templates/${id}`).remove();
+            setStatus($('loadStatus'), `Deleted ${template.name}.`, 'ok');
+        } catch (error) { setStatus($('loadStatus'), `Not deleted: ${error.message}`, 'error'); }
+    }
+
     // ---------- Start ----------
 
     function renderAll() {
@@ -675,6 +754,10 @@
             console.error('Catalogue load failed:', error);
             setStatus($('loadStatus'), `Could not load the catalogue: ${error.message}`, 'error');
         });
+        firebase.database().ref(`${V1}/settings`).on('value', snapshot => { seasonSettings = snapshot.val() || {}; renderDefaults(); },
+            error => setStatus($('defaultsStatus'), `Could not load defaults: ${error.message}`, 'error'));
+        firebase.database().ref(`${V1}/templates`).on('value', snapshot => { templates = snapshot.val() || {}; renderTemplates(); },
+            error => fill($('templateList'), h('p', { class: 'sp-status sp-error', text: `Could not load templates: ${error.message}` })));
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -694,6 +777,8 @@
         $('exportTracks').addEventListener('click', () => download('one-eleven-tracks.csv', C.tracksCsv(catalogue), 'text/csv'));
         $('exportJson').addEventListener('click', () => download('one-eleven-catalogue.json', JSON.stringify(catalogue, null, 2), 'application/json'));
         $('scanChampionships').addEventListener('click', scanChampionships);
+        $('defaultsForm').addEventListener('submit', saveDefaults);
+        $('defaultsForm').addEventListener('input', () => { defaultsDirty = true; });
     });
 
     document.addEventListener('oneEleven:adminDriver', event => start(event.detail.user.uid));

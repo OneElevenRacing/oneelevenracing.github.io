@@ -77,7 +77,7 @@
           "$poll": {
             "control": {
               ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
-              ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && newData.exists()",
+              ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && newData.exists() && (!data.exists() || (newData.child('lastAuditId').isString() && !root.child('seasonPlanning/v1/polls/' + $poll).child('audit/' + newData.child('lastAuditId').val()).exists() && newData.parent().child('audit/' + newData.child('lastAuditId').val()).exists()))",
               ".validate": "newData.hasChildren(['state', 'opensAt', 'closesAt', 'resultVisibility']) && newData.child('opensAt').val() < newData.child('closesAt').val() && (newData.child('state').val() == 'draft' || newData.parent().child('definition/questionCount').exists())",
               "state": {
                 ".validate": "newData.val() == 'draft' ? (!data.exists() || data.val() == 'draft') : newData.val() == 'published' ? (!data.exists() || data.val() == 'draft' || data.val() == 'published') : newData.val() == 'closed' ? (data.val() == 'published' || data.val() == 'closed') : newData.val() == 'finalised' ? (data.val() == 'closed' || data.val() == 'finalised') : newData.val() == 'archived' ? data.exists() : false"
@@ -101,6 +101,9 @@
                 "$uid": {
                   ".validate": "newData.val() == true"
                 }
+              },
+              "lastAuditId": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
               },
               "$other": {
                 ".validate": false
@@ -315,9 +318,158 @@
                 }
               }
             },
+            "snapshot": {
+              ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && (root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('allDrivers').val() == true || root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('eligible/' + auth.uid).val() == true) && root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('resultVisibility').val() == 'snapshot'",
+              ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+              ".validate": "newData.hasChildren(['at', 'totals'])",
+              "at": {
+                ".validate": "newData.isNumber()"
+              },
+              "by": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "totals": {},
+              "$other": {
+                ".validate": false
+              }
+            },
             "$other": {
               ".validate": false
             }
+          }
+        },
+        "index": {
+          ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
+          "$poll": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+            ".validate": "newData.hasChildren(['title', 'state', 'opensAt', 'closesAt', 'resultVisibility'])",
+            "title": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+            },
+            "summary": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 300"
+            },
+            "kind": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+            },
+            "state": {
+              ".validate": "newData.val() == 'draft' || newData.val() == 'published' || newData.val() == 'closed' || newData.val() == 'finalised' || newData.val() == 'archived'"
+            },
+            "opensAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "closesAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "resultVisibility": {
+              ".validate": "newData.val() == 'live' || newData.val() == 'afterClose' || newData.val() == 'snapshot' || newData.val() == 'hidden'"
+            },
+            "labelsHidden": {
+              ".validate": "newData.isBoolean()"
+            },
+            "standalone": {
+              ".validate": "newData.isBoolean()"
+            },
+            "planId": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+            },
+            "stageId": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+            },
+            "replaces": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+            },
+            "replacedBy": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "plans": {
+          ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
+          "$plan": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+            ".validate": "newData.hasChildren(['title', 'status', 'stageCount'])",
+            "title": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+            },
+            "intro": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 2000"
+            },
+            "status": {
+              ".validate": "newData.val() == 'active' || newData.val() == 'complete' || newData.val() == 'archived'"
+            },
+            "stageCount": {
+              ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() <= 12"
+            },
+            "stages": {
+              "$i": {
+                ".validate": "newData.hasChildren(['id', 'label'])",
+                "id": {
+                  ".validate": "newData.isString() && newData.val().matches(/^[a-z][a-z0-9_-]{0,63}$/)"
+                },
+                "label": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "updatedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "drafts": {
+          "$draft": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true"
+          }
+        },
+        "templates": {
+          "$template": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true"
+          }
+        },
+        "settings": {
+          ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+          "instructions": {
+            ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 2000"
+          },
+          "durationDays": {
+            ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 1 && newData.val() <= 60"
+          },
+          "resultVisibility": {
+            ".validate": "newData.val() == 'live' || newData.val() == 'afterClose' || newData.val() == 'snapshot' || newData.val() == 'hidden'"
+          },
+          "labelsHidden": {
+            ".validate": "newData.isBoolean()"
+          },
+          "exclusionSeasons": {
+            ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() <= 10"
+          },
+          "targetEvents": {
+            ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 1 && newData.val() <= 24"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedBy": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+          },
+          "$other": {
+            ".validate": false
           }
         },
         "catalogue": {

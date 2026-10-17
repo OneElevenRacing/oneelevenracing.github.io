@@ -174,6 +174,11 @@ function fetchAndUpdateRaceInfo() {
 }
 
 function logoutUser() {
+    // Unfinished season-poll answers are kept in this tab only until sign-out.
+    try {
+        Object.keys(sessionStorage).filter(function(key) { return key.indexOf('oneElevenBallotDraft:') === 0; })
+            .forEach(function(key) { sessionStorage.removeItem(key); });
+    } catch (error) { /* storage unavailable */ }
     firebase.auth().signOut().then(function() {
         window.location.href = 'index.html';
     }).catch(function(error) {

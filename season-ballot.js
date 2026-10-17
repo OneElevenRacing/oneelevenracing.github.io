@@ -224,8 +224,27 @@
         return updates;
     }
 
+    // Changing a published poll's timing, visibility or state: the control fields,
+    // the matching hub index fields and an audit entry, in one update.
+    const INDEX_FIELDS = ['state', 'opensAt', 'closesAt', 'resultVisibility', 'labelsHidden'];
+    function controlUpdates({ pollId, before, changes, auditId, adminUid, reason, action, timestamp }) {
+        const base = pollPath(pollId);
+        const updates = {};
+        const previous = {};
+        Object.entries(changes).forEach(([key, value]) => {
+            updates[`${base}/control/${key}`] = value;
+            previous[key] = before && before[key] !== undefined ? before[key] : null;
+            if (INDEX_FIELDS.includes(key)) updates[`seasonPlanning/v1/index/${pollId}/${key}`] = value;
+        });
+        updates[`${base}/control/lastAuditId`] = auditId;
+        updates[`seasonPlanning/v1/index/${pollId}/updatedAt`] = timestamp;
+        updates[`${base}/audit/${auditId}`] = { at: timestamp, by: adminUid, action, reason, before: previous, after: changes };
+        return updates;
+    }
+
     return {
         LIMITS,
+        controlUpdates,
         OPTION_ID,
         pollPath,
         questionList,

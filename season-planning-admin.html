@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>One Eleven - Season Planning Admin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_season.css">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="tracks.js"></script>
+    <script src="catalogue.js"></script>
+    <script src="season-ballot.js"></script>
+    <script src="season-polls-core.js"></script>
+    <script src="season-results.js"></script>
+    <script src="season-ui.js"></script>
+    <script defer src="checkAuth.js"></script>
+    <script defer src="season-planning-admin.js"></script>
+</head>
+<body data-require-admin="true" data-denied-url="settings.html" style="display:none">
+    <header>
+        <a href="admin.html" class="back-button" id="backLink" aria-label="Back to Admin">
+            <img src="Logos_and_icons/back.png" alt="">
+        </a>
+        <a href="settings.html" class="headerbuttonnotselected" aria-label="Settings">
+            <img src="Logos_and_icons/settings.png" alt="">
+        </a>
+    </header>
+
+    <main class="sp">
+        <p class="sp-eyebrow">Admin</p>
+        <h1>Season Planning</h1>
+        <p class="sp-lede">Create and run polls, follow the season's progress and publish results. <a href="season-polls.html">Open the drivers' view</a> · <a href="racing-setup.html">Racing Setup</a></p>
+        <p id="pageStatus" class="sp-status" role="status">Loading…</p>
+        <div id="view"></div>
+
+        <dialog id="dialog" class="sp-dialog" aria-labelledby="dialogTitle">
+            <form method="dialog" id="dialogForm" novalidate>
+                <div class="sp-dialog-head"><h2 id="dialogTitle"></h2></div>
+                <div class="sp-dialog-body" id="dialogBody"></div>
+                <div class="sp-dialog-foot" id="dialogFoot"></div>
+            </form>
+        </dialog>
+    </main>
+</body>
+</html>

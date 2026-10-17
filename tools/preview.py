@@ -6,7 +6,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGES = {'main.html', 'championship.html', 'admin.html', 'poll.html', 'racing-setup.html'}
+PAGES = {'main.html', 'championship.html', 'admin.html', 'poll.html', 'racing-setup.html',
+         'season-polls.html', 'season-planning-admin.html'}
 
 
 class PreviewHandler(SimpleHTTPRequestHandler):

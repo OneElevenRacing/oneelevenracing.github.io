@@ -16,6 +16,7 @@
     <script src="firebase-config.js"></script>
     <script src="tracks.js"></script>
     <script src="catalogue.js"></script>
+    <script src="season-polls-core.js"></script>
     <script defer src="checkAuth.js"></script>
     <script defer src="racing-setup.js"></script>
 </head>
@@ -40,6 +41,7 @@
             <button role="tab" id="tab-tracks" aria-controls="panel-tracks" aria-selected="false" tabindex="-1">Tracks</button>
             <button role="tab" id="tab-import" aria-controls="panel-import" aria-selected="false" tabindex="-1">Import &amp; export</button>
             <button role="tab" id="tab-checks" aria-controls="panel-checks" aria-selected="false" tabindex="-1">Checks</button>
+            <button role="tab" id="tab-defaults" aria-controls="panel-defaults" aria-selected="false" tabindex="-1">Templates &amp; defaults</button>
         </div>
 
         <!-- Car classes -->
@@ -136,6 +138,31 @@
             <div class="sp-card">
                 <h2>Catalogue problems</h2>
                 <div id="catalogueProblems"></div>
+            </div>
+        </section>
+
+        <!-- Templates and shared defaults for season polls -->
+        <section id="panel-defaults" role="tabpanel" aria-labelledby="tab-defaults" hidden>
+            <form class="sp-card" id="defaultsForm" novalidate>
+                <h2>Defaults for new polls</h2>
+                <p class="sp-muted sp-small">These shape new drafts only. Published polls never change when you edit them.</p>
+                <div class="sp-field"><label for="defInstructions">Default introduction</label><textarea id="defInstructions" rows="3" maxlength="2000" style="min-height:0;font-family:inherit;font-size:1rem"></textarea></div>
+                <div class="sp-row">
+                    <div class="sp-field"><label for="defDuration">Poll length (days)</label><input type="number" id="defDuration" min="1" max="60" inputmode="numeric"></div>
+                    <div class="sp-field"><label for="defVisibility">Results</label><select id="defVisibility"></select></div>
+                </div>
+                <label class="sp-check"><input type="checkbox" id="defLabels"> Hide class names in results by default</label>
+                <div class="sp-row">
+                    <div class="sp-field"><label for="defExclusion">Exclude track locations used in the last … seasons</label><input type="number" id="defExclusion" min="0" max="10" inputmode="numeric"><p class="sp-hint">Used by track polls in the season tools.</p></div>
+                    <div class="sp-field"><label for="defEvents">Calendar events</label><input type="number" id="defEvents" min="1" max="24" inputmode="numeric"><p class="sp-hint">Default target for the season calendar (1–24).</p></div>
+                </div>
+                <button type="submit">Save defaults</button>
+                <p id="defaultsStatus" class="sp-status" role="status"></p>
+            </form>
+            <div class="sp-card">
+                <h2>Poll templates</h2>
+                <p class="sp-muted sp-small">Start new polls from these in Season Planning. Built-in templates can be copied and edited. You can also save any draft as a template.</p>
+                <div id="templateList"></div>
             </div>
         </section>
 

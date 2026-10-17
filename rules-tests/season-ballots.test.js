@@ -64,6 +64,12 @@ function submission(uid, pollId, definition, raw) {
 }
 
 const submit = (uid, pollId, definition, raw) => update(ref(db(uid)), submission(uid, pollId, definition, raw));
+// An admin change to a published poll's control, with its audit entry. These polls
+// have no hub index entry, so the index fields are left out.
+const controlChange = (pollId, changes, adminUid = 'admin') => Object.fromEntries(Object.entries(SB.controlUpdates({
+    pollId, before: {}, changes, auditId: `audit-${++submissionCounter}`, adminUid,
+    reason: 'Test change', action: 'update-control', timestamp: serverTimestamp()
+})).filter(([p]) => !p.includes('/index/')));
 const pick = (...indexes) => indexes.map(i => `c${i}`);
 const totals = pollId => read(`${SB.pollPath(pollId)}/totals`);
 
@@ -123,7 +129,8 @@ describe('who can vote', () => {
     it('rejects votes on a poll an admin has closed early', async () => {
         const def = choiceDefinition();
         await publish('r1', def);
-        await assertSucceeds(update(ref(admin()), { [`${SB.pollPath('r1')}/control/state`]: 'closed' }));
+        await assertFails(update(ref(admin()), { [`${SB.pollPath('r1')}/control/state`]: 'closed' }), 'needs an audit entry');
+        await assertSucceeds(update(ref(admin()), controlChange('r1', { state: 'closed' })));
         await assertFails(submit('alice', 'r1', def, [{ selections: pick(0, 1, 2, 3, 4) }]));
     });
 });
@@ -280,13 +287,17 @@ describe('privacy and result visibility', () => {
         await assertSucceeds(update(ref(admin()), { [`${base}/definition`]: def, [`${base}/control`]: { ...control(), state: 'draft' } }));
         await assertFails(get(ref(db('alice'), `${base}/definition`)));
         await assertSucceeds(set(ref(admin(), `${base}/definition/title`), 'Edited draft'));
-        await publish('d1', def);
+        await assertFails(update(ref(admin()), SB.publishUpdates({ pollId: 'd1', definition: def, control: control() })));
+        const republish = SB.publishUpdates({ pollId: 'd1', definition: def, control: { ...control(), lastAuditId: 'publish-d1' } });
+        republish[`${base}/audit/publish-d1`] = { at: serverTimestamp(), by: 'admin', action: 'publish', reason: 'Publishing the draft' };
+        await assertSucceeds(update(ref(admin()), republish));
         await assertSucceeds(get(ref(db('alice'), `${base}/definition`)));
         await assertFails(set(ref(admin(), `${base}/definition/title`), 'Edited after publishing'));
-        await assertFails(set(ref(admin(), `${base}/control/state`), 'draft'));
+        await assertFails(update(ref(admin()), controlChange('d1', { state: 'draft' })));
         await assertFails(set(ref(db('alice'), `${base}/definition/title`), 'Driver edit'));
         await assertFails(set(ref(db('alice'), `${base}/control/closesAt`), Date.now() + 9 * HOUR));
-        await assertSucceeds(set(ref(admin(), `${base}/control/closesAt`), Date.now() + 9 * HOUR));
+        await assertFails(set(ref(admin(), `${base}/control/closesAt`), Date.now() + 9 * HOUR), 'needs an audit entry');
+        await assertSucceeds(update(ref(admin()), controlChange('d1', { closesAt: Date.now() + 9 * HOUR })));
     });
 });
 

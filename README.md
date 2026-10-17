@@ -25,6 +25,32 @@ Overrides apply to the active season; a new season defaults to automatic.
 With no active championship, the existing saved manual track is used.
 Race date, time and weather continue to use their existing controls.
 
+## Polls & Forms and Season Planning
+
+**Other Polls and Forms** on the home page opens the drivers' hub (`season-polls.html`). It
+shows the active season plan's stages, open polls ordered by deadline (with each driver's
+Submitted / Not submitted status), upcoming polls, results and an archive. The existing
+availability poll is separate and unchanged.
+
+Each poll has a Vote and a Results tab. Drivers search and tick options, then review their
+answers before submitting; after that only an admin can change them, and a receipt shows
+what was saved and when. Unfinished answers are kept in the browser tab until submitted
+or signed out. Results show respondents and total selections separately, a text summary,
+a table view and PNG/CSV downloads. When class names are hidden they are hidden in the
+chart, summary and downloads too (a presentation choice, not secrecy). Rule votes pass
+only when Yes beats No; a tie fails and no votes means no decision.
+
+Admins use **Admin → Open Season Planning** (`season-planning-admin.html`) to start a
+season plan (its stages form the drivers' progress strip), create polls from templates,
+**Preview as driver** (sample answers, nothing saved), publish, change dates or the
+results setting, close, finalise, archive, duplicate or replace a poll, publish result
+snapshots, recount totals from the ballots, view and correct individual answers, and see
+each poll's history. Every change to a published poll needs a reason, which is kept in
+the history. Questions, options and quotas are frozen once published.
+
+Default poll settings and saved templates live in **Racing Setup → Templates & defaults**.
+Defaults only shape new drafts. All dates are stored in UTC and shown in UK time.
+
 ## Racing Setup (car classes and tracks)
 
 Admins open **Admin → Open Racing Setup** to manage the shared car-class and track lists.
