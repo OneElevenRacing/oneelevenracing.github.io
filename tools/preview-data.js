@@ -30,6 +30,15 @@
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }
     function read(path) { return path.split('/').filter(Boolean).reduce((v, key) => v?.[key], data.realtime) ?? null; }
     function snapshot(path) { return { val: () => copy(read(path)), exists: () => read(path) !== null }; }
+    // Stand-ins for Firebase's server timestamp and increment values.
+    const serverValues = { TIMESTAMP: { '.sv': 'timestamp' }, increment: n => ({ '.sv': { increment: n } }) };
+    function resolveServerValues(value, current) {
+        if (!value || typeof value !== 'object') return value;
+        if (value['.sv'] === 'timestamp') return Date.now();
+        if (value['.sv'] && value['.sv'].increment !== undefined) return (typeof current === 'number' ? current : 0) + value['.sv'].increment;
+        Object.keys(value).forEach(key => { value[key] = resolveServerValues(value[key], current && current[key]); });
+        return value;
+    }
     function ref(path = '') {
         return {
             child: name => ref([path, name].filter(Boolean).join('/')),
@@ -50,9 +59,14 @@
                 const keys = path.split('/');
                 const last = keys.pop();
                 const parent = keys.reduce((v, key) => v[key] ||= {}, data.realtime);
-                parent[last] = copy(value);
+                parent[last] = resolveServerValues(copy(value), parent[last]);
                 persist();
-                realtimeListeners.get(path)?.forEach(listener => listener(snapshot(path)));
+                // Notify listeners on this path, its parents and its children.
+                realtimeListeners.forEach((listeners, listenerPath) => {
+                    if (listenerPath === path || !listenerPath || path.startsWith(`${listenerPath}/`) || listenerPath.startsWith(`${path}/`)) {
+                        listeners.forEach(listener => listener(snapshot(listenerPath)));
+                    }
+                });
                 if (callback) callback(null);
                 return Promise.resolve();
             }
@@ -96,7 +110,7 @@
     window.firebase = {
         initializeApp() {},
         auth: () => ({ currentUser: user, onAuthStateChanged: callback => { setTimeout(() => callback(user), 0); return () => {}; } }),
-        database: () => ({ ref }),
+        database: Object.assign(() => ({ ref }), { ServerValue: serverValues }),
         firestore: () => ({
             collection: name => {
                 if (name === 'polls') return polls;

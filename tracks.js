@@ -167,17 +167,25 @@ function populateTrackOptions() {
     }
 
     // Clear existing options to make sure the track selector menu is empty before populating it
+    const previous = selectElement.value;
     selectElement.innerHTML = '';
     selectElement.appendChild(new Option('Automatic', '__automatic__'));
 
-    // Making the menu options
-    trackData.forEach(track => {
+    // Making the menu options from the shared catalogue (or this built-in list before setup)
+    const tracks = window.oneElevenTracks ? window.oneElevenTracks.selectable() : trackData;
+    tracks.forEach(track => {
         let option = document.createElement('option');
         option.value = track.name;
         option.textContent = track.name;
         selectElement.appendChild(option);
     });
+    if (previous && !Array.from(selectElement.options).some(option => option.value === previous)) {
+        selectElement.add(new Option(previous, previous));
+    }
+    if (previous) selectElement.value = previous;
 }
+
+document.addEventListener('oneEleven:tracksChanged', populateTrackOptions);
 
 
 function fetchCurrentData() {

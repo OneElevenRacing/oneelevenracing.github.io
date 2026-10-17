@@ -25,6 +25,25 @@ Overrides apply to the active season; a new season defaults to automatic.
 With no active championship, the existing saved manual track is used.
 Race date, time and weather continue to use their existing controls.
 
+## Racing Setup (car classes and tracks)
+
+Admins open **Admin → Open Racing Setup** to manage the shared car-class and track lists.
+Tracks are stored as locations (e.g. Brands Hatch) with layouts (e.g. Grand Prix, Indy);
+layouts at one location count as the same track for season-planning exclusions and
+duplicates. Entries are archived rather than deleted. Renaming keeps the old name as an
+alias, so championships saved under the old name still show the right label and image.
+
+Until the track catalogue is set up, every page uses the built-in list in `tracks.js`. To set
+it up, go to **Import & export → Built-in track list → Review built-in list**. Check the
+locations marked in red, then add them. Running this again only adds missing tracks.
+Afterwards the next-race selector, championship editor, homepage image and championship
+labels all read the catalogue. **Checks → Check championships** lists saved track names the
+catalogue doesn't recognise and lets you add each one as an alias.
+
+Car classes can be added one at a time, pasted one per line, or imported from CSV. Every
+import shows a preview of what will be added or changed before anything is saved.
+The sample preview includes Racing Setup; its changes stay in the browser tab.
+
 ## Next-race calculations
 
 Exact championship-position ranges support up to 10 drivers for one race and

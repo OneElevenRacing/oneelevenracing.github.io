@@ -319,6 +319,133 @@
               ".validate": false
             }
           }
+        },
+        "catalogue": {
+          ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
+          ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+          "classes": {
+            "$id": {
+              ".validate": "$id.matches(/^[a-z][a-z0-9_-]{0,63}$/) && newData.hasChildren(['name', 'active'])",
+              "name": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+              },
+              "aliases": {
+                "$i": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+                }
+              },
+              "active": {
+                ".validate": "newData.isBoolean()"
+              },
+              "updatedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "updatedBy": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "category": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "era": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "dlc": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "description": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 1000"
+              },
+              "imagePath": {
+                ".validate": "newData.isString() && newData.val().length <= 250 && (newData.val() == '' || (newData.val().matches(/^Logos_and_icons\\/[A-Za-z0-9_ ().\\/-]+\\.(png|jpg|jpeg|webp|gif|PNG|JPG|JPEG|WEBP|GIF)$/) && !newData.val().contains('..')))"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "locations": {
+            "$id": {
+              ".validate": "$id.matches(/^[a-z][a-z0-9_-]{0,63}$/) && newData.hasChildren(['name', 'active'])",
+              "name": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+              },
+              "aliases": {
+                "$i": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+                }
+              },
+              "active": {
+                ".validate": "newData.isBoolean()"
+              },
+              "updatedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "updatedBy": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "country": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "layouts": {
+            "$id": {
+              ".validate": "$id.matches(/^[a-z][a-z0-9_-]{0,63}$/) && newData.hasChildren(['name', 'active']) && (newData.child('system').val() == true || newData.parent().parent().child('locations/' + newData.child('locationId').val()).exists())",
+              "name": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+              },
+              "aliases": {
+                "$i": {
+                  ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+                }
+              },
+              "active": {
+                ".validate": "newData.isBoolean()"
+              },
+              "updatedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "updatedBy": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 128"
+              },
+              "shortName": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+              },
+              "locationId": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 64"
+              },
+              "era": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "dlc": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "imagePath": {
+                ".validate": "newData.isString() && newData.val().length <= 250 && (newData.val() == '' || (newData.val().matches(/^Logos_and_icons\\/[A-Za-z0-9_ ().\\/-]+\\.(png|jpg|jpeg|webp|gif|PNG|JPG|JPEG|WEBP|GIF)$/) && !newData.val().contains('..')))"
+              },
+              "randomEligible": {
+                ".validate": "newData.isBoolean()"
+              },
+              "system": {
+                ".validate": "newData.isBoolean()"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "revision": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }

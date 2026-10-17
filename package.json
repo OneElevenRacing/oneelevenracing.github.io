@@ -4,7 +4,7 @@
   "description": "Development-only tools. The website itself needs no build step or packages.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "test:rules": "firebase emulators:exec --only database --project demo-one-eleven \"node --test rules-tests/*.test.js\""
+    "test:rules": "firebase emulators:exec --only database --project demo-one-eleven \"node --test --test-concurrency=1 rules-tests/*.test.js\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "6.0.0",

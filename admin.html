@@ -24,6 +24,8 @@
 
 <!-- Which script to use -->
     <script src="tracks.js"></script>
+    <script src="catalogue.js"></script>
+    <script src="track-catalogue.js"></script>
     <script src="race-track.js" defer></script>
     <script defer src="checkAuth.js"></script>
     <script defer src="script.js"></script>
@@ -48,6 +50,7 @@
                 <select id="raceTrackSelect" disabled>
                 </select>
                 <p id="currentRaceTrack" class="current-data" role="status"></p>
+                <p class="current-data" data-track-catalogue-status role="status" hidden></p>
                 <button onclick="setTrackTBD()">Set to TBD</button>
             </div>
 
@@ -93,6 +96,12 @@
                 </div>
                 <button type="button" onclick="updateSeasonData(event)" class="season-update-btn">Update Season Configuration</button>
             </form>
+        </div>
+
+        <div class="season-config">
+            <h2>Racing Setup</h2>
+            <p class="setup-intro">Manage the shared car classes and tracks used by the next-race selector, championships and season polls.</p>
+            <a class="setup-link" href="racing-setup.html">Open Racing Setup</a>
         </div>
     </main>
 </body>

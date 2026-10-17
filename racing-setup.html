@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <link rel="apple-touch-icon" sizes="180x180" href="Logos_and_icons/Icons/111_icon180.png">
+    <link rel="icon" href="Logos_and_icons/Icons/111_icon.ico" type="image/x-icon">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>One Eleven - Racing Setup</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style_season.css">
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="tracks.js"></script>
+    <script src="catalogue.js"></script>
+    <script defer src="checkAuth.js"></script>
+    <script defer src="racing-setup.js"></script>
+</head>
+<body data-require-admin="true" data-denied-url="settings.html" style="display:none">
+    <header>
+        <a href="admin.html" class="back-button" aria-label="Back to Admin">
+            <img src="Logos_and_icons/back.png" alt="">
+        </a>
+        <a href="settings.html" class="headerbuttonnotselected" aria-label="Settings">
+            <img src="Logos_and_icons/settings.png" alt="">
+        </a>
+    </header>
+
+    <main class="sp">
+        <p class="sp-eyebrow">Admin</p>
+        <h1>Racing Setup</h1>
+        <p class="sp-lede">The shared car classes and tracks used by season polls, championships and the next-race selector.</p>
+        <p id="loadStatus" class="sp-status" role="status">Loading the catalogue…</p>
+
+        <div class="sp-tabs" role="tablist" aria-label="Racing Setup sections">
+            <button role="tab" id="tab-classes" aria-controls="panel-classes" aria-selected="true">Car classes</button>
+            <button role="tab" id="tab-tracks" aria-controls="panel-tracks" aria-selected="false" tabindex="-1">Tracks</button>
+            <button role="tab" id="tab-import" aria-controls="panel-import" aria-selected="false" tabindex="-1">Import &amp; export</button>
+            <button role="tab" id="tab-checks" aria-controls="panel-checks" aria-selected="false" tabindex="-1">Checks</button>
+        </div>
+
+        <!-- Car classes -->
+        <section id="panel-classes" role="tabpanel" aria-labelledby="tab-classes">
+            <div class="sp-toolbar">
+                <div class="sp-filters sp-filters-3">
+                    <div class="sp-field sp-wide"><label for="classSearch">Search</label><input type="search" id="classSearch" placeholder="Name or alias" autocomplete="off"></div>
+                    <div class="sp-field"><label for="classStatus">Status</label>
+                        <select id="classStatus"><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></div>
+                    <div class="sp-field"><label for="classCategory">Category</label><select id="classCategory"></select></div>
+                </div>
+                <div class="sp-actions"><button type="button" id="addClass">Add class</button></div>
+            </div>
+            <p id="classCount" class="sp-muted sp-small" aria-live="polite"></p>
+            <ul id="classList" class="sp-list"></ul>
+        </section>
+
+        <!-- Tracks -->
+        <section id="panel-tracks" role="tabpanel" aria-labelledby="tab-tracks" hidden>
+            <div id="seedPrompt" class="sp-card" hidden>
+                <h2>Set up tracks</h2>
+                <p>The track catalogue is empty, so the site is still using its built-in track list. Review the built-in list to create locations and layouts from it.</p>
+                <button type="button" id="openSeedFromTracks">Review built-in list</button>
+            </div>
+            <div class="sp-toolbar">
+                <div class="sp-filters">
+                    <div class="sp-field sp-wide"><label for="trackSearch">Search</label><input type="search" id="trackSearch" placeholder="Track, layout or alias" autocomplete="off"></div>
+                    <div class="sp-field"><label for="trackLocation">Location</label><select id="trackLocation"></select></div>
+                    <div class="sp-field"><label for="trackEra">Era</label><select id="trackEra"></select></div>
+                    <div class="sp-field"><label for="trackDlc">DLC</label><select id="trackDlc"></select></div>
+                    <div class="sp-field"><label for="trackStatus">Status</label>
+                        <select id="trackStatus"><option value="active">Active</option><option value="archived">Archived</option><option value="all">All</option></select></div>
+                </div>
+                <div class="sp-actions">
+                    <button type="button" id="addLocation" class="sp-secondary">Add location</button>
+                    <button type="button" id="addLayout">Add layout</button>
+                </div>
+            </div>
+            <p id="trackCount" class="sp-muted sp-small" aria-live="polite"></p>
+            <div id="trackGroups"></div>
+        </section>
+
+        <!-- Import and export -->
+        <section id="panel-import" role="tabpanel" aria-labelledby="tab-import" hidden>
+            <div class="sp-card" id="seedCard">
+                <h2>Built-in track list</h2>
+                <p>Create catalogue locations and layouts from the site's existing track list. Names, short names and images are kept. Running this again only adds tracks that are missing.</p>
+                <button type="button" id="openSeed">Review built-in list</button>
+                <div id="seedReview" hidden></div>
+            </div>
+
+            <div class="sp-card">
+                <h2>Import car classes</h2>
+                <fieldset class="sp-field" style="border:0;padding:0;margin:0 0 10px">
+                    <legend class="sp-small" style="font-weight:600;margin-bottom:6px">Format</legend>
+                    <label class="sp-check"><input type="radio" name="classFormat" value="lines" checked> One class name per line</label>
+                    <label class="sp-check"><input type="radio" name="classFormat" value="csv"> CSV with a header row</label>
+                </fieldset>
+                <p class="sp-muted sp-small">CSV columns: <code>id, name, aliases, category, era, dlc, description, image_path, active</code>. Only <code>name</code> is required. Separate aliases with semicolons. Rows without an ID are matched by name or alias.</p>
+                <div class="sp-field"><label for="classImportText">Classes</label><textarea id="classImportText" spellcheck="false"></textarea></div>
+                <div class="sp-field"><label for="classImportFile">Or choose a file</label><input type="file" id="classImportFile" accept=".csv,.txt,text/csv,text/plain"></div>
+                <button type="button" id="previewClassImport">Preview changes</button>
+                <div id="classImportPreview"></div>
+            </div>
+
+            <div class="sp-card">
+                <h2>Import tracks</h2>
+                <p class="sp-muted sp-small">CSV columns: <code>layout_id, layout_name, short_name, location_id, location_name, aliases, era, dlc, image_path, active, random_eligible</code>. <code>layout_name</code> and <code>location_name</code> are required. New location names create new locations. Tip: export first, edit the file, then import it.</p>
+                <div class="sp-field"><label for="trackImportText">Tracks CSV</label><textarea id="trackImportText" spellcheck="false"></textarea></div>
+                <div class="sp-field"><label for="trackImportFile">Or choose a file</label><input type="file" id="trackImportFile" accept=".csv,text/csv"></div>
+                <button type="button" id="previewTrackImport">Preview changes</button>
+                <div id="trackImportPreview"></div>
+            </div>
+
+            <div class="sp-card">
+                <h2>Export</h2>
+                <p class="sp-muted sp-small">Exports include archived entries. Cells that a spreadsheet could treat as formulas are made safe.</p>
+                <div class="sp-toolbar" style="margin:0"><div class="sp-actions">
+                    <button type="button" id="exportClasses" class="sp-secondary">Car classes CSV</button>
+                    <button type="button" id="exportTracks" class="sp-secondary">Tracks CSV</button>
+                    <button type="button" id="exportJson" class="sp-secondary">Everything (JSON)</button>
+                </div></div>
+            </div>
+        </section>
+
+        <!-- Checks -->
+        <section id="panel-checks" role="tabpanel" aria-labelledby="tab-checks" hidden>
+            <div class="sp-card">
+                <h2>Championship track names</h2>
+                <p>Finds track names saved in championships that the catalogue doesn't recognise. Their images fall back to a placeholder. Fix one by adding the saved name as an alias of the right layout.</p>
+                <button type="button" id="scanChampionships">Check championships</button>
+                <div id="scanResults"></div>
+            </div>
+            <div class="sp-card">
+                <h2>Catalogue problems</h2>
+                <div id="catalogueProblems"></div>
+            </div>
+        </section>
+
+        <!-- Edit dialog, filled in by racing-setup.js -->
+        <dialog id="editDialog" class="sp-dialog" aria-labelledby="editTitle">
+            <form method="dialog" id="editForm" novalidate>
+                <div class="sp-dialog-head"><h2 id="editTitle">Edit</h2></div>
+                <div class="sp-dialog-body" id="editBody"></div>
+                <div class="sp-dialog-foot">
+                    <button type="button" class="sp-secondary" id="editCancel">Cancel</button>
+                    <button type="submit" id="editSave">Save</button>
+                </div>
+            </form>
+        </dialog>
+    </main>
+</body>
+</html>
