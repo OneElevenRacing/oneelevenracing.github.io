@@ -164,6 +164,7 @@
                 h('p', { text: 'Start a season plan to show drivers the stages on the Polls & Forms page. Polls can also run on their own without a plan.' }),
                 h('button', { type: 'button', text: 'Start season planning', onclick: () => editPlan(null) }));
         return h('div', null,
+            visibilityCard(),
             planCard,
             h('section', { class: 'sp-card' },
                 h('h2', { text: 'Open polls' }),
@@ -181,6 +182,22 @@
                         h('a', { class: 'sp-small', href: '?tab=polls', text: 'View' })) : null)
                     : h('p', { class: 'sp-muted', text: 'Nothing waiting.' })),
             h('p', null, h('button', { type: 'button', text: 'New poll', onclick: newPoll })));
+    }
+
+    // The switch that shows Polls & Forms to drivers. Hiding it keeps all data.
+    function visibilityCard() {
+        const visible = state.visibility && state.visibility.drivers === true;
+        return h('section', { class: 'sp-card' },
+            h('div', { class: 'sp-card-head' }, h('h2', { text: 'Drivers’ access' }), h('span', { class: `sp-badge ${visible ? 'sp-green' : 'sp-amber'}`, text: visible ? 'Visible to drivers' : 'Hidden from drivers' })),
+            h('p', { class: 'sp-small', text: visible
+                ? 'Drivers can open Polls & Forms from the home page.'
+                : 'Only admins can open Polls & Forms. Drivers see “Coming Soon”. Switch it on once the database rules are live and you’ve tried it.' }),
+            h('button', { type: 'button', class: visible ? 'sp-secondary' : '', text: visible ? 'Hide from drivers' : 'Show to drivers', onclick: async () => {
+                const ok = await confirmDialog({ title: visible ? 'Hide Polls & Forms from drivers?' : 'Show Polls & Forms to drivers?',
+                    body: h('p', { text: visible ? 'Nothing is deleted. Polls, answers and results stay saved and come back when you switch it on again.' : 'Drivers will be able to open the hub and vote in open polls.' }),
+                    confirmLabel: visible ? 'Hide' : 'Show' });
+                if (ok) save({ [`${V1}/visibility`]: { drivers: !visible, updatedAt: sv().TIMESTAMP, updatedBy: state.uid } }, visible ? 'Hidden from drivers.' : 'Visible to drivers.');
+            } }));
     }
 
     function pollsTab() {
@@ -863,7 +880,7 @@
 
     // Wait for every list the views use before drawing, so menus aren't missing entries.
     const loaded = new Set();
-    const NEEDED = ['index', 'drafts', 'plans', 'templates', 'settings', 'catalogue', 'drivers'];
+    const NEEDED = ['index', 'drafts', 'plans', 'templates', 'settings', 'catalogue', 'drivers', 'visibility'];
     function route() {
         if (!NEEDED.every(key => loaded.has(key))) return;
         if (params.get('poll')) renderDetail();
@@ -898,6 +915,7 @@
         listen(`${V1}/templates`, 'templates', {});
         listen(`${V1}/settings`, 'settings', {});
         listen(`${V1}/catalogue`, 'catalogue', {});
+        listen(`${V1}/visibility`, 'visibility', {});
         if (params.get('poll')) startDetail();
     });
 })();

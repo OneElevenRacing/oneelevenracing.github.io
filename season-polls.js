@@ -379,8 +379,17 @@
             if (connected) $('connection').hidden = true;
             else offlineTimer = setTimeout(() => { $('connection').hidden = connected; }, 4000);
         });
-        if (summaryId) startSummary();
-        else if (pollId) startPoll();
-        else startHub();
+        // Hidden from drivers until an admin switches Polls & Forms on.
+        db().ref(`${V1}/visibility/drivers`).once('value').then(snapshot => snapshot.val() === true, () => false).then(visible => {
+            if (!visible && !driver.isAdmin) {
+                fill($('app'), h('h1', { text: 'Polls & forms' }), h('p', { class: 'sp-status', text: 'Polls and forms aren’t open yet. Check back soon.' }),
+                    h('p', null, h('a', { href: 'main.html', text: '← Back to home' })));
+                return;
+            }
+            if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html', text: 'Season Planning → Overview' }), '.'));
+            if (summaryId) startSummary();
+            else if (pollId) startPoll();
+            else startHub();
+        });
     });
 })();

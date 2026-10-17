@@ -215,6 +215,20 @@ function showAlert() {
     alert('Coming Soon!');
 }
 
+// Polls & Forms opens once an admin has switched it on for drivers (Season Planning →
+// Overview). Admins can always open it. Until then drivers see the old message.
+function openPollsAndForms() {
+    var user = firebase.auth().currentUser;
+    if (!user) { showAlert(); return; }
+    Promise.all([
+        firebase.database().ref('drivers/' + user.uid + '/isAdmin').once('value'),
+        firebase.database().ref('seasonPlanning/v1/visibility/drivers').once('value')
+    ]).then(function(results) {
+        if (results[0].val() === true || results[1].val() === true) window.location.href = 'season-polls.html';
+        else showAlert();
+    }).catch(function() { showAlert(); });
+}
+
 function setupMenuDropdown() {
     const dropdown = document.getElementById('dropdown');
     const gearIcon = document.getElementById('gearIcon') || document.querySelector('.fa-gear');

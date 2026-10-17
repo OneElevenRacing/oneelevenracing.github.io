@@ -27,6 +27,11 @@ Race date, time and weather continue to use their existing controls.
 
 ## Polls & Forms and Season Planning
 
+**Going live or running a season? Start with [docs/season-planning-guide.md](docs/season-planning-guide.md).**
+It covers publishing the database rules (needed first), setup, a season step by step, and
+how to hide the feature again. Drivers see "Coming Soon!" until an admin chooses
+**Show to drivers** in Season Planning → Overview.
+
 **Other Polls and Forms** on the home page opens the drivers' hub (`season-polls.html`). It
 shows the active season plan's stages, open polls ordered by deadline (with each driver's
 Submitted / Not submitted status), upcoming polls, results and an archive. The existing
@@ -158,7 +163,8 @@ as the closest matching date to today, including across New Year.
 The Firebase project settings live in `firebase-config.js`, which every page loads after
 the Firebase SDK scripts. Security rules are kept in `firestore.rules` (Firestore) and
 `database.rules.json` (Realtime Database). Editing these files does not change the live
-rules; paste them into the Firebase console (or deploy them) after any change.
+rules; paste them into the Firebase console (or deploy them) after any change. The season
+planning guide explains both ways.
 
 ### Testing the Realtime Database rules
 

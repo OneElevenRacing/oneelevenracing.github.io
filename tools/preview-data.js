@@ -98,7 +98,7 @@
     // Sample season planning: a plan with polls in each state, for the Polls & Forms pages.
     data.realtime.seasonPlanning ||= {};
     data.realtime.seasonPlanning.v1 ||= {};
-    if (data.realtime.seasonPlanning.v1.sampleVersion !== 2) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 2 });
+    if (data.realtime.seasonPlanning.v1.sampleVersion !== 3) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 3, visibility: { drivers: true } });
     const realtimeListeners = new Map();
     const seasonListeners = new Set();
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }

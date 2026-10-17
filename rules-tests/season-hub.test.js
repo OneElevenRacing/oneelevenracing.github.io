@@ -108,6 +108,16 @@ describe('result snapshots', () => {
     });
 });
 
+describe('showing Polls & Forms to drivers', () => {
+    it('drivers read the switch; only admins change it', async () => {
+        await assertSucceeds(get(ref(db('alice'), `${V1}/visibility`)));
+        await assertFails(get(ref(db('carol'), `${V1}/visibility`)));
+        await assertFails(set(ref(db('alice'), `${V1}/visibility/drivers`), true));
+        await assertSucceeds(set(ref(db('admin'), `${V1}/visibility`), { drivers: true, updatedAt: serverTimestamp(), updatedBy: 'admin' }));
+        await assertFails(set(ref(db('admin'), `${V1}/visibility/drivers`), 'yes'));
+    });
+});
+
 describe('admin-only drafts, templates and settings', () => {
     it('drivers can neither read nor write them (including season admin data)', async () => {
         await assertSucceeds(set(ref(db('admin'), `${V1}/drafts/d1`), draft()));

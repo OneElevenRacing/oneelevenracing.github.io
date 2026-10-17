@@ -612,6 +612,22 @@
           "$other": {
             ".validate": false
           }
+        },
+        "visibility": {
+          ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
+          ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true",
+          "drivers": {
+            ".validate": "newData.isBoolean()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber()"
+          },
+          "updatedBy": {
+            ".validate": "newData.isString() && newData.val().length <= 128"
+          },
+          "$other": {
+            ".validate": false
+          }
         }
       }
     }
