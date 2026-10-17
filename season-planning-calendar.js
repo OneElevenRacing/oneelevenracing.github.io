@@ -85,7 +85,7 @@
             h('p', { class: 'sp-small' }, info.poll ? `${A.plural(info.drivers.length, 'driver choice')} from “${info.poll.title}”. ` : info.note || '',
                 `${A.plural(pool.length, 'eligible location')} for random draws (excluded and already-chosen locations, and layouts not allowed in random draws, are left out).`),
             info.open ? h('p', { class: 'sp-status sp-warn', text: 'The track poll is still open, so driver choices may change.' }) : null,
-            info.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(info.unresolved, 'driver choice')} still ${info.unresolved === 1 ? 'needs' : 'need'} a decision on the Tracks tab.` }) : null);
+            info.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(info.unresolved, 'driver choice')} still ${info.unresolved === 1 ? 'needs' : 'need'} a decision in the track picks step.` }) : null);
         if (!version) {
             const problem = K.shortfall(info.drivers, target(), pool.length);
             T.put(card,
@@ -164,7 +164,7 @@
         const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Finalise' }));
         if (locked) {
             const f = finalised();
-            T.put(card, h('p', { class: 'sp-status sp-ok', text: `Final since ${P.formatDateTime(f.at)} (${A.driverName(f.by)}). Publish it from the Summary tab.` }),
+            T.put(card, h('p', { class: 'sp-status sp-ok', text: `Final since ${P.formatDateTime(f.at)} (${A.driverName(f.by)}). Publish it in the summary step.` }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Reopen for changes…', onclick: async () => {
                     const r = await A.confirmDialog({ title: 'Reopen the calendar?', body: h('p', { text: 'You’ll need to finalise again afterwards. A published summary keeps the old calendar until you republish.' }), reason: true, confirmLabel: 'Reopen' });
                     if (r) T.decide({ [`${T.planPath()}/calendar/finalised`]: null }, 'calendar-reopen', `Calendar reopened: ${r.reason}`, 'Calendar reopened.');
@@ -221,10 +221,10 @@
         const summary = buildSummary();
         const published = plan.summary || null;
         const missing = [];
-        if (!finalised()) missing.push('The calendar isn’t finalised yet (Calendar tab).');
-        if (!summary.winner) missing.push('No winning car class is recorded (Voting rounds tab).');
+        if (!finalised()) missing.push('The calendar isn’t finalised yet (calendar step).');
+        if (!summary.winner) missing.push('No winning car class is recorded (voting rounds step).');
         const proposalsInVote = Object.values(tools.planAdmin.proposals || {}).filter(p => p && p.status === 'in-vote').length;
-        if (proposalsInVote > (summary.rules || []).length) missing.push('Some rule votes have no confirmed outcome yet (Rules tab).');
+        if (proposalsInVote > (summary.rules || []).length) missing.push('Some rule votes have no confirmed outcome yet (rule changes step).');
         const preview = h('div', { class: 'sp-summary' });
         UI.renderSummary(preview, summary, { admin: true });
         const download = (name, text, type) => UI.downloadBlob(name, new Blob([text], { type }));
@@ -254,6 +254,7 @@
     }
 
 
+    window.SeasonCalendarTabs = { calendarTab, summaryTab };
     A.addTab({ id: 'calendar', label: 'Calendar', render: calendarTab });
     A.addTab({ id: 'summary', label: 'Summary', render: summaryTab });
 })();

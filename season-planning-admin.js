@@ -60,7 +60,7 @@
     // ---------- Dialogs ----------
 
     // Resolves with { reason } when confirmed, or null when cancelled.
-    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Reason (kept in the history)', reasonValue = '', danger = false, wide = false }) {
+    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Reason (kept in the history)', reasonValue = '', danger = false, wide = false, altLabel = null }) {
         return new Promise(resolve => {
             const dialog = $('dialog');
             dialog.classList.toggle('sp-dialog-wide', wide);
@@ -71,10 +71,12 @@
             fill($('dialogBody'), body, reasonInput ? h('div', { class: 'sp-field', style: 'margin-top:12px' }, h('label', { for: 'dialogReason', text: reasonLabel }), reasonInput) : null, error);
             const ok = h('button', { type: 'submit', class: danger ? 'sp-danger' : '', text: confirmLabel });
             const cancel = h('button', { type: 'button', class: 'sp-secondary', text: 'Cancel' });
-            fill($('dialogFoot'), cancel, ok);
+            const alt = altLabel ? h('button', { type: 'button', class: 'sp-link', text: altLabel }) : null;
+            fill($('dialogFoot'), alt, cancel, ok);
             let done = false;
             const finish = value => { if (done) return; done = true; dialog.close(); resolve(value); };
             cancel.onclick = () => finish(null);
+            if (alt) alt.onclick = () => finish({ alt: true, reason: reasonInput ? reasonInput.value.trim() : '' });
             dialog.onclose = () => finish(null);
             $('dialogForm').onsubmit = event => {
                 event.preventDefault();
@@ -130,10 +132,12 @@
     function renderMain() {
         if (state.index === null || state.drafts === null) return;
         const known = ['overview', 'polls', ...extraTabs.map(t => t.id)];
-        const tab = known.includes(params.get('tab')) ? params.get('tab') : 'overview';
+        const nav = [{ id: 'polls', label: 'Polls', order: 20 }, ...extraTabs.filter(t => t.nav)].sort((a, b) => a.order - b.order);
+        const fallback = extraTabs.some(t => t.id === 'season') ? 'season' : 'overview';
+        const tab = known.includes(params.get('tab')) ? params.get('tab') : fallback;
         const tabs = h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Season planning sections' },
-            [['overview', 'Overview'], ['polls', 'Polls'], ...extraTabs.map(t => [t.id, t.label])].map(([id, label]) =>
-                h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === id), href: id === 'overview' ? 'season-planning-admin.html' : `season-planning-admin.html?tab=${id}`, text: label })));
+            nav.map(({ id, label }) =>
+                h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === id), href: id === fallback ? 'season-planning-admin.html' : `season-planning-admin.html?tab=${id}`, text: label })));
         const extra = extraTabs.find(t => t.id === tab);
         const body = tab === 'polls' ? pollsTab() : tab === 'overview' ? overviewTab() : extra.render();
         // Keep a tool's own panel (and what's typed in it) when only background data changed.
@@ -238,12 +242,6 @@
         const id = document.querySelector('input[name="templateChoice"]:checked').value;
         const template = templates.find(t => t.id === id);
         const draft = { ...P.draftFromTemplate(template, settings(), now()), updatedAt: sv().TIMESTAMP, updatedBy: state.uid };
-        const plan = activePlan();
-        if (plan && template.kind !== 'custom') {
-            const stage = (plan.stages || []).find(s => s && ({ nomination: 'Suggestions', elimination: 'Car votes', track: 'Tracks', rules: 'Rules' }[template.kind] || '').toLowerCase() === s.label.toLowerCase());
-            draft.planId = plan.id;
-            if (stage) draft.stageId = stage.id;
-        }
         const draftId = newId();
         if (await save({ [`${V1}/drafts/${draftId}`]: clean(draft) })) location.href = `?draft=${encodeURIComponent(draftId)}`;
     }
@@ -605,6 +603,29 @@
         if (errors.length) box.scrollIntoView({ block: 'center' });
     }
 
+    // Everything written when a draft is published: frozen questions, counters at
+    // zero, the hub entry and the history entry. Also closes a poll it replaces.
+    function publishUpdatesFor(pollId, d) {
+        const definition = P.buildDefinition(d, state.catalogue);
+        const audit = auditId();
+        const control = { ...P.buildControl(d), lastAuditId: audit };
+        const updates = {
+            ...SB.publishUpdates({ pollId, definition, control }),
+            [`${V1}/polls/${pollId}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'publish', reason: 'Published' },
+            [`${V1}/index/${pollId}`]: { ...P.indexEntry(d, control), updatedAt: sv().TIMESTAMP },
+            [`${V1}/drafts/${pollId}`]: null
+        };
+        if (d.replaces && state.index[d.replaces]) {
+            const old = state.index[d.replaces];
+            updates[`${V1}/index/${d.replaces}/replacedBy`] = pollId;
+            if (['open', 'scheduled'].includes(P.pollPhase(old, now()))) {
+                Object.assign(updates, SB.controlUpdates({ pollId: d.replaces, before: old, changes: { state: 'closed' }, auditId: auditId(), adminUid: state.uid,
+                    reason: `Replaced by “${definition.title}”`, action: 'replace', timestamp: sv().TIMESTAMP }));
+            }
+        }
+        return updates;
+    }
+
     async function publishDraft() {
         const d = editor.data;
         const errors = P.validateDraft(d, state.catalogue);
@@ -623,23 +644,7 @@
         });
         if (!ok) return;
         const pollId = editor.id;
-        const audit = auditId();
-        const control = { ...P.buildControl(d), lastAuditId: audit };
-        const updates = {
-            ...SB.publishUpdates({ pollId, definition, control }),
-            [`${V1}/polls/${pollId}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'publish', reason: 'Published' },
-            [`${V1}/index/${pollId}`]: { ...P.indexEntry(d, control), updatedAt: sv().TIMESTAMP },
-            [`${V1}/drafts/${pollId}`]: null
-        };
-        if (d.replaces && state.index[d.replaces]) {
-            const old = state.index[d.replaces];
-            updates[`${V1}/index/${d.replaces}/replacedBy`] = pollId;
-            if (['open', 'scheduled'].includes(P.pollPhase(old, now()))) {
-                Object.assign(updates, SB.controlUpdates({ pollId: d.replaces, before: old, changes: { state: 'closed' }, auditId: auditId(), adminUid: state.uid,
-                    reason: `Replaced by “${definition.title}”`, action: 'replace', timestamp: sv().TIMESTAMP }));
-            }
-        }
-        // Option snapshots can exceed what's needed in the draft; publish once, then go to the poll.
+        const updates = publishUpdatesFor(pollId, d);
         editor.dirty = false;
         if (await save(updates, 'Published.')) location.href = `?poll=${encodeURIComponent(pollId)}`;
         else editor.dirty = true;
@@ -909,7 +914,7 @@
     // Shared with season-planning-tools.js.
     window.SeasonAdmin = {
         V1, state, params, now, newId, auditId, save, setStatus, confirmDialog, previewDialog, activePlan, driverName, activeDrivers, settings,
-        clean, plural, phaseBadge, field, KINDS, rerender: () => route(),
+        clean, plural, phaseBadge, field, KINDS, rerender: () => route(), publishUpdatesFor, visibilityCard, pollsTab, newPoll, completePlan,
         addTab: tab => { extraTabs.push(tab); }
     };
 

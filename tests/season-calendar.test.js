@@ -102,7 +102,7 @@ test('fill adds only the missing events and says how many', () => {
 test('finalising is blocked by unresolved duplicates, wrong counts and repeated locations', () => {
     const events = [{ locationId: 'b', locationName: 'Brands Hatch' }, { locationId: 'b', locationName: 'Brands Hatch' }];
     assert.deepEqual(K.finaliseProblems({ events, target: 3, unresolvedDuplicates: 1 }), [
-        '1 driver track choice still needs a replacement or decision (Tracks tab).',
+        '1 driver track choice still needs a replacement or decision (track picks step).',
         'The calendar has 2 events but the target is 3.',
         'Brands Hatch appears 2 times.'
     ]);

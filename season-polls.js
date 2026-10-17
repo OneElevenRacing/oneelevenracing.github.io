@@ -380,7 +380,7 @@
                     h('p', null, h('a', { href: 'main.html', text: '← Back to home' })));
                 return;
             }
-            if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html', text: 'Season Planning → Overview' }), '.'));
+            if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html?tab=settings', text: 'Season Planning → Settings' }), '.'));
             if (summaryId) startSummary();
             else if (pollId) startPoll();
             else startHub();

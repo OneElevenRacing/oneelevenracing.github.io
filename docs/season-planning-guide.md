@@ -8,7 +8,7 @@ or in the Firebase console.
 
 Nothing, until you switch it on. After the website is published, drivers still see
 "Coming Soon!" on **Other Polls and Forms** until an admin chooses **Show to drivers**
-(Season Planning → Overview). Admins can open everything straight away to set up and try it.
+(Season Planning → Settings). Admins can open everything straight away to set up and try it.
 
 The existing pages (home, championship, availability, weather, admin) work as before.
 
@@ -83,34 +83,44 @@ The automated tests already play a complete dummy season through the real rules 
 
 ### 7. Switch it on
 
-**Season Planning → Overview → Drivers' access → Show to drivers.** You can hide it again at
+**Season Planning → Settings → Drivers' access → Show to drivers.** You can hide it again at
 any time; nothing is deleted.
 
 ## Running a season
 
-1. **Overview → Start season planning.** Name it and set the stages drivers will see.
-2. **Suggestions:** create a poll from the *Car-class suggestions* template. When it closes,
-   review the written suggestions (match, merge, add as a new class or exclude), tick the
-   shortlist and press **Create round 1 draft**.
-3. **Voting rounds:** publish each round. When a round closes, check the result. If there's
-   a tie at the cutoff, choose a runoff, put all tied classes through, or decide yourself
-   with an explanation. Each next round starts as a draft. When one class is left, confirm
-   the winner.
-4. **Tracks:** tick the previous seasons to exclude, adjust if needed, resolve any unknown
-   track names and press **Create track poll draft**. After it closes, contact drivers who
-   lost a shared location, record their new choice (only free locations are offered), and
-   settle any identical submission times.
-5. **Rules:** turn suggestions into Yes/No proposals, flag related ones, create the vote and
-   confirm each outcome after it closes. Outcomes don't change the rules document or scoring;
-   update those yourself.
+Everything happens on **Season Planning → Season**, a checklist of steps. Each step shows a
+status: *To do*, *Waiting* (for votes), **Needs you**, *Done* or *Skipped*. The line at the
+top, **What needs doing**, always points at the next thing to do; press **Go** to open it.
+Polls created from a step only ask for a closing date and an optional message, then
+publish. Choose **Edit questions first** if you want to change the questions.
+
+1. **Start a season.** Name it and untick any steps you don't need this time. Drivers see the
+   ticked steps as the progress strip on Polls & Forms. **Edit season** changes this later.
+2. **Car-class suggestions:** create the suggestions poll. When it closes, review the written
+   suggestions (match, merge, add as a new class or exclude), tick the shortlist and press
+   **Start round 1**.
+3. **Car-class voting rounds:** when a round closes, check the result. If there's a tie at the
+   cutoff, choose a runoff, put all tied classes through, or decide yourself with an
+   explanation. Then set up the next round. When one class is left, confirm the winner. (If
+   you skipped suggestions, tick the classes for round 1 here instead.)
+4. **Track picks:** tick the previous seasons to exclude, adjust if needed, resolve any unknown
+   track names and press **Open track picks**. After it closes, contact drivers who lost a
+   shared location, record their new choice (only free locations are offered), and settle
+   any identical submission times.
+5. **Rule changes:** turn suggestions into Yes/No proposals, flag related ones, open the vote
+   and confirm each outcome after it closes. Outcomes don't change the rules document or
+   scoring; update those yourself.
 6. **Calendar:** set the number of events and press **Generate calendar**. Use Keep, Pin,
    ↑ ↓, Replace, Remove, Redraw, Shuffle and dates until you're happy. Every change is a saved
    version you can restore. Then **Finalise**.
-7. **Summary:** publish the season summary. Drivers see it on Polls & Forms and can print or
-   download it. Then set up the championship in Championship Admin as usual; publishing the
-   summary doesn't do that for you.
+7. **Publish the summary.** Drivers see it on Polls & Forms and can print it. Then set up the
+   championship in Championship Admin as usual; publishing the summary doesn't do that for
+   you. **Finish season** at the top of the page when you're done.
 
-Any poll can also run on its own, outside a season plan (a suggestion box, a quick vote).
+Each step has an **Activity** list of its decisions; **Full activity log** (bottom of the Season
+page, or Settings) shows everything.
+
+Any poll can also run on its own, outside a season (a suggestion box, a quick vote): use **Polls → New poll**.
 
 ### Good to know
 
@@ -127,7 +137,7 @@ Any poll can also run on its own, outside a season plan (a suggestion box, a qui
 
 ## Hiding it again
 
-**Season Planning → Overview → Hide from drivers.** Drivers see "Coming Soon!" again and
+**Season Planning → Settings → Hide from drivers.** Drivers see "Coming Soon!" again and
 can't open the pages. All polls, answers and results stay saved.
 
 ## Undoing the rules change
@@ -153,8 +163,9 @@ git show fd59d50:database.rules.json
 |---|---|
 | `season-polls.html`, `season-polls.js` | Drivers' hub, ballots, results and season summary |
 | `season-planning-admin.html`, `season-planning-admin.js` | Admin overview, polls, builder, poll pages |
-| `season-planning-tools.js` | Suggestions, Voting rounds, Tracks, Rules, History tabs |
-| `season-planning-calendar.js` | Calendar and Summary tabs |
+| `season-planning-season.js` | Season checklist and Settings |
+| `season-planning-tools.js` | Tools inside the suggestions, voting rounds, track picks and rule steps; activity log |
+| `season-planning-calendar.js` | Tools inside the calendar and summary steps |
 | `racing-setup.html`, `racing-setup.js` | Car classes, tracks, imports, templates and defaults |
 | `track-catalogue.js` | Feeds existing track menus and images from the catalogue |
 | `catalogue.js`, `season-ballot.js`, `season-polls-core.js`, `season-results.js`, `season-admin-core.js`, `season-calendar.js` | Logic shared by the pages, covered by unit tests |

@@ -176,3 +176,33 @@ test('track drafts freeze the eligible layouts with their locations', () => {
     assert.deepEqual(Object.keys(def.questions[0].options).sort(), ['imola', 'monza', 'spa-2022']);
     assert.equal(def.questions[0].options.monza.locationName, 'Monza');
 });
+
+test('season steps: statuses follow polls and decisions, and skipped steps say so', () => {
+    const now = Date.UTC(2026, 9, 17);
+    const plan = { stages: A.stagesForSteps(['suggestions', 'rounds', 'tracks', 'calendar']) };
+    assert.deepEqual(A.includedSteps(plan), ['suggestions', 'rounds', 'tracks', 'calendar', 'summary']);
+    const poll = (id, phase, extra = {}) => ({ id, title: id, phase, opensAt: now - 1, closesAt: now + 1, ...extra });
+    let steps = A.seasonSteps({ plan, polls: {}, now });
+    const byId = list => Object.fromEntries(list.map(s => [s.id, s.status]));
+    assert.deepEqual(byId(steps), { suggestions: 'todo', rounds: 'waiting', tracks: 'todo', rules: 'skipped', calendar: 'waiting', summary: 'todo' });
+    assert.equal(A.nextStep(steps).id, 'suggestions');
+
+    steps = A.seasonSteps({ plan, polls: { suggestions: [poll('s', 'closed')] }, now });
+    assert.equal(byId(steps).suggestions, 'decide');
+    assert.equal(byId(steps).rounds, 'todo');
+
+    const planAdmin = { shortlist: { items: [{}, {}, {}] }, rounds: { r1: { number: 1 } } };
+    steps = A.seasonSteps({ plan, polls: { suggestions: [poll('s', 'closed')], rounds: [poll('r1', 'closed')], tracks: [poll('t', 'closed')] }, planAdmin, trackUnresolved: 2, now });
+    assert.deepEqual([byId(steps).suggestions, byId(steps).rounds, byId(steps).tracks], ['done', 'decide', 'decide']);
+    assert.equal(steps.find(s => s.id === 'tracks').line, '2 drivers need a replacement track');
+    assert.equal(A.nextStep(steps).id, 'rounds');
+
+    steps = A.seasonSteps({ plan: { ...plan, summary: { publishedAt: now } }, polls: { tracks: [poll('t', 'closed')] },
+        planAdmin: { winner: { label: 'GT4' }, calendar: { currentVersion: 'v1', finalised: { versionId: 'v1' }, versions: { v1: { events: [{}, {}] } } } }, trackUnresolved: 0, now });
+    assert.deepEqual([byId(steps).rounds, byId(steps).tracks, byId(steps).calendar, byId(steps).summary], ['done', 'done', 'done', 'done']);
+    assert.equal(steps.find(s => s.id === 'calendar').line, 'Final: 2 events');
+});
+
+test('stages for steps use fixed labels the drivers see', () => {
+    assert.deepEqual(A.stagesForSteps(['suggestions', 'rounds', 'rules', 'summary']).map(s => s.label), ['Suggestions', 'Car votes', 'Rules']);
+});

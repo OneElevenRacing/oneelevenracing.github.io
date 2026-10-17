@@ -338,5 +338,91 @@
         return out;
     }
 
-    return { aggregateNominations, roundDefaults, advancement, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, writtenAnswers };
+    // ---------- Season steps (admin checklist) ----------
+
+    const STEPS = [
+        { id: 'suggestions', label: 'Car-class suggestions', stage: 'Suggestions', kind: 'nomination' },
+        { id: 'rounds', label: 'Car-class voting rounds', stage: 'Car votes', kind: 'elimination' },
+        { id: 'tracks', label: 'Track picks', stage: 'Tracks', kind: 'track' },
+        { id: 'rules', label: 'Rule changes', stage: 'Rules', kind: 'rules' },
+        { id: 'calendar', label: 'Calendar', stage: 'Calendar' },
+        { id: 'summary', label: 'Publish the summary' }
+    ];
+
+    // Drivers' progress-strip stages for the chosen steps (the summary isn't a stage).
+    function stagesForSteps(stepIds) {
+        return STEPS.filter(step => step.stage && stepIds.includes(step.id)).map(step => ({ id: C.slugify(step.stage), label: step.stage }));
+    }
+
+    // Which steps a plan includes, from its stages (matched by label so older plans work).
+    function includedSteps(plan) {
+        const labels = new Set(Object.values((plan && plan.stages) || {}).filter(Boolean).map(s => s.label.toLowerCase()));
+        return STEPS.filter(step => !step.stage || labels.has(step.stage.toLowerCase())).map(step => step.id);
+    }
+
+    // Status of every step for the admin checklist: 'skipped', 'todo', 'waiting',
+    // 'decide' (needs the admin) or 'done', with a one-line explanation.
+    function seasonSteps({ plan, polls, roundDrafts = [], planAdmin = {}, trackUnresolved = null, now }) {
+        const included = new Set(includedSteps(plan));
+        const latest = list => (list && list.length ? list[list.length - 1] : null);
+        const closed = poll => poll && (poll.phase === 'closed' || poll.phase === 'finalised' || poll.phase === 'archived');
+        const when = ts => P.formatDateTime(ts, { year: false });
+        const rounds = polls.rounds || [];
+        const result = {};
+
+        const suggestion = latest(polls.suggestions);
+        if (!suggestion) result.suggestions = ['todo', 'Create the suggestions poll'];
+        else if (!closed(suggestion)) result.suggestions = ['waiting', suggestion.phase === 'scheduled' ? `Opens ${when(suggestion.opensAt)}` : `Voting closes ${when(suggestion.closesAt)}`];
+        else if (planAdmin.shortlist && (rounds.length || roundDrafts.length)) result.suggestions = ['done', `Shortlist of ${Object.values(planAdmin.shortlist.items || {}).length} classes`];
+        else result.suggestions = ['decide', 'Review the suggestions and pick the shortlist'];
+
+        const round = latest(rounds);
+        const roundMeta = round && (planAdmin.rounds || {})[round.id];
+        if (planAdmin.winner) result.rounds = ['done', `Winner: ${planAdmin.winner.label}`];
+        else if (roundDrafts.length) result.rounds = ['decide', `${roundDrafts[0].title} is ready to open`];
+        else if (!round) result.rounds = included.has('suggestions') && !closed(suggestion) ? ['waiting', 'Starts after the suggestions'] : ['todo', 'Pick the classes for round 1'];
+        else if (!closed(round)) result.rounds = ['waiting', `${round.title} closes ${when(round.closesAt)}`];
+        else if (!roundMeta || !roundMeta.decision) result.rounds = ['decide', `${round.title} has closed: choose what goes through`];
+        else result.rounds = ['decide', 'Open the next round or confirm the winner'];
+
+        const trackPoll = latest(polls.tracks);
+        if (!trackPoll) result.tracks = ['todo', 'Check the exclusions and open track picks'];
+        else if (!closed(trackPoll)) result.tracks = ['waiting', `Track picks close ${when(trackPoll.closesAt)}`];
+        else if (trackUnresolved === null) result.tracks = ['decide', 'Check for drivers who picked the same location'];
+        else if (trackUnresolved > 0) result.tracks = ['decide', `${trackUnresolved} ${trackUnresolved === 1 ? 'driver needs' : 'drivers need'} a replacement track`];
+        else result.tracks = ['done', 'Every driver has a track'];
+
+        const proposals = Object.values(planAdmin.proposals || {}).filter(p => p && p.status !== 'withdrawn');
+        const rulePoll = latest(polls.rules);
+        const outcomes = planAdmin.outcomes || {};
+        if (!rulePoll && !proposals.length) result.rules = ['todo', 'Add the rule proposals'];
+        else if (!rulePoll) result.rules = ['todo', `Open the rule vote (${proposals.length} ${proposals.length === 1 ? 'proposal' : 'proposals'})`];
+        else if (!closed(rulePoll)) result.rules = ['waiting', `Rule vote closes ${when(rulePoll.closesAt)}`];
+        else {
+            const waiting = proposals.filter(p => p.pollId === rulePoll.id && !outcomes[`${rulePoll.id}_${p.questionIndex}`]).length;
+            const anyConfirmed = Object.keys(outcomes).some(key => key.startsWith(`${rulePoll.id}_`));
+            result.rules = waiting || !anyConfirmed ? ['decide', 'Confirm the outcomes'] : ['done', 'Outcomes confirmed'];
+        }
+
+        const calendar = planAdmin.calendar || {};
+        const finalVersion = calendar.finalised && calendar.versions && calendar.versions[calendar.finalised.versionId];
+        if (finalVersion) result.calendar = ['done', `Final: ${Object.values(finalVersion.events || {}).length} events`];
+        else if (calendar.currentVersion) result.calendar = ['decide', 'Adjust and finalise the calendar'];
+        else if (included.has('tracks') && result.tracks[0] !== 'done') result.calendar = ['waiting', 'After track picks are settled'];
+        else result.calendar = ['todo', 'Generate the calendar'];
+
+        result.summary = plan && plan.summary ? ['done', `Published ${P.formatDate(plan.summary.publishedAt)}`] : ['todo', 'Preview and publish the summary'];
+
+        return STEPS.map(step => {
+            const [status, line] = included.has(step.id) ? result[step.id] : ['skipped', 'Not this season'];
+            return { ...step, status, line };
+        });
+    }
+
+    // The step that most needs attention: the first decision, else the first to-do.
+    function nextStep(steps) {
+        return steps.find(s => s.status === 'decide') || steps.find(s => s.status === 'todo') || null;
+    }
+
+    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, writtenAnswers };
 });

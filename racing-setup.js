@@ -769,6 +769,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         const selectTab = setupTabs();
+        const wanted = new URLSearchParams(location.search).get('tab');
+        if (wanted && $(`tab-${wanted}`)) selectTab($(`tab-${wanted}`));
         ['classSearch', 'classStatus', 'classCategory'].forEach(id => $(id).addEventListener('input', renderClasses));
         ['trackSearch', 'trackLocation', 'trackEra', 'trackDlc', 'trackStatus'].forEach(id => $(id).addEventListener('input', renderTracks));
         $('addClass').addEventListener('click', () => editClass(null));

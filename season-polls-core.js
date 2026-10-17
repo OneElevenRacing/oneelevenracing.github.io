@@ -382,7 +382,9 @@
             const linked = polls.filter(poll => poll.stageId === stage.id);
             const phases = linked.map(poll => poll.phase);
             let status = 'upcoming';
-            if (phases.includes('open')) status = 'open';
+            // Stages without polls (such as the calendar) are finished once the summary is out.
+            if (!linked.length && plan.summary) status = 'done';
+            else if (phases.includes('open')) status = 'open';
             else if (linked.length && phases.every(p => p === 'closed' || p === 'finalised' || p === 'archived')) status = 'done';
             else if (phases.includes('scheduled')) status = 'scheduled';
             const next = linked.filter(p => p.phase === 'scheduled').sort((a, b) => a.opensAt - b.opensAt)[0];

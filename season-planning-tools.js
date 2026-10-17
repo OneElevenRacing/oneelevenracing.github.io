@@ -61,7 +61,7 @@
     const loading = () => h('p', { class: 'sp-muted', text: 'Loading…' });
     // append() would print null as text, so leave empty parts out.
     const put = (element, ...children) => element.append(...children.flat().filter(c => c !== null && c !== undefined && c !== false && c !== ''));
-    const needPlan = () => h('p', { class: 'sp-status sp-warn' }, 'Start a season plan on the ', h('a', { href: 'season-planning-admin.html', text: 'Overview' }), ' tab first.');
+    const needPlan = () => h('p', { class: 'sp-status sp-warn' }, 'Start a season on the ', h('a', { href: 'season-planning-admin.html', text: 'Season' }), ' page first.');
     const optionList = (pairs, value) => pairs.map(([v, label]) => h('option', { value: v, text: label, selected: v === value }));
     const select = (pairs, value, label) => h('select', { 'aria-label': label }, optionList(pairs, value));
     const classPairs = () => Object.entries((A.state.catalogue && A.state.catalogue.classes) || {}).filter(([, c]) => c.active !== false)
@@ -74,10 +74,33 @@
         return h('div', { class: 'sp-field' }, h('label', { text: label }), picker);
     }
 
-    async function createDraft(draft, action, summary, extraUpdates = {}) {
+    // A poll prepared by a season step: set the closing date (and an optional message),
+    // then publish straight away, or save it as a draft to edit the questions first.
+    async function createDraft(draft, action, summary, extraUpdates = () => ({})) {
+        const definition = P.buildDefinition({ ...draft, title: draft.title || 'Poll' }, A.state.catalogue);
+        const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(draft.closesAt) });
+        const message = h('textarea', { rows: 2, maxLength: 4000, style: 'min-height:0;font-family:inherit;font-size:16px' });
+        message.value = draft.description || '';
+        const first = definition.questions[0];
+        const body = h('div', null,
+            h('p', { style: 'margin-top:0' }, h('strong', { text: draft.title }), ` · ${A.plural(definition.questionCount, 'question')}`),
+            first ? h('p', { class: 'sp-small sp-muted', text: `Drivers see: “${first.prompt}” — ${P.describeQuota(first)}` }) : null,
+            A.field('Voting closes (UK time)', closes),
+            A.field('Message for drivers (optional)', message),
+            h('p', { class: 'sp-small sp-muted', text: `Opens as soon as you publish. Results: ${P.VISIBILITY[draft.resultVisibility] || 'after closing'}${draft.labelsHidden ? ', class names hidden' : ''}.` }));
+        const choice = await A.confirmDialog({ title: 'Ready to publish', body, confirmLabel: 'Publish now', altLabel: 'Edit questions first' });
+        if (!choice) return;
         const id = A.newId();
-        const ok = await decide({ [`${V1}/drafts/${id}`]: A.clean({ ...draft, updatedAt: sv().TIMESTAMP, updatedBy: A.state.uid }), ...extraUpdates(id) }, action, summary, 'Draft created.');
-        if (ok) location.href = `season-planning-admin.html?draft=${encodeURIComponent(id)}`;
+        const closesAt = P.londonInputToUtc(closes.value);
+        const ready = A.clean({ ...draft, opensAt: A.now(), closesAt: Number.isNaN(closesAt) ? draft.closesAt : closesAt, description: message.value.trim() || undefined });
+        if (choice.alt) {
+            const ok = await decide({ [`${V1}/drafts/${id}`]: A.clean({ ...ready, updatedAt: sv().TIMESTAMP, updatedBy: A.state.uid }), ...extraUpdates(id) }, action, `${summary} (draft)`, 'Draft saved.');
+            if (ok) location.href = `season-planning-admin.html?draft=${encodeURIComponent(id)}`;
+            return;
+        }
+        const errors = P.validateDraft(ready, A.state.catalogue);
+        if (errors.length) { A.setStatus(`Not published: ${errors.join(' ')}`, 'error'); return; }
+        await decide({ ...A.publishUpdatesFor(id, ready), ...extraUpdates(id) }, action, `${summary} (published)`, `Published “${ready.title}”.`);
     }
 
     // ---------- Suggestions ----------
@@ -193,7 +216,7 @@
             count,
             h('div', { class: 'sp-inline-actions' },
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Save shortlist', onclick: saveShortlist }),
-                h('button', { type: 'button', text: 'Create round 1 draft', onclick: () => {
+                h('button', { type: 'button', text: 'Start round 1', onclick: () => {
                     const items = picked();
                     if (items.length < 2) { A.setStatus('Choose at least two classes for a voting round.', 'error'); return; }
                     const draft = AC.roundDraft({ plan: A.activePlan(), number: 1, options: items.map(i => ({ id: i.classId, label: i.label })), settings: A.settings(), now: A.now() });
@@ -213,7 +236,7 @@
         const draftRounds = Object.entries(A.state.drafts || {}).filter(([id, d]) => d && d.kind === 'elimination' && (d.planId === tools.planId || meta[id]));
         return h('div', null,
             winnerCard(),
-            rounds.length ? rounds.map(poll => roundCard(poll, meta[poll.id] || {})) : h('p', { class: 'sp-status', text: 'No voting rounds published yet. Build the shortlist on the Suggestions tab to create round 1.' }),
+            rounds.length ? rounds.map(poll => roundCard(poll, meta[poll.id] || {})) : h('p', { class: 'sp-status', text: 'No voting rounds yet. Pick the shortlist in the suggestions step to start round 1.' }),
             draftRounds.length ? h('section', { class: 'sp-card' }, h('h2', { text: 'Rounds still in draft' }),
                 h('ul', { class: 'sp-list' }, draftRounds.map(([id, d]) => h('li', { class: 'sp-item' }, h('div', { class: 'sp-item-title', text: d.title }),
                     h('a', { class: 'sp-small', href: `season-planning-admin.html?draft=${encodeURIComponent(id)}`, text: 'Edit and publish' }))))) : null);
@@ -296,8 +319,8 @@
         if (!result.tie) {
             const ids = result.advancing.filter(id => !safe.includes(id));
             put(card, h('p', { text: result.advancing.length === 1 && !safe.length ? `${label(result.advancing[0])} is the only class left.` : `Going through: ${[...safe, ...ids].map(id => labelFor(id, data.definition, meta)).join(', ')}.` }),
-                h('button', { type: 'button', text: safe.length + ids.length === 1 ? `Confirm ${labelFor([...safe, ...ids][0], data.definition, meta)} as the winner` : 'Create the next round as a draft',
-                    onclick: async () => { if (await A.confirmDialog({ title: 'Confirm this result?', body: h('p', { text: 'The next round is created as a draft; nothing opens until you publish it.' }), confirmLabel: 'Confirm' })) finish('top', ids); } }));
+                h('button', { type: 'button', text: safe.length + ids.length === 1 ? `Confirm ${labelFor([...safe, ...ids][0], data.definition, meta)} as the winner` : 'Set up the next round',
+                    onclick: async () => { if (await A.confirmDialog({ title: 'Confirm this result?', body: h('p', { text: 'Next you’ll set the closing date and publish the next round.' }), confirmLabel: 'Confirm' })) finish('top', ids); } }));
             return card;
         }
         put(card, h('p', { class: 'sp-status sp-warn', text: `Tie at the cutoff: ${result.tied.map(label).join(', ')} all have ${result.cutoffCount} votes, with ${A.plural(result.needed, 'place')} left. Choose how to settle it.` }),
@@ -406,7 +429,7 @@
                     if (r && picker.value) saveSetup({ [`added/${picker.value}`]: r.reason, [`removed/${picker.value}`]: null }, `${locations[picker.value].name} excluded: ${r.reason}`);
                 } })),
             h('p', { class: 'sp-small', text: `${A.plural(plan.eligible.length, 'layout')} at ${A.plural(new Set(plan.eligible.map(t => t.locationId)).size, 'location')} will be offered. The list is frozen when the poll is published.` }),
-            h('button', { type: 'button', text: 'Create track poll draft', disabled: plan.blocking || !plan.eligible.length, onclick: () => {
+            h('button', { type: 'button', text: 'Open track picks', disabled: plan.blocking || !plan.eligible.length, onclick: () => {
                 const draft = AC.trackDraft({ plan: A.activePlan(), eligible: plan.eligible, catalogue: A.state.catalogue, settings: A.settings(), now: A.now() });
                 createDraft(draft, 'create-track-poll', `Track poll draft with ${plan.eligible.length} layouts; excluded ${plan.excluded.map(e => e.name).join(', ') || 'none'}`, () => ({}));
             } }));
@@ -543,7 +566,7 @@
             list.length ? h('ul', { class: 'sp-list' }, list.map(item)) : h('p', { class: 'sp-muted', text: 'No proposals yet.' }),
             h('div', { class: 'sp-inline-actions', style: 'margin-top:10px' },
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Add proposal', onclick: () => editProposal(null) }),
-                h('button', { type: 'button', text: 'Create vote from ticked proposals', onclick: () => {
+                h('button', { type: 'button', text: 'Open the vote for ticked proposals', onclick: () => {
                     const chosen = list.filter(p => boxes.get(p.id) && boxes.get(p.id).checked);
                     if (!chosen.length) { A.setStatus('Tick at least one proposal.', 'error'); return; }
                     const unreviewed = chosen.filter(p => Object.keys(p.related || {}).some(id => byId[id] && byId[id].status !== 'withdrawn' && !chosen.includes(byId[id])));
@@ -669,8 +692,11 @@
     A.addTab({ id: 'rules', label: 'Rules', render: rulesTab });
     A.addTab({ id: 'history', label: 'History', render: historyTab });
 
-    // Shared with season-planning-calendar.js.
-    window.SeasonTools = { tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey };
+    // Shared with season-planning-calendar.js and season-planning-season.js.
+    window.SeasonTools = {
+        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, createDraft, classPairs,
+        suggestionsTab, roundsTab, tracksTab, rulesTab, historyTab
+    };
 
     // Follow the active plan's admin data.
     let listening = null;

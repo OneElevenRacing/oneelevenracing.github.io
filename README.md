@@ -30,7 +30,7 @@ Race date, time and weather continue to use their existing controls.
 **Going live or running a season? Start with [docs/season-planning-guide.md](docs/season-planning-guide.md).**
 It covers publishing the database rules (needed first), setup, a season step by step, and
 how to hide the feature again. Drivers see "Coming Soon!" until an admin chooses
-**Show to drivers** in Season Planning → Overview.
+**Show to drivers** in Season Planning → Settings.
 
 **Other Polls and Forms** on the home page opens the drivers' hub (`season-polls.html`). It
 shows the active season plan's stages, open polls ordered by deadline (with each driver's
@@ -45,53 +45,32 @@ a table view and PNG/CSV downloads. When class names are hidden they are hidden 
 chart, summary and downloads too (a presentation choice, not secrecy). Rule votes pass
 only when Yes beats No; a tie fails and no votes means no decision.
 
-Admins use **Admin → Open Season Planning** (`season-planning-admin.html`) to start a
-season plan (its stages form the drivers' progress strip), create polls from templates,
-**Preview as driver** (sample answers, nothing saved), publish, change dates or the
-results setting, close, finalise, archive, duplicate or replace a poll, publish result
-snapshots, recount totals from the ballots, view and correct individual answers, and see
-each poll's history. Every change to a published poll needs a reason, which is kept in
-the history. Questions, options and quotas are frozen once published.
+Admins use **Admin → Open Season Planning** (`season-planning-admin.html`). It has three
+pages:
 
-With an active season plan, more tabs appear. Every decision on them is logged under
-**History**, and drivers' original answers are never changed:
+- **Season:** a checklist of steps: car-class suggestions, voting rounds, track picks, rule
+  changes, calendar and summary. Untick the ones you don't need when starting the season;
+  drivers see the rest as the progress strip. Each step shows its status, and **What needs
+  doing** points at the next decision. Polls made by a step only ask for a closing date
+  before publishing. The rules each step follows:
+  - Each driver counts once per class in suggestions.
+  - Half the classes (rounded up) go through each round, and a tie at the cutoff is always
+    the admin's decision.
+  - Locations used in the chosen previous seasons are excluded from track picks.
+  - When drivers pick the same location, the one who submitted last keeps it.
+  - A rule passes only when Yes beats No.
+  - The calendar draws locations equally likely, never repeats one, saves every change as
+    a version, and only finalises once track clashes are settled.
+  - The summary can be printed and downloaded (CSV, Markdown, JSON) by admins.
+  - Nothing creates or changes a championship.
+- **Polls:** every poll, plus **New poll** for standalone polls. Each poll's page has Preview as
+  driver, dates and results settings, close/finalise/archive, duplicate/replace, result
+  snapshots, recount, individual answers (with corrections) and its history.
+- **Settings:** the drivers' access switch and links to Racing Setup, templates and defaults,
+  and the activity log.
 
-- **Suggestions:** review written car-class suggestions (grouped when the wording matches),
-  match them to a class, merge them, add them to the catalogue or exclude them with a
-  note. Then pick the shortlist and create round 1 as a draft.
-- **Voting rounds:** ranked results for each closed round. By default half the classes go
-  through, rounded up. A tie at the cutoff is never settled automatically; choose a runoff,
-  put all tied classes through, or pick them yourself with an explanation. The next round
-  is always created as a draft. When one class remains, confirm it as the winner (or record
-  a compromise decision at any time).
-- **Tracks:** locations used in the chosen previous seasons are excluded from the track
-  poll (every layout at them), with reasons. You can allow or exclude others, and saved
-  names the catalogue doesn't recognise must be resolved first. After voting, drivers who
-  chose the same location are listed: the one who submitted last keeps it. Record the
-  others' replacement choices (only free locations are offered), settle identical times,
-  or record an exception.
-- **Rules:** turn drivers' written suggestions into Yes/No proposals and flag related or
-  contradictory ones. Create the vote, then confirm each outcome once it closes. A
-  proposal passes only when Yes beats No, with an optional minimum turnout. Confirming an
-  outcome doesn't change the rules document or scoring.
-
-- **Calendar:** set the number of events (1–24) and generate the calendar. It keeps every
-  agreed driver choice and draws the rest at random: each eligible location is equally
-  likely (whatever its number of layouts), then one of its layouts. No location is used
-  twice, and the whole order is shuffled. Locations excluded on the Tracks tab, locations
-  already chosen, and layouts not allowed in random draws are left out. If the target
-  can't be met, the exact shortfall is shown instead.
-
-  Every change is saved as a new version, so reloading never redraws, and earlier versions
-  can be restored. The tools are: fill empty spaces, redraw random tracks, shuffle the
-  order, replace or remove a random track, and move events with ↑ ↓. **Keep** protects a
-  random track from redraws; **Pin** fixes an event's round number when shuffling. Dates are
-  optional. Finalising is blocked until duplicate track choices are resolved and the
-  calendar matches the target.
-- **Summary:** publish the season summary for drivers: winning class, final calendar
-  (marked driver choice or random draw), accepted and rejected rule changes, and links to
-  the voting rounds. It can be printed or downloaded as calendar CSV, Markdown or JSON.
-  Publishing doesn't create or activate a championship.
+Every change to a published poll needs a reason, which is kept in the history, and drivers'
+original answers are never changed. Questions, options and quotas are frozen once published.
 
 Default poll settings and saved templates live in **Racing Setup → Templates & defaults**.
 Defaults only shape new drafts. All dates are stored in UTC and shown in UK time.
