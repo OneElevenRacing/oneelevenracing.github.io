@@ -373,5 +373,32 @@
                 onclick: () => downloadBlob(`${slug(title)}${labelsHidden ? '-names-hidden' : ''}.csv`, new Blob([R.resultsCsv(definition, totals, { labelsHidden, pollId })], { type: 'text/csv' })) }) : null);
     }
 
-    window.SeasonUI = { h, fill, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob };
+    // ---------- Season summary (drivers' page and admin preview) ----------
+
+    function renderSummary(container, summary, { admin = false } = {}) {
+        const rules = summary.rules || [];
+        fill(container,
+            h('h2', { class: 'sp-summary-title', text: summary.title }),
+            summary.intro ? h('p', { class: 'sp-muted', text: summary.intro }) : null,
+            h('h3', { text: 'Car class' }),
+            summary.winner ? h('p', { class: 'sp-summary-winner' }, h('strong', { text: summary.winner.label }), summary.winner.explanation ? h('span', { class: 'sp-muted', text: ` — ${summary.winner.explanation}` }) : null) : h('p', { class: 'sp-muted', text: 'Not decided yet.' }),
+            h('h3', { text: 'Calendar' }),
+            (summary.calendar || []).length ? h('ol', { class: 'sp-events sp-events-summary' }, summary.calendar.map((e, i) => h('li', { class: 'sp-event' },
+                h('span', { class: 'sp-event-number', text: String(i + 1) }),
+                h('img', { class: 'sp-thumb', src: e.imagePath || 'Logos_and_icons/racetracks/TBD.png', alt: '' }),
+                h('div', null, h('div', { class: 'sp-item-title' }, e.label, ' ', h('span', { class: `sp-badge ${e.source === 'driver' ? 'sp-green' : ''}`, text: e.source === 'driver' ? 'Driver choice' : 'Random draw' })),
+                    h('div', { class: 'sp-item-meta', text: [e.locationName, e.date ? P.formatDate(Date.parse(`${e.date}T12:00:00Z`)) : ''].filter(Boolean).join(' · ') })))))
+                : h('p', { class: 'sp-muted', text: 'Not finalised yet.' }),
+            h('h3', { text: 'Rule changes' }),
+            rules.length ? h('ul', { class: 'sp-list' }, rules.map(r => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
+                h('div', null, h('div', { class: 'sp-item-title', text: r.prompt }), h('div', { class: `sp-outcome sp-outcome-${r.outcome}` },
+                    h('span', { 'aria-hidden': 'true', text: r.outcome === 'pass' ? '✓ ' : r.outcome === 'fail' ? '✕ ' : '– ' }),
+                    `${r.outcome === 'pass' ? 'Accepted' : r.outcome === 'fail' ? 'Rejected' : 'No decision'} · ${r.label}`)))))
+                : h('p', { class: 'sp-muted', text: 'No rule votes.' }),
+            (summary.rounds || []).length ? [h('h3', { text: 'Voting rounds' }), h('ul', null, summary.rounds.map(r => h('li', null,
+                h('a', { href: admin ? `season-planning-admin.html?poll=${encodeURIComponent(r.pollId)}` : `season-polls.html?poll=${encodeURIComponent(r.pollId)}&tab=results`, text: r.title }))))] : null);
+    }
+
+
+    window.SeasonUI = { h, fill, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
 })();

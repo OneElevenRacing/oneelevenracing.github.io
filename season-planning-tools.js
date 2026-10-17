@@ -669,6 +669,9 @@
     A.addTab({ id: 'rules', label: 'Rules', render: rulesTab });
     A.addTab({ id: 'history', label: 'History', render: historyTab });
 
+    // Shared with season-planning-calendar.js.
+    window.SeasonTools = { tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey };
+
     // Follow the active plan's admin data.
     let listening = null;
     setInterval(watchPlan, 500);

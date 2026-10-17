@@ -427,6 +427,15 @@
             "updatedAt": {
               ".validate": "newData.isNumber()"
             },
+            "summary": {
+              ".validate": "newData.hasChildren(['publishedAt', 'title'])",
+              "publishedAt": {
+                ".validate": "newData.isNumber()"
+              },
+              "title": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+              }
+            },
             "$other": {
               ".validate": false
             }

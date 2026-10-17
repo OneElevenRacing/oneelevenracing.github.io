@@ -399,3 +399,27 @@
     .sp-item.sp-with-thumb:has(> .sp-item-actions) { grid-template-columns: 56px 1fr; }
     .sp-item > .sp-item-actions { justify-content: flex-start; margin-left: -12px; }
 }
+
+/* ---------- Calendar and season summary ---------- */
+.sp-events { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sp-line); }
+.sp-event { display: grid; grid-template-columns: 30px 56px 1fr; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--sp-line); }
+.sp-event > .sp-item-actions { grid-column: 3; justify-content: flex-start; margin-left: -12px; }
+.sp-event-number { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--sp-ink); color: #fff; font-weight: 700; font-size: 0.85rem; }
+.sp-event-controls { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin-top: 6px; }
+.sp-event-controls .sp-check { min-height: 36px; font-weight: 500; }
+.sp-event-controls input[type="date"] { min-height: 40px; padding: 6px 8px; border: 1px solid #bdbdbd; border-radius: 8px; font: inherit; }
+.sp-summary h3 { margin: 20px 0 8px; }
+.sp-summary-title { font-size: 1.4rem !important; }
+.sp-summary-winner { font-size: 1.2rem; margin: 0; }
+@media (min-width: 720px) {
+    .sp-event { grid-template-columns: 30px 56px 1fr auto; }
+    .sp-event > .sp-item-actions { grid-column: auto; justify-content: flex-end; margin-left: 0; }
+}
+@media print {
+    header, .sp-tabs, .sp-inline-actions, .sp-status, button, .sp-eyebrow, #pageStatus, .sp-lede, .sp-admin-link { display: none !important; }
+    body { padding: 0; background: #fff; }
+    .sp { max-width: none; padding: 0; }
+    .sp-card { border: 0; padding: 0; }
+    .sp-event { break-inside: avoid; }
+    a { text-decoration: none; }
+}

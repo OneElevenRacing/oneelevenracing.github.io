@@ -75,6 +75,15 @@ describe('season plans', () => {
         await assertFails(set(ref(db('admin'), `${V1}/plans/bad`), { ...plan, stages: [{ id: 'Bad Id', label: 'x' }] }));
         await assertFails(set(ref(db('admin'), `${V1}/plans/bad`), { ...plan, stageCount: 13 }));
     });
+
+    it('admins publish a season summary that drivers can read', async () => {
+        await assertSucceeds(set(ref(db('admin'), `${V1}/plans/season10`), plan));
+        const summary = { publishedAt: serverTimestamp(), title: 'Season 10', winner: { label: 'GT4' }, calendar: [{ label: 'Monza', source: 'random' }] };
+        await assertFails(set(ref(db('alice'), `${V1}/plans/season10/summary`), summary));
+        await assertFails(set(ref(db('admin'), `${V1}/plans/season10/summary`), { title: 'No date' }));
+        await assertSucceeds(set(ref(db('admin'), `${V1}/plans/season10/summary`), summary));
+        await assertSucceeds(get(ref(db('alice'), `${V1}/plans/season10/summary`)));
+    });
 });
 
 describe('result snapshots', () => {

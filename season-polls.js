@@ -9,6 +9,7 @@
     const V1 = 'seasonPlanning/v1';
     const params = new URLSearchParams(location.search);
     const pollId = params.get('poll');
+    const summaryId = params.get('summary');
     const $ = id => document.getElementById(id);
     const db = () => firebase.database();
     let uid = null;
@@ -115,6 +116,12 @@
             h('p', { class: 'sp-muted sp-small', text: live.title }), box);
     }
 
+    // Published summaries of plans other than the active one, newest first.
+    function pastSummaries(active) {
+        return Object.entries(hub.plans || {}).filter(([id, p]) => p && p.summary && (!active || id !== active.id))
+            .sort(([, a], [, b]) => b.summary.publishedAt - a.summary.publishedAt);
+    }
+
     function renderHub() {
         const app = $('app');
         if (hub.error) { fill(app, h('p', { class: 'sp-status sp-error', text: hub.error })); return; }
@@ -128,6 +135,8 @@
             h('h1', { text: plan ? plan.title : 'Polls & forms' }),
             h('p', { class: 'sp-lede', text: plan ? (plan.intro || 'Help shape the next season. Take part in each stage below.') : 'Votes, suggestions and forms for drivers.' }),
             stages.length ? progressStrip(stages) : null,
+            plan && plan.summary ? h('p', { class: 'sp-status sp-ok' }, 'The season summary is out: winning class, calendar and rule changes. ',
+                h('a', { href: `season-polls.html?summary=${encodeURIComponent(plan.id)}`, text: 'See the summary' })) : null,
             h('div', { class: 'sp-hub-grid' },
                 h('div', null,
                     h('h2', { class: 'sp-section-title', text: 'Open now' }),
@@ -142,6 +151,10 @@
                 h('ul', { class: 'sp-list' }, groups.results.map(poll => h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title' }, poll.title, poll.phase === 'finalised' ? h('span', { class: 'sp-badge', text: 'Final' }) : null), h('div', { class: 'sp-item-meta' }, deadline(poll), ' ', submittedBadge(poll.id))),
                     h('a', { class: 'sp-small', href: `season-polls.html?poll=${encodeURIComponent(poll.id)}&tab=results`, text: poll.resultVisibility === 'hidden' ? 'Your answers' : 'Results' }))))) : null,
+            pastSummaries(plan).length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Season summaries' }),
+                h('ul', { class: 'sp-list' }, pastSummaries(plan).map(([id, p]) => h('li', { class: 'sp-item' },
+                    h('div', null, h('div', { class: 'sp-item-title', text: p.summary.title }), h('div', { class: 'sp-item-meta', text: `Published ${P.formatDate(p.summary.publishedAt)}` })),
+                    h('a', { class: 'sp-small', href: `season-polls.html?summary=${encodeURIComponent(id)}`, text: 'Open' }))))) : null,
             groups.archived.length ? h('details', { class: 'sp-archive' }, h('summary', { text: `Archive (${groups.archived.length})` }),
                 h('ul', { class: 'sp-list' }, groups.archived.map(poll => h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title' }, poll.title, poll.replaced ? h('span', { class: 'sp-badge', text: 'Replaced' }) : null), h('div', { class: 'sp-item-meta' }, deadline(poll))),
@@ -323,6 +336,33 @@
         setInterval(renderPoll, 60000);
     }
 
+    // ---------- Season summary ----------
+
+    function startSummary() {
+        $('backLink').href = 'season-polls.html';
+        $('backLink').setAttribute('aria-label', 'Back to all polls');
+        db().ref(`${V1}/plans/${summaryId}`).on('value', snapshot => {
+            const plan = snapshot.val();
+            const summary = plan && plan.summary;
+            const back = h('p', { class: 'sp-eyebrow' }, h('a', { href: 'season-polls.html', text: '← All polls' }));
+            if (!summary) { fill($('app'), back, h('p', { class: 'sp-status', text: 'This season summary hasn’t been published yet.' })); return; }
+            const K = window.SeasonCalendar;
+            const slug = window.OneElevenCatalogue.slugify(summary.title || 'season');
+            const download = (name, text, type) => UI.downloadBlob(name, new Blob([text], { type }));
+            const body = h('div', { class: 'sp-summary' });
+            UI.renderSummary(body, summary);
+            fill($('app'), back,
+                h('h1', { text: 'Season summary' }),
+                h('p', { class: 'sp-muted', text: `Published ${P.formatDateTime(summary.publishedAt)}.` }),
+                h('div', { class: 'sp-inline-actions', style: 'margin:8px 0 4px' },
+                    h('button', { type: 'button', class: 'sp-secondary', text: 'Print', onclick: () => window.print() }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'Calendar (CSV)', onclick: () => download(`${slug}-calendar.csv`, K.calendarCsv(summary), 'text/csv') }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'Text (Markdown)', onclick: () => download(`${slug}-summary.md`, K.summaryMarkdown(summary), 'text/markdown') }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'JSON', onclick: () => download(`${slug}-summary.json`, K.summaryJson(summary), 'application/json') })),
+                body);
+        }, () => fill($('app'), h('p', { class: 'sp-status sp-error', text: 'The summary could not be loaded.' })));
+    }
+
     // ---------- Start ----------
 
     document.addEventListener('oneEleven:activeDriver', event => {
@@ -339,7 +379,8 @@
             if (connected) $('connection').hidden = true;
             else offlineTimer = setTimeout(() => { $('connection').hidden = connected; }, 4000);
         });
-        if (pollId) startPoll();
+        if (summaryId) startSummary();
+        else if (pollId) startPoll();
         else startHub();
     });
 })();

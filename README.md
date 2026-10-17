@@ -70,6 +70,24 @@ With an active season plan, more tabs appear. Every decision on them is logged u
   proposal passes only when Yes beats No, with an optional minimum turnout. Confirming an
   outcome doesn't change the rules document or scoring.
 
+- **Calendar:** set the number of events (1–24) and generate the calendar. It keeps every
+  agreed driver choice and draws the rest at random: each eligible location is equally
+  likely (whatever its number of layouts), then one of its layouts. No location is used
+  twice, and the whole order is shuffled. Locations excluded on the Tracks tab, locations
+  already chosen, and layouts not allowed in random draws are left out. If the target
+  can't be met, the exact shortfall is shown instead.
+
+  Every change is saved as a new version, so reloading never redraws, and earlier versions
+  can be restored. The tools are: fill empty spaces, redraw random tracks, shuffle the
+  order, replace or remove a random track, and move events with ↑ ↓. **Keep** protects a
+  random track from redraws; **Pin** fixes an event's round number when shuffling. Dates are
+  optional. Finalising is blocked until duplicate track choices are resolved and the
+  calendar matches the target.
+- **Summary:** publish the season summary for drivers: winning class, final calendar
+  (marked driver choice or random draw), accepted and rejected rule changes, and links to
+  the voting rounds. It can be printed or downloaded as calendar CSV, Markdown or JSON.
+  Publishing doesn't create or activate a championship.
+
 Default poll settings and saved templates live in **Racing Setup → Templates & defaults**.
 Defaults only shape new drafts. All dates are stored in UTC and shown in UK time.
 
