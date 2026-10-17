@@ -187,11 +187,9 @@
     // The switch that shows Polls & Forms to drivers. Hiding it keeps all data.
     function visibilityCard() {
         const visible = state.visibility && state.visibility.drivers === true;
-        return h('section', { class: 'sp-card' },
-            h('div', { class: 'sp-card-head' }, h('h2', { text: 'Drivers’ access' }), h('span', { class: `sp-badge ${visible ? 'sp-green' : 'sp-amber'}`, text: visible ? 'Visible to drivers' : 'Hidden from drivers' })),
-            h('p', { class: 'sp-small', text: visible
-                ? 'Drivers can open Polls & Forms from the home page.'
-                : 'Only admins can open Polls & Forms. Drivers see “Coming Soon”. Switch it on once the database rules are live and you’ve tried it.' }),
+        return h('section', { class: 'sp-card sp-access' },
+            h('div', null, h('strong', { text: 'Drivers’ access ' }), h('span', { class: `sp-badge ${visible ? 'sp-green' : 'sp-amber'}`, text: visible ? 'Visible' : 'Hidden' }),
+                visible ? null : h('p', { class: 'sp-small sp-muted', style: 'margin:2px 0 0', text: 'Drivers see “Coming Soon”. Switch on once the rules are live and you’ve tried it.' })),
             h('button', { type: 'button', class: visible ? 'sp-secondary' : '', text: visible ? 'Hide from drivers' : 'Show to drivers', onclick: async () => {
                 const ok = await confirmDialog({ title: visible ? 'Hide Polls & Forms from drivers?' : 'Show Polls & Forms to drivers?',
                     body: h('p', { text: visible ? 'Nothing is deleted. Polls, answers and results stay saved and come back when you switch it on again.' : 'Drivers will be able to open the hub and vote in open polls.' }),
@@ -331,6 +329,18 @@
         return h('div', { class: 'sp-field' }, h('label', { for: input.id, text: label }), hint ? h('p', { class: 'sp-hint', text: hint }) : null, input);
     }
 
+    // A field that stays folded behind a link until it's needed or already filled in.
+    function optionalField(label, obj, key, make, hint) {
+        if (obj[key]) return field(label, make(), hint);
+        const box = h('div');
+        box.append(h('button', { type: 'button', class: 'sp-link', style: 'margin-left:-10px', text: `+ Add ${label.toLowerCase()}`, onclick: () => {
+            const input = make();
+            box.replaceChildren(field(label, input, hint));
+            input.focus();
+        } }));
+        return box;
+    }
+
     function bindText(obj, key, attrs = {}) {
         const input = h(attrs.multiline ? 'textarea' : 'input', { type: attrs.multiline ? undefined : 'text', maxLength: attrs.max || 200, rows: attrs.rows || undefined,
             style: attrs.multiline ? 'min-height:0;font-family:inherit;font-size:1rem' : undefined });
@@ -393,7 +403,7 @@
             isDraft ? null : field('Template description', bindText(d, 'templateDescription', { max: 300 }), 'Shown when choosing a template.'),
             field(isDraft ? 'Poll title *' : 'Default poll title', bindText(d, 'title')),
             field('Short summary', bindText(d, 'summary', { max: 300 }), 'Shown on the drivers’ hub card.'),
-            field('Introduction', bindText(d, 'description', { multiline: true, rows: 3, max: 4000 }), 'Shown at the top of the poll. Optional.'),
+            optionalField('Introduction', d, 'description', () => bindText(d, 'description', { multiline: true, rows: 3, max: 4000 }), 'Shown at the top of the poll.'),
             field('Type of poll', selectOf(Object.entries(KINDS), d.kind || 'custom', v => { d.kind = v; })),
             isDraft ? field('Season stage', selectOf([['', 'Standalone poll (not part of a season plan)'], ...(plan ? (plan.stages || []).filter(Boolean).map(s => [`${plan.id}|${s.id}`, `${plan.title}: ${s.label}`]) : [])],
                 d.planId && d.stageId ? `${d.planId}|${d.stageId}` : '', v => { const [planId, stageId] = v.split('|'); d.planId = planId || undefined; d.stageId = stageId || undefined; })) : null);
@@ -485,7 +495,7 @@
                     h('button', { type: 'button', class: 'sp-link', text: 'Remove', 'aria-label': `Remove question ${i + 1}`, onclick: () => { d.questions.splice(i, 1); markDirty(); rerender(); } }))),
             field('Type', typeSelect),
             field('Question *', bindText(q, 'prompt', { max: 1000 })),
-            field('Help text', bindText(q, 'help', { max: 2000 }), 'Optional extra explanation.'),
+            optionalField('Help text', q, 'help', () => bindText(q, 'help', { max: 2000 }), 'Extra explanation under the question.'),
             bindCheck(q, 'required', 'Answer required', updateSummary),
             body, summary);
         if (q.required === undefined) q.required = true;
@@ -686,9 +696,9 @@
         if (phase === 'open' || phase === 'scheduled') lifecycle.push(h('button', { type: 'button', class: 'sp-secondary', text: 'Close now', onclick: () => changeState(['closed'], 'Close this poll now?', 'close') }));
         if (phase === 'closed') lifecycle.push(h('button', { type: 'button', text: 'Finalise', onclick: () => changeState(control.state === 'published' ? ['closed', 'finalised'] : ['finalised'], 'Finalise this poll?', 'finalise') }));
         if (phase !== 'archived') lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Archive', onclick: () => changeState(['archived'], 'Archive this poll?', 'archive') }));
-        lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Preview as driver', onclick: () => previewDialog(definition) }),
-            h('button', { type: 'button', class: 'sp-link', text: 'Duplicate as new draft', onclick: () => duplicate(false) }));
-        if (phase !== 'finalised' && phase !== 'archived' && !entry.replacedBy) lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Replace with a corrected poll', onclick: () => duplicate(true) }));
+        lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Preview', 'aria-label': 'Preview as driver', onclick: () => previewDialog(definition) }),
+            h('button', { type: 'button', class: 'sp-link', text: 'Duplicate', 'aria-label': 'Duplicate as a new draft', onclick: () => duplicate(false) }));
+        if (phase !== 'finalised' && phase !== 'archived' && !entry.replacedBy) lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Replace…', 'aria-label': 'Replace with a corrected poll', onclick: () => duplicate(true) }));
         const eligible = control.allDrivers === false ? Object.keys(control.eligible || {}).map(driverName).join(', ') : 'Every active driver';
 
         fill($('view'),
@@ -698,8 +708,8 @@
             entry.replaces ? h('p', { class: 'sp-muted' }, 'Replaces ', h('a', { href: `?poll=${encodeURIComponent(entry.replaces)}`, text: (state.index[entry.replaces] || {}).title || 'an earlier poll' }), '.') : null,
             h('section', { class: 'sp-card' },
                 h('dl', { class: 'sp-facts' },
-                    h('dt', { text: 'Opens' }), h('dd', { text: P.formatDateTime(control.opensAt) }),
-                    h('dt', { text: 'Closes' }), h('dd', { text: P.formatDateTime(control.closesAt) }),
+                    h('dt', { text: 'Opens' }), h('dd', { text: P.formatDateTime(control.opensAt, { year: false }) }),
+                    h('dt', { text: 'Closes' }), h('dd', { text: P.formatDateTime(control.closesAt, { year: false }) }),
                     h('dt', { text: 'Results' }), h('dd', { text: `${P.VISIBILITY[control.resultVisibility]}${control.labelsHidden ? ' · names hidden' : ''}` }),
                     h('dt', { text: 'Who can vote' }), h('dd', { text: eligible })),
                 h('div', { class: 'sp-inline-actions' }, lifecycle)),
@@ -708,7 +718,7 @@
             h('section', { class: 'sp-card' }, h('h2', { text: 'Individual answers' }),
                 h('p', { class: 'sp-muted sp-small', text: 'Only admins can see who answered what.' }), h('div', { id: 'detailBallots' },
                     h('button', { type: 'button', class: 'sp-secondary', text: 'Show individual answers', onclick: loadBallots }))),
-            h('section', { class: 'sp-card' }, h('h2', { text: 'History' }), h('div', { id: 'detailHistory' })));
+            h('details', { class: 'sp-card sp-fold' }, h('summary', null, h('h2', { text: 'History' }), h('span', { class: 'sp-count', id: 'historyCount' })), h('div', { id: 'detailHistory' })));
         renderDetailResults();
         renderHistory();
         if (detail.ballots) renderBallots();
@@ -723,7 +733,7 @@
         const visibility = selectOf(Object.entries(P.VISIBILITY), control.resultVisibility, v => { changes.resultVisibility = v; });
         const labels = h('input', { type: 'checkbox', checked: control.labelsHidden === true });
         labels.addEventListener('change', () => { changes.labelsHidden = labels.checked; });
-        return h('section', { class: 'sp-card' }, h('h2', { text: 'Dates and results setting' }),
+        return h('details', { class: 'sp-card sp-fold' }, h('summary', null, h('h2', { text: 'Change dates or results setting' })),
             h('div', { class: 'sp-row' }, field('Opens (UK time)', opens, phase === 'scheduled' ? '' : 'Already open.'), field('Closes (UK time)', closes)),
             field('Results', visibility),
             h('label', { class: 'sp-check' }, labels, 'Hide class names in results (untick to reveal them to drivers)'),
@@ -865,6 +875,7 @@
         const box = $('detailHistory');
         if (!box) return;
         const entries = Object.values(detail.audit || {}).sort((a, b) => (b.at || 0) - (a.at || 0));
+        if ($('historyCount')) $('historyCount').textContent = `(${entries.length})`;
         const describe = entry => {
             const after = entry.after && typeof entry.after === 'object' && !Array.isArray(entry.after) && entry.action !== 'correct-ballot'
                 ? Object.entries(entry.after).map(([k, v]) => `${k} → ${k.endsWith('At') ? P.formatDateTime(v) : v}`).join(', ') : '';

@@ -8,6 +8,7 @@
     'use strict';
 
     const INK = '#111111';
+    const BAR = '#c40000';
     const MUTED = '#5f5f5f';
     const TRACK = '#ececec';
     const YES = '#2a78d6';
@@ -117,8 +118,8 @@
     function barChartSvg(list, { title = '', subtitle = '', width = 640 } = {}) {
         const labelWidth = Math.min(200, Math.round(width * 0.32));
         const valueWidth = 44;
-        const rowHeight = 32;
-        const bar = 20;
+        const rowHeight = 28;
+        const bar = 18;
         const heading = titleBlock(title, subtitle, width);
         const top = heading.height;
         const height = top + Math.max(1, list.length) * rowHeight + 8;
@@ -134,7 +135,7 @@
             parts.push(`<g><title>${esc(`${row.label}: ${row.count}`)}</title>`
                 + `<text x="${labelWidth - 10}" y="${cy + 4.5}" font-size="13" text-anchor="end" fill="${INK}">${esc(fit(row.label, labelWidth - 12))}</text>`
                 + `<rect x="${x0}" y="${cy - bar / 2}" width="${plot}" height="${bar}" fill="${TRACK}"/>`
-                + (w ? `<path d="M${x0},${cy - bar / 2}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${bar - 2 * r}a${r},${r} 0 0 1 -${r},${r}h-${w - r}z" fill="${INK}"/>` : '')
+                + (w ? `<path d="M${x0},${cy - bar / 2}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${bar - 2 * r}a${r},${r} 0 0 1 -${r},${r}h-${w - r}z" fill="${BAR}"/>` : '')
                 + `<text x="${x0 + plot + 8}" y="${cy + 4.5}" font-size="13" font-weight="700" fill="${INK}">${row.count}</text></g>`);
         });
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${FONT}" role="img">`

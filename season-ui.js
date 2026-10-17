@@ -325,7 +325,7 @@
 
     // Charts for every question that has totals. Respondents and total selections
     // are separate figures; names stay hidden everywhere when labels are hidden.
-    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width }) {
+    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false }) {
         // Draw at the screen's width so text stays readable on phones; exports use the same drawing.
         const chartWidth = width || Math.max(300, Math.min(640, window.innerWidth - 72));
         const respondents = (totals && totals.respondents) || 0;
@@ -361,10 +361,10 @@
                 chart,
                 outcome,
                 labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,
-                h('figcaption', { class: 'sp-small', text: summary }),
-                table,
-                downloads ? h('div', { class: 'sp-inline-actions' },
-                    h('button', { type: 'button', class: 'sp-link', text: 'Download chart (PNG)', onclick: () => downloadSvgAsPng(svg, `${name}.png`) })) : null);
+                // In compact views the summary stays available to screen readers.
+                h('figcaption', { class: compact ? 'sp-visually-hidden' : 'sp-small', text: summary }),
+                compact ? null : h('div', { class: 'sp-figure-tools' }, table,
+                    downloads ? h('button', { type: 'button', class: 'sp-link', text: 'Download chart (PNG)', onclick: () => downloadSvgAsPng(svg, `${name}.png`) }) : null));
         });
         const shown = figures.filter(Boolean);
         fill(container,

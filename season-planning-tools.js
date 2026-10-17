@@ -234,8 +234,8 @@
             winner ? h('div', null, h('p', null, h('strong', { text: winner.label }), winner.explanation ? ` — ${winner.explanation}` : ''),
                 h('p', { class: 'sp-muted sp-small', text: `Recorded ${P.formatDateTime(winner.at)} by ${A.driverName(winner.by)}.` }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Change', onclick: () => record() }))
-                : h('div', null, h('p', { class: 'sp-muted', text: 'Not decided yet. It’s recorded when one class remains, or you can record a compromise decision here.' }),
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Record a winner', onclick: () => record() })));
+                : h('div', { class: 'sp-inline-actions', style: 'align-items:center' }, h('span', { class: 'sp-muted sp-small', text: 'Not decided yet — set when one class remains.' }),
+                    h('button', { type: 'button', class: 'sp-link', text: 'Record a winner', onclick: () => record() })));
     }
 
     function roundCard(poll, meta) {

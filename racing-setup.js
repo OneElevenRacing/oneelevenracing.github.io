@@ -258,6 +258,16 @@
         return save({ [`${groupName}/${id}`]: { ...entity, active } }, `${active ? 'Restored' : 'Archived'} ${label || entity.name}.`);
     }
 
+    // One tight line per entry: name (and a short muted detail) on the left,
+    // Edit / Archive on the right. Built for lists of 50+ entries.
+    function compactRow({ name, meta, title, archived, thumb, actions }) {
+        return h('li', { class: `sp-crow${archived ? ' sp-archived' : ''}`, title: title || undefined },
+            thumb || null,
+            h('span', { class: 'sp-crow-name' }, h('span', { class: 'sp-crow-title', text: name }), archived ? h('span', { class: 'sp-badge', text: 'Archived' }) : null,
+                meta ? h('span', { class: 'sp-crow-meta', text: meta }) : null),
+            h('span', { class: 'sp-crow-actions' }, actions));
+    }
+
     function renderClasses() {
         const classes = sortByName(Object.entries(group('classes')));
         fillSelect($('classCategory'), [...new Set(classes.map(([, c]) => c.category).filter(Boolean))].sort().map(c => [c, c]), 'All categories');
@@ -270,18 +280,18 @@
         $('classCount').textContent = classes.length
             ? `Showing ${shown.length} of ${plural(classes.length, 'class', 'classes')}.`
             : 'No car classes yet. Add them one at a time, or paste a list on the Import & export tab.';
+        $('classList').className = 'sp-clist';
         $('classList').replaceChildren(...shown.map(([id, c]) => {
             const tags = [c.category, c.era, c.dlc].filter(Boolean).join(' · ');
             const aliases = C.aliasList(c);
-            return h('li', { class: `sp-item${c.active === false ? ' sp-archived' : ''}` },
-                h('div', null,
-                    h('div', { class: 'sp-item-title' }, c.name, c.active === false ? h('span', { class: 'sp-badge', text: 'Archived' }) : null),
-                    tags ? h('div', { class: 'sp-item-meta', text: tags }) : null,
-                    aliases.length ? h('div', { class: 'sp-item-meta', text: `Also: ${aliases.join(', ')}` }) : null),
-                h('div', { class: 'sp-item-actions' },
+            return compactRow({
+                name: c.name, meta: tags, archived: c.active === false,
+                title: [tags, aliases.length ? `Also: ${aliases.join(', ')}` : ''].filter(Boolean).join(' — '),
+                actions: [
                     h('button', { type: 'button', class: 'sp-link', 'aria-label': `Edit ${c.name}`, text: 'Edit', onclick: () => editClass(id) }),
                     h('button', { type: 'button', class: 'sp-link', 'aria-label': `${c.active === false ? 'Restore' : 'Archive'} ${c.name}`,
-                        text: c.active === false ? 'Restore' : 'Archive', onclick: () => toggleActive('classes', id) })));
+                        text: c.active === false ? 'Restore' : 'Archive', onclick: () => toggleActive('classes', id) })]
+            });
         }));
         if (classes.length && !shown.length) $('classList').append(h('li', { class: 'sp-empty', text: 'Nothing matches these filters.' }));
     }
@@ -399,30 +409,27 @@
         const body = h('div', { class: 'sp-group-body' });
         if (!location.system) {
             const meta = [location.country, aliases.length ? `Also: ${aliases.join(', ')}` : ''].filter(Boolean).join(' · ');
-            if (meta) body.append(h('p', { class: 'sp-item-meta', style: 'margin:0 0 6px', text: meta }));
-            body.append(h('div', { class: 'sp-item-actions', style: 'justify-content:flex-start;margin-bottom:4px' },
+            if (meta) body.append(h('p', { class: 'sp-item-meta', style: 'margin:0 0 2px', text: meta }));
+            body.append(h('div', { class: 'sp-crow-actions sp-location-actions' },
                 h('button', { type: 'button', class: 'sp-link', text: 'Edit location', onclick: () => editLocation(id) }),
                 h('button', { type: 'button', class: 'sp-link', text: archived ? 'Restore location' : 'Archive location', onclick: () => toggleActive('locations', id) }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Add layout here', onclick: () => editLayout(null, id) })));
         } else {
             body.append(h('p', { class: 'sp-item-meta', style: 'margin:0 0 6px', text: 'Used by existing screens only; never offered in track polls or random draws.' }));
         }
-        body.append(h('ul', { class: 'sp-list' }, layouts.map(([layoutId, layout]) => {
-            const tags = [layout.shortName && layout.shortName !== location.name ? `Short: ${layout.shortName}` : '', layout.era, layout.dlc,
-                !layout.system && layout.randomEligible === false ? 'Not in random draws' : ''].filter(Boolean).join(' · ');
+        body.append(h('ul', { class: 'sp-clist' }, layouts.map(([layoutId, layout]) => {
+            const tags = [layout.era, layout.dlc, !layout.system && layout.randomEligible === false ? 'not drawn' : '', !layout.imagePath ? 'no image' : ''].filter(Boolean).join(' · ');
             const layoutAliases = C.aliasList(layout);
-            const img = h('img', { class: 'sp-thumb', alt: '', loading: 'lazy', src: layout.imagePath || C.PLACEHOLDER_IMAGE });
+            const img = h('img', { class: 'sp-crow-thumb', alt: '', loading: 'lazy', src: layout.imagePath || C.PLACEHOLDER_IMAGE });
             img.addEventListener('error', () => { img.src = C.PLACEHOLDER_IMAGE; });
-            return h('li', { class: `sp-item sp-with-thumb${layoutStatus(layout) ? '' : ' sp-archived'}` }, img,
-                h('div', null,
-                    h('div', { class: 'sp-item-title' }, layout.name, layout.active === false ? h('span', { class: 'sp-badge', text: 'Archived' }) : null,
-                        !layout.imagePath ? h('span', { class: 'sp-badge sp-amber', text: 'No image' }) : null),
-                    tags ? h('div', { class: 'sp-item-meta', text: tags }) : null,
-                    layoutAliases.length ? h('div', { class: 'sp-item-meta', text: `Also: ${layoutAliases.join(', ')}` }) : null),
-                h('div', { class: 'sp-item-actions' },
+            return compactRow({
+                name: layout.name, meta: tags, archived: !layoutStatus(layout), thumb: img,
+                title: [layout.shortName ? `Short name: ${layout.shortName}` : '', layoutAliases.length ? `Also: ${layoutAliases.join(', ')}` : ''].filter(Boolean).join(' — '),
+                actions: [
                     h('button', { type: 'button', class: 'sp-link', 'aria-label': `Edit ${layout.name}`, text: 'Edit', onclick: () => editLayout(layoutId) }),
                     layout.system ? null : h('button', { type: 'button', class: 'sp-link', 'aria-label': `${layout.active === false ? 'Restore' : 'Archive'} ${layout.name}`,
-                        text: layout.active === false ? 'Restore' : 'Archive', onclick: () => toggleActive('layouts', layoutId) })));
+                        text: layout.active === false ? 'Restore' : 'Archive', onclick: () => toggleActive('layouts', layoutId) })]
+            });
         })));
         if (!layouts.length) body.append(h('p', { class: 'sp-muted sp-small', text: 'No layouts match.' }));
         details.append(body);
