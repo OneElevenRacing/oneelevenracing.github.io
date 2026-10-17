@@ -278,6 +278,7 @@
             allDrivers: draft.allDrivers !== false
         };
         if (!control.allDrivers) control.eligible = Object.fromEntries((draft.eligible || []).map(uid => [uid, true]));
+        if (draft.minTurnout > 0) control.minTurnout = draft.minTurnout;
         return control;
     }
 

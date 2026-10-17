@@ -142,14 +142,29 @@ can't open the pages. All polls, answers and results stay saved.
 
 ## Undoing the rules change
 
-Only do this if the existing site stops working and you can't wait for a fix. Hide Polls &
-Forms first (above), because the old rules let any active driver read everyone's ballots.
-Then publish the previous rules: run the command below in this repository, then paste its
-output into **Realtime Database → Rules** and press **Publish**.
+**Prefer a fix over a rollback.** The new rules only stop drivers reading the *whole*
+database at once; every branch the site uses is still readable. If a page breaks with
+"permission denied", it's reading a branch the rules don't list. Adding a `.read` rule for that
+branch fixes it without exposing anything else.
+
+**If you really must go back to the old rules**, know this first: the old rules let every
+active driver read the entire database directly, including everyone's private ballots.
+Hiding Polls & Forms doesn't prevent that, because it only hides the pages, not the data.
+So before restoring them:
+
+1. **Realtime Database → Data**: open `seasonPlanning`, choose **⋮ → Export JSON** and keep the
+   file safe. It holds every poll, ballot and decision.
+2. Delete the `seasonPlanning` branch (hover over it and press the bin icon). Drivers'
+   ballots are now gone from the live database, so the old rules can't expose them.
+3. Get the old rules by running the command below in this repository. Paste its output into
+   **Realtime Database → Rules** and press **Publish**.
 
 ```bash
 git show fd59d50:database.rules.json
 ```
+
+When the new rules are back in place, import the saved file into `seasonPlanning` (**⋮ →
+Import JSON** on that branch) to restore everything.
 
 ## For developers
 

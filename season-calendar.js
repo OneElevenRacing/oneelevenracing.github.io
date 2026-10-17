@@ -191,8 +191,9 @@
 
     // Problems that block finalising. Shared locations are only allowed where an
     // admin recorded an exception during duplicate resolution.
-    function finaliseProblems({ events, target, unresolvedDuplicates = 0, exceptions = {} }) {
+    function finaliseProblems({ events, target, unresolvedDuplicates = 0, exceptions = {}, driversChanged = false }) {
         const problems = [];
+        if (driversChanged) problems.push('Driver track choices have changed since this version. Update driver choices first.');
         if (unresolvedDuplicates > 0) problems.push(`${unresolvedDuplicates} driver track ${unresolvedDuplicates === 1 ? 'choice still needs' : 'choices still need'} a replacement or decision (track picks step).`);
         if (events.length !== target) problems.push(`The calendar has ${events.length} events but the target is ${target}.`);
         if (target < LIMITS.minEvents || target > LIMITS.maxEvents) problems.push(`The target must be ${LIMITS.minEvents}–${LIMITS.maxEvents} events.`);

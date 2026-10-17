@@ -37,26 +37,29 @@
     }
 
     // Loads (once) a poll's definition, totals and, for admins, ballots.
+    // A poll's definition (fixed once published) plus live totals, control and, when
+    // asked for, live ballots. Each is subscribed to once for the page's lifetime, so
+    // decisions always use the current answers and a failed read isn't retried in a loop.
     function pollData(id, { ballots = false } = {}) {
-        const entry = tools.cache[id] || (tools.cache[id] = { loading: false });
-        const need = !entry.fetched || (ballots && !entry.fetchedBallots);
-        if (need && !entry.loading) {
-            entry.loading = true;
-            const base = `${V1}/polls/${id}`;
-            Promise.all([
-                entry.fetched ? entry.definition : db().ref(`${base}/definition`).once('value').then(s => s.val()),
-                db().ref(`${base}/totals`).once('value').then(s => s.val()),
-                ballots ? db().ref(`${base}/ballots`).once('value').then(s => s.val() || {}) : entry.ballots
-            ]).then(([definition, totals, allBallots]) => {
-                Object.assign(entry, { definition, totals, ballots: allBallots, loading: false, fetched: true, fetchedBallots: entry.fetchedBallots || ballots });
-                if (!definition) entry.error = 'This poll has no questions saved.';
+        const entry = tools.cache[id] || (tools.cache[id] = {});
+        const base = `${V1}/polls/${id}`;
+        const failed = error => { entry.error = error.message; A.rerender(); };
+        if (!entry.subscribed) {
+            entry.subscribed = true;
+            db().ref(`${base}/definition`).once('value').then(s => {
+                entry.definition = s.val();
+                if (!entry.definition) entry.error = 'This poll has no questions saved.';
                 A.rerender();
-            }).catch(error => { entry.loading = false; entry.error = error.message; A.rerender(); });
+            }, failed);
+            db().ref(`${base}/totals`).on('value', s => { entry.totals = s.val(); A.rerender(); }, failed);
+            db().ref(`${base}/control`).on('value', s => { entry.control = s.val(); A.rerender(); }, failed);
+        }
+        if (ballots && !entry.ballotsSubscribed) {
+            entry.ballotsSubscribed = true;
+            db().ref(`${base}/ballots`).on('value', s => { entry.ballots = s.val() || {}; A.rerender(); }, error => { entry.ballots = entry.ballots || {}; failed(error); });
         }
         return entry;
     }
-
-    function refreshPoll(id) { delete tools.cache[id]; A.rerender(); }
 
     const loading = () => h('p', { class: 'sp-muted', text: 'Loading…' });
     // append() would print null as text, so leave empty parts out.
@@ -123,7 +126,7 @@
         return h('div', null,
             pollPicker(polls, nomination.pollId, id => { nomination.pollId = id; A.rerender(); }, 'Suggestion poll'),
             h('p', null, h('strong', { text: poll.title }), ` · ${A.plural(result.respondents, 'response')} · `, A.phaseBadge(poll.phase),
-                ' ', h('button', { type: 'button', class: 'sp-link', text: 'Reload answers', onclick: () => refreshPoll(nomination.pollId) })),
+),
             writeInCard(result),
             shortlistCard(result));
     }
@@ -326,11 +329,12 @@
         put(card, h('p', { class: 'sp-status sp-warn', text: `Tie at the cutoff: ${result.tied.map(label).join(', ')} all have ${result.cutoffCount} votes, with ${A.plural(result.needed, 'place')} left. Choose how to settle it.` }),
             h('div', { class: 'sp-inline-actions' },
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Run a runoff', onclick: async () => {
-                    if (!await A.confirmDialog({ title: 'Create a runoff?', body: h('p', { text: `Drivers choose ${result.needed} of the ${result.tied.length} tied classes. ${result.safe.map(label).join(', ') || 'No classes'} go through already.` }), confirmLabel: 'Create runoff draft' })) return;
+                    const carry = AC.runoffCarry(meta, result, label);
+                    if (!await A.confirmDialog({ title: 'Create a runoff?', body: h('p', { text: `Drivers choose ${result.needed} of the ${result.tied.length} tied classes. ${carry.safeLabels.join(', ') || 'No classes'} go through already.` }), confirmLabel: 'Set up runoff' })) return;
                     const draft = AC.roundDraft({ plan: A.activePlan(), number: meta.number || 1, options: result.tied.map(id => ({ id, label: label(id) })), quota: result.needed, settings: A.settings(), now: A.now(), runoff: true });
                     createDraft(draft, 'runoff', `${poll.title}: runoff between ${result.tied.map(label).join(', ')}`, id => ({
-                        [`${planPath()}/rounds/${poll.id}/decision`]: { method: 'runoff', advancing: result.safe, labels: result.safe.map(label), note: 'Runoff for the tied places', nextDraftId: id, ...stamp() },
-                        [`${planPath()}/rounds/${id}`]: { number: meta.number || 1, runoffFor: poll.id, safe: result.safe, needed: result.needed, safeLabels: result.safe.map(label), ...stamp() }
+                        [`${planPath()}/rounds/${poll.id}/decision`]: { method: 'runoff', advancing: carry.safe, labels: carry.safeLabels, note: 'Runoff for the tied places', nextDraftId: id, ...stamp() },
+                        [`${planPath()}/rounds/${id}`]: { number: meta.number || 1, runoffFor: poll.id, safe: carry.safe, needed: carry.needed, safeLabels: carry.safeLabels, ...stamp() }
                     }));
                 } }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Put all tied classes through', onclick: async () => {
@@ -453,7 +457,7 @@
         const base = `${planPath()}/trackResolution/${track.pollId}`;
         put(card, 
             h('p', null, A.phaseBadge(poll.phase), ` ${A.plural(result.rows.length, 'driver')} chose a layout. `, poll.phase === 'open' ? 'Provisional until the poll closes. ' : '',
-                h('button', { type: 'button', class: 'sp-link', text: 'Reload answers', onclick: () => refreshPoll(track.pollId) })),
+),
             result.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(result.unresolved, 'driver')} still ${result.unresolved === 1 ? 'needs' : 'need'} a replacement or a decision. The calendar can’t be finalised until this is resolved.` })
                 : h('p', { class: 'sp-status sp-ok', text: 'No unresolved duplicates.' }),
             h('p', { class: 'sp-muted sp-small', text: 'Rule: when drivers chose layouts at the same location, the one who submitted last keeps it; earlier drivers pick again. Contact them outside the website and record their new choice here.' }));
@@ -570,7 +574,7 @@
                     const chosen = list.filter(p => boxes.get(p.id) && boxes.get(p.id).checked);
                     if (!chosen.length) { A.setStatus('Tick at least one proposal.', 'error'); return; }
                     const unreviewed = chosen.filter(p => Object.keys(p.related || {}).some(id => byId[id] && byId[id].status !== 'withdrawn' && !chosen.includes(byId[id])));
-                    const draft = AC.rulesDraft({ plan: A.activePlan(), proposals: chosen, settings: A.settings(), now: A.now() });
+                    const draft = AC.rulesDraft({ plan: A.activePlan(), proposals: chosen, settings: A.settings(), now: A.now(), minTurnout: tools.planAdmin.minTurnout || 0 });
                     const go = () => createDraft(draft, 'create-rules-poll', `Rule vote draft with ${chosen.length} proposals`, id => Object.fromEntries(chosen.flatMap((p, i) => [
                         [`${planPath()}/proposals/${p.id}/status`, 'in-vote'], [`${planPath()}/proposals/${p.id}/pollId`, id], [`${planPath()}/proposals/${p.id}/questionIndex`, i]])));
                     if (!unreviewed.length) { go(); return; }
@@ -598,7 +602,7 @@
         const minTurnout = tools.planAdmin.minTurnout || 0;
         const turnout = h('input', { type: 'number', min: 0, max: 100, value: String(minTurnout), style: 'max-width:100px' });
         turnout.addEventListener('change', () => decide({ [`${planPath()}/minTurnout`]: Math.max(0, Math.min(100, Number(turnout.value) || 0)) }, 'min-turnout', `Minimum turnout set to ${turnout.value || 0}`));
-        put(card, A.field('Minimum votes for a decision (0 = no minimum)', turnout));
+        put(card, A.field('Minimum votes for a decision in new rule votes (0 = no minimum)', turnout, 'Saved into each vote when it opens, so drivers’ results use the same rule.'));
         if (!polls.length) { put(card, h('p', { class: 'sp-muted', text: 'No rule votes in this plan yet.' })); return card; }
         const confirmed = tools.planAdmin.outcomes || {};
         const proposalFor = (pollId, index) => proposals().find(p => p.pollId === pollId && p.questionIndex === index);
@@ -607,7 +611,8 @@
             if (poll.phase === 'open' || poll.phase === 'scheduled') { put(card, h('p', { class: 'sp-muted', text: `Outcomes appear when the vote closes (${P.formatDateTime(poll.closesAt)}).` })); return; }
             const data = pollData(poll.id);
             if (!data.definition) { put(card, loading()); return; }
-            put(card, h('ul', { class: 'sp-list' }, AC.ruleOutcomes(data.definition, data.totals, { minTurnout }).map(o => {
+            const pollMinimum = data.control && data.control.minTurnout !== undefined ? data.control.minTurnout : 0;
+            put(card, h('ul', { class: 'sp-list' }, AC.ruleOutcomes(data.definition, data.totals, { minTurnout: pollMinimum }).map(o => {
                 const key = `${poll.id}_${o.index}`;
                 const done = confirmed[key];
                 const proposal = proposalFor(poll.id, o.index);

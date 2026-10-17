@@ -20,7 +20,7 @@
 
     // ---------- Hub ----------
 
-    const hub = { index: null, plans: {}, submitted: {}, liveTotals: {}, definitions: {}, error: '' };
+    const hub = { index: null, plans: {}, submitted: {}, liveTotals: {}, definitions: {}, minTurnout: {}, error: '' };
 
     function activePlan() {
         return Object.entries(hub.plans || {}).map(([id, plan]) => ({ id, ...plan }))
@@ -44,6 +44,7 @@
         const live = groups.open.find(poll => poll.resultVisibility === 'live');
         if (!live || hub.liveTotals[live.id] !== undefined) return;
         hub.liveTotals[live.id] = null;
+        db().ref(`${V1}/polls/${live.id}/control/minTurnout`).once('value').then(snapshot => { hub.minTurnout[live.id] = snapshot.val() || 0; }, () => {});
         db().ref(`${V1}/polls/${live.id}/definition`).once('value').then(snapshot => {
             hub.definitions[live.id] = snapshot.val();
             db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
@@ -110,7 +111,7 @@
         const box = h('div');
         // On wider screens the card sits in a half-width column.
         const width = window.innerWidth >= 720 ? Math.max(300, Math.min(820, window.innerWidth - 48) / 2 - 64) : undefined;
-        UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true });
+        UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true, minTurnout: hub.minTurnout[live.id] || 0 });
         return h('section', { class: 'sp-card', 'aria-labelledby': 'liveTitle' },
             h('div', { class: 'sp-card-head' }, h('h2', { id: 'liveTitle', text: 'Live results' }), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
             h('p', { class: 'sp-muted sp-small', text: live.title }), box);
@@ -204,7 +205,12 @@
             : phase === 'scheduled' ? `Opens ${P.formatDateTime(control.opensAt)}`
                 : control.closesAt ? `Closed ${P.formatDateTime(control.closesAt)}` : '';
         const tab = (id, label) => h('button', { type: 'button', role: 'tab', id: `tab-${id}`, 'aria-selected': String(poll.tab === id), 'aria-controls': 'pollPanel',
-            onclick: () => { poll.tab = id; history.replaceState(null, '', `?poll=${encodeURIComponent(pollId)}${id === 'results' ? '&tab=results' : ''}`); poll.voteKey = ''; poll.resultsKey = ''; renderPoll(); } }, label);
+            onclick: () => {
+                poll.tab = id;
+                if (poll.resultsRef) { poll.resultsRef.off(); poll.resultsRef = null; }
+                history.replaceState(null, '', `?poll=${encodeURIComponent(pollId)}${id === 'results' ? '&tab=results' : ''}`);
+                poll.voteKey = ''; poll.resultsKey = ''; renderPoll();
+            } }, label);
         return [
             h('p', { class: 'sp-eyebrow' }, h('a', { href: 'season-polls.html', text: '← All polls' })),
             h('h1', { text: (poll.definition && poll.definition.title) || (poll.entry && poll.entry.title) || 'Poll' }),
@@ -270,11 +276,18 @@
         setStatus(status, connected ? 'Sending your vote…' : 'Waiting for a connection. Keep this page open and your vote will be sent.');
         const ballotPath = `${V1}/polls/${pollId}/ballots/${uid}`;
         const sv = firebase.database.ServerValue;
+        poll.sending = true;
+        poll.pendingBallot = null;
         try {
             await db().ref().update(SB.submissionUpdates({ pollId, uid, definition: poll.definition, answers, submissionId: poll.submissionId, increment: sv.increment, timestamp: sv.TIMESTAMP }));
+            poll.sending = false;
             clearDraft();
             poll.mode = 'form';
+            poll.ballot = poll.pendingBallot || (await db().ref(ballotPath).once('value')).val();
+            poll.voteKey = '';
+            renderPoll();
         } catch (error) {
+            poll.sending = false;
             let saved = null;
             try { saved = (await db().ref(ballotPath).once('value')).val(); } catch (readError) { /* fall through */ }
             if (saved) {
@@ -310,11 +323,12 @@
             fill(panel, h('p', { class: 'sp-muted', text: 'Loading results…' }));
             poll.resultsRef = db().ref(`${V1}/polls/${pollId}/${path}`);
             poll.resultsRef.on('value', snapshot => {
+                if (poll.tab !== 'results') return;
                 const value = snapshot.val();
                 if (!value) { fill(panel, h('p', { class: 'sp-status', text: access.snapshot ? access.message : 'No results yet.' })); return; }
                 const totals = path === 'snapshot' ? value.totals : value;
                 const box = h('div');
-                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false });
+                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0 });
                 fill(panel, path === 'snapshot' ? h('p', { class: 'sp-muted sp-small', text: `Results published ${P.formatDateTime(value.at)}.` }) : null,
                     control.resultVisibility === 'live' && P.pollPhase(control, now()) === 'open' ? h('p', { class: 'sp-muted sp-small', text: 'Live: these totals update as votes arrive.' }) : null, box);
             }, () => fill(panel, h('p', { class: 'sp-status', text: access.message || 'Results are not available yet.' })));
@@ -330,8 +344,15 @@
         db().ref(`${base}/definition`).once('value')
             .then(snapshot => { poll.definition = snapshot.val(); if (!poll.definition) poll.definitionError = new Error('missing'); renderPoll(); })
             .catch(error => { poll.definitionError = error; poll.definition = null; renderPoll(); });
-        db().ref(`${base}/ballots/${uid}`).on('value', snapshot => { poll.ballot = snapshot.val(); poll.mode = 'form'; renderPoll(); },
-            () => { poll.ballot = null; renderPoll(); });
+        // Firebase shows a pending write locally before the server accepts it, so while
+        // a vote is being sent the receipt waits for the server's answer.
+        db().ref(`${base}/ballots/${uid}`).on('value', snapshot => {
+            if (poll.sending) { poll.pendingBallot = snapshot.val(); return; }
+            poll.ballot = snapshot.val(); poll.mode = 'form'; renderPoll();
+        }, () => { poll.ballot = null; renderPoll(); });
+        window.addEventListener('beforeunload', event => {
+            if (poll.sending) { event.preventDefault(); event.returnValue = ''; }
+        });
         // Opening and closing follow the clock; the phase is part of each screen's key.
         setInterval(renderPoll, 60000);
     }

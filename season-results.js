@@ -72,13 +72,13 @@
     const percent = (n, total) => (total ? Math.round((n / total) * 100) : 0);
 
     // Plain-language summary for screen readers, exports and anyone not reading the chart.
-    function summaryText(list, { respondents = 0, labelsHidden = false, yesNo = false } = {}) {
+    function summaryText(list, { respondents = 0, labelsHidden = false, yesNo = false, minTurnout = 0 } = {}) {
         const total = totalSelections(list);
         const people = `${respondents} ${respondents === 1 ? 'driver' : 'drivers'} responded`;
         if (yesNo) {
             const yes = (list.find(r => r.id === 'yes') || { count: 0 }).count;
             const no = (list.find(r => r.id === 'no') || { count: 0 }).count;
-            return `${people}. Yes ${yes} (${percent(yes, yes + no)}%), No ${no} (${percent(no, yes + no)}%). ${yesNoOutcome(yes, no).label}.`;
+            return `${people}. Yes ${yes} (${percent(yes, yes + no)}%), No ${no} (${percent(no, yes + no)}%). ${yesNoOutcome(yes, no, { minTurnout }).label}.`;
         }
         if (!total) return `${people}. No selections yet.`;
         const ranked = list.filter(r => r.count).map(r => `${r.label} ${r.count}`).join(', ');

@@ -142,3 +142,8 @@ test('updating driver choices swaps changed ones and removes clashing random eve
     assert.deepEqual(result.removed.map(e => e.id), ['r1']);
     assert.equal(K.sameDrivers(result.events, now), true);
 });
+
+test('finalising is blocked while driver choices are out of date', () => {
+    const events = [{ locationId: 'b', locationName: 'Brands Hatch' }];
+    assert.deepEqual(K.finaliseProblems({ events, target: 1, driversChanged: true }), ['Driver track choices have changed since this version. Update driver choices first.']);
+});

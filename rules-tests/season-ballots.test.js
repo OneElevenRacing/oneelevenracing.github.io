@@ -281,6 +281,13 @@ describe('privacy and result visibility', () => {
         await assertSucceeds(get(ref(admin(), `${SB.pollPath('hidden')}/totals`)));
     });
 
+    it('a rule vote’s minimum turnout is stored in its control and readable by drivers', async () => {
+        const def = choiceDefinition();
+        await publish('t1', def, { minTurnout: 6 });
+        assert.equal((await get(ref(db('alice'), `${SB.pollPath('t1')}/control/minTurnout`))).val(), 6);
+        await assertFails(update(ref(admin()), SB.publishUpdates({ pollId: 't2', definition: def, control: { ...control(), minTurnout: -1 } })));
+    });
+
     it('drafts are hidden from drivers and published questions are frozen', async () => {
         const def = choiceDefinition();
         const base = SB.pollPath('d1');
@@ -460,17 +467,22 @@ describe('admin corrections and recounts', () => {
         await assertFails(update(ref(admin()), blankReason));
     });
 
-    it('a recount finds and repairs wrong totals', async () => {
+    it('a recount finds and repairs wrong totals without losing votes that arrive meanwhile', async () => {
         const def = choiceDefinition();
         await publish('r1', def);
         await assertSucceeds(submit('alice', 'r1', def, [{ selections: pick(0, 1, 2, 3, 4) }]));
         await assertSucceeds(submit('bob', 'r1', def, [{ selections: pick(0, 1, 2, 3, 5) }]));
         await assertSucceeds(set(ref(admin(), `${SB.pollPath('r1')}/totals/questions/0/options/c4`), 7));
-        const expected = SB.computeTotals(def, (await get(ref(admin(), `${SB.pollPath('r1')}/ballots`))).val());
-        const differences = SB.compareTotals(expected, (await get(ref(admin(), `${SB.pollPath('r1')}/totals`))).val());
+        // The admin page reads ballots and totals together, then waits for confirmation…
+        const snapshot = (await get(ref(admin(), SB.pollPath('r1')))).val();
+        const differences = SB.compareTotals(SB.computeTotals(def, snapshot.ballots), snapshot.totals);
         assert.deepEqual(differences, [{ path: 'questions/0/options/c4', expected: 1, actual: 7 }]);
-        await assertSucceeds(set(ref(admin(), `${SB.pollPath('r1')}/totals`), expected));
-        assert.deepEqual(SB.compareTotals(expected, await totals('r1')), []);
+        // …while another driver votes for c4.
+        await assertSucceeds(submit('dan', 'r1', def, [{ selections: pick(0, 1, 2, 3, 4) }]));
+        await assertSucceeds(update(ref(admin()), SB.repairUpdates('r1', differences, increment)));
+        const ballots = await read(`${SB.pollPath('r1')}/ballots`);
+        assert.deepEqual(SB.compareTotals(SB.computeTotals(def, ballots), await totals('r1')), []);
+        assert.equal((await totals('r1')).questions[0].options.c4, 2, 'Alice and Dan');
         await assertFails(set(ref(db('alice'), `${SB.pollPath('r1')}/totals/questions/0/options/c4`), 1));
     });
 });

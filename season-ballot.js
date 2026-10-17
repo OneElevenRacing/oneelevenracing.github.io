@@ -190,6 +190,15 @@
         return differences;
     }
 
+    // Repairs found by a recount, as changes rather than replacements: each counter
+    // moves by (ballots − stored) from one consistent snapshot. Votes that arrive
+    // later add to both the ballots and the counters, so they're unaffected.
+    // Counters for options the poll doesn't have are removed.
+    function repairUpdates(pollId, differences, increment) {
+        const base = `${pollPath(pollId)}/totals`;
+        return Object.fromEntries(differences.map(d => [`${base}/${d.path}`, d.expected === null ? null : increment(d.expected - d.actual)]));
+    }
+
     // Admin correction: new answers, counter differences and an audit entry, all in
     // one update. The rules reject it if another admin changed the ballot first.
     function correctionUpdates({ pollId, uid, definition, oldBallot, answers, auditId, adminUid, reason, increment, timestamp }) {
@@ -245,6 +254,7 @@
     return {
         LIMITS,
         controlUpdates,
+        repairUpdates,
         OPTION_ID,
         pollPath,
         questionList,

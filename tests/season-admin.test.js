@@ -206,3 +206,17 @@ test('season steps: statuses follow polls and decisions, and skipped steps say s
 test('stages for steps use fixed labels the drivers see', () => {
     assert.deepEqual(A.stagesForSteps(['suggestions', 'rounds', 'rules', 'summary']).map(s => s.label), ['Suggestions', 'Car votes', 'Rules']);
 });
+
+test('a runoff that ties again keeps every class already through', () => {
+    const label = id => id.toUpperCase();
+    const first = A.runoffCarry({}, { safe: ['a'], tied: ['b', 'c', 'd'], needed: 2 }, label);
+    assert.deepEqual(first, { safe: ['a'], safeLabels: ['A'], needed: 2 });
+    const second = A.runoffCarry({ runoffFor: 'r1', safe: first.safe, safeLabels: first.safeLabels }, { safe: ['b'], tied: ['c', 'd'], needed: 1 }, label);
+    assert.deepEqual(second, { safe: ['a', 'b'], safeLabels: ['A', 'B'], needed: 1 });
+});
+
+test('rule votes carry the minimum turnout into the poll control', () => {
+    const draft = A.rulesDraft({ plan: null, proposals: [{ text: 'Allow ghosting?' }], settings: {}, now: 0, minTurnout: 6 });
+    assert.equal(P.buildControl(draft).minTurnout, 6);
+    assert.equal(P.buildControl(A.rulesDraft({ plan: null, proposals: [{ text: 'x' }], settings: {}, now: 0 })).minTurnout, undefined);
+});

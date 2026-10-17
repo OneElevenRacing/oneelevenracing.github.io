@@ -37,10 +37,14 @@
         return questions(definition).map(() => ({ selections: [], writeIns: [], text: '', skipped: false }));
     }
 
-    // Problems for one question, using the same checks as the database rules.
-    function questionErrors(definition, answers, index) {
-        const tidy = SB.normaliseAnswers(definition, answers);
-        return SB.validateAnswers(definition, tidy).filter(error => error.question === index).map(error => error.message);
+    // Problems per question, using the same checks as the database rules (one pass).
+    function errorsByQuestion(definition, answers) {
+        const byQuestion = new Map();
+        SB.validateAnswers(definition, SB.normaliseAnswers(definition, answers)).forEach(error => {
+            if (!byQuestion.has(error.question)) byQuestion.set(error.question, []);
+            byQuestion.get(error.question).push(error.message);
+        });
+        return byQuestion;
     }
 
     // ---------- Ballot form ----------
@@ -54,7 +58,8 @@
         const bar = h('div', { class: 'sp-actionbar' }, counter, reviewButton);
 
         function update() {
-            const ready = list.filter((q, i) => !questionErrors(definition, answers, i).length).length;
+            const problems = errorsByQuestion(definition, answers);
+            const ready = list.filter((q, i) => !problems.has(i)).length;
             if (list.length === 1 && list[0].kind !== 'text') {
                 const q = list[0];
                 const count = answers[0].selections.length + (answers[0].writeIns || []).filter(t => t.trim()).length;
@@ -67,8 +72,9 @@
 
         reviewButton.addEventListener('click', () => {
             let firstProblem = null;
+            const all = errorsByQuestion(definition, answers);
             blocks.forEach(block => {
-                const problems = questionErrors(definition, answers, block.index);
+                const problems = all.get(block.index) || [];
                 block.showErrors(problems);
                 if (problems.length && !firstProblem) firstProblem = block;
             });
@@ -325,7 +331,7 @@
 
     // Charts for every question that has totals. Respondents and total selections
     // are separate figures; names stay hidden everywhere when labels are hidden.
-    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false }) {
+    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0 }) {
         // Draw at the screen's width so text stays readable on phones; exports use the same drawing.
         const chartWidth = width || Math.max(300, Math.min(640, window.innerWidth - 72));
         const respondents = (totals && totals.respondents) || 0;
@@ -333,7 +339,7 @@
             if (question.kind === 'text') return null;
             const list = R.rows(definition, i, totals, { labelsHidden, pollId });
             const yesNo = question.type === 'yesno';
-            const summary = R.summaryText(list, { respondents, labelsHidden, yesNo });
+            const summary = R.summaryText(list, { respondents, labelsHidden, yesNo, minTurnout });
             const name = `${slug(title)}-q${i + 1}${labelsHidden ? '-names-hidden' : ''}`;
             let svg;
             let outcome = null;
@@ -341,7 +347,7 @@
                 const yes = (list.find(r => r.id === 'yes') || {}).count || 0;
                 const no = (list.find(r => r.id === 'no') || {}).count || 0;
                 svg = R.yesNoSvg(yes, no, { title: question.prompt, width: chartWidth });
-                const result = R.yesNoOutcome(yes, no);
+                const result = R.yesNoOutcome(yes, no, { minTurnout });
                 outcome = h('p', { class: `sp-outcome sp-outcome-${result.outcome}` },
                     h('span', { 'aria-hidden': 'true', text: result.outcome === 'pass' ? '✓ ' : result.outcome === 'fail' ? '✕ ' : '– ' }),
                     result.label, provisional ? h('span', { class: 'sp-muted', text: ' · provisional until an admin confirms' }) : null);

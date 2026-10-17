@@ -169,6 +169,18 @@
         });
     }
 
+    // What a new runoff carries forward: the classes already through from earlier
+    // rounds (when this round was itself a runoff) plus this round's safe ones.
+    function runoffCarry(meta, result, labelOf) {
+        const earlier = meta && meta.runoffFor ? (meta.safe || []) : [];
+        const earlierLabels = meta && meta.runoffFor ? (meta.safeLabels || earlier.map(labelOf)) : [];
+        return {
+            safe: [...earlier, ...result.safe],
+            safeLabels: [...earlierLabels, ...result.safe.map(labelOf)],
+            needed: result.needed
+        };
+    }
+
     // ---------- Track exclusions ----------
 
     const SYSTEM = new Set(C.SYSTEM_TRACKS.map(C.nameKey));
@@ -305,11 +317,11 @@
 
     // ---------- Rule changes ----------
 
-    function rulesDraft({ plan, proposals, settings, now }) {
+    function rulesDraft({ plan, proposals, settings, now, minTurnout = 0 }) {
         const stage = stageFor(plan, 'Rules');
         return baseDraft(settings, now, {
             title: 'Rule changes', summary: `Vote Yes or No on ${proposals.length === 1 ? 'one proposal' : `${proposals.length} proposals`}.`,
-            kind: 'rules', resultVisibility: 'afterClose', labelsHidden: false,
+            kind: 'rules', resultVisibility: 'afterClose', labelsHidden: false, minTurnout: minTurnout > 0 ? minTurnout : undefined,
             planId: plan ? plan.id : undefined, stageId: stage ? stage.id : undefined,
             questions: proposals.map(p => ({ type: 'yesno', prompt: p.text.slice(0, 1000), help: p.detail ? p.detail.slice(0, 2000) : '', required: false }))
         });
@@ -424,5 +436,5 @@
         return steps.find(s => s.status === 'decide') || steps.find(s => s.status === 'todo') || null;
     }
 
-    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, writtenAnswers };
+    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, runoffCarry, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, writtenAnswers };
 });

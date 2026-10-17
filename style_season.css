@@ -500,3 +500,9 @@
 .sp-stepbody .sp-card + .sp-card { border-top: 1px solid var(--sp-line); padding-top: 10px; }
 .sp-activity { margin-top: 10px; border-top: 1px solid var(--sp-line); }
 .sp-stephead .sp-badge { flex: none; white-space: nowrap; }
+
+/* Hover states that keep text readable (style.css's dark button hover doesn't suit these). */
+.sp .sp-tabs [role="tab"]:hover { background: var(--sp-soft); color: var(--sp-ink); }
+.sp .sp-tabs .sp-tab-link:hover { background: var(--sp-soft); color: var(--sp-ink); }
+.sp .sp-stephead:hover { background: var(--sp-soft); color: var(--sp-ink); }
+.sp .sp-stephead:hover .sp-stepline { color: var(--sp-muted); }

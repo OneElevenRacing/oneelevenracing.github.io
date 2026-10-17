@@ -171,7 +171,8 @@
                 } }));
             return card;
         }
-        const problems = K.finaliseProblems({ events, target: target(), unresolvedDuplicates: info.unresolved || 0, exceptions: info.exceptions || {} });
+        const problems = K.finaliseProblems({ events, target: target(), unresolvedDuplicates: info.unresolved || 0, exceptions: info.exceptions || {},
+            driversChanged: !K.sameDrivers(events, info.drivers) });
         if (info.open) problems.push('The track poll is still open.');
         T.put(card, problems.length ? h('div', { class: 'sp-status sp-warn' }, 'Before finalising:', h('ul', { class: 'sp-errors', style: 'color:inherit' }, problems.map(p => h('li', { text: p }))))
             : h('p', { text: 'Everything checks out. Finalising fixes this version as the season calendar.' }),

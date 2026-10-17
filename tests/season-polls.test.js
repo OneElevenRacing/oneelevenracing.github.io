@@ -182,3 +182,9 @@ test('a duplicated poll keeps its options, IDs and quotas', () => {
     assert.deepEqual(copy.questions, original.questions);
     assert.deepEqual(P.validateDraft({ ...draft, questions: P.draftQuestions(original) }, {}), []);
 });
+
+test('rule summaries respect a minimum turnout', () => {
+    const rows = R.rows(resultDef, 1, { respondents: 3, questions: [{}, { options: { yes: 2, no: 1 } }] });
+    assert.match(R.summaryText(rows, { respondents: 3, yesNo: true }), /Passes \(2 Yes, 1 No\)/);
+    assert.match(R.summaryText(rows, { respondents: 3, yesNo: true, minTurnout: 5 }), /No decision — fewer than 5 votes/);
+});

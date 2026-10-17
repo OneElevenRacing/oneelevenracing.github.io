@@ -77,3 +77,16 @@ test('computeTotals and compareTotals report every difference, including unexpec
         { path: 'questions/0/options/z', expected: null, actual: 4 }
     ]);
 });
+
+test('recount repairs move counters by the difference and drop unknown options', () => {
+    const updates = SB.repairUpdates('p', [
+        { path: 'respondents', expected: 2, actual: 3 },
+        { path: 'questions/0/options/d', expected: 1, actual: 0 },
+        { path: 'questions/0/options/z', expected: null, actual: 4 }
+    ], inc);
+    assert.deepEqual(updates, {
+        'seasonPlanning/v1/polls/p/totals/respondents': { inc: -1 },
+        'seasonPlanning/v1/polls/p/totals/questions/0/options/d': { inc: 1 },
+        'seasonPlanning/v1/polls/p/totals/questions/0/options/z': null
+    });
+});

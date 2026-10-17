@@ -795,7 +795,7 @@
         const eligible = eligibleCount(null, control);
         const charts = h('div');
         const hidden = control.labelsHidden === true && !detail.reveal;
-        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: control.state !== 'finalised', title: detail.definition.title });
+        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: control.state !== 'finalised', title: detail.definition.title, minTurnout: control.minTurnout || 0 });
         fill(box,
             h('p', null, h('strong', { text: `${respondents} of ${eligible}` }), ' eligible drivers have responded.'),
             control.labelsHidden ? h('label', { class: 'sp-check' }, h('input', { type: 'checkbox', checked: detail.reveal, onchange: e => { detail.reveal = e.target.checked; renderDetailResults(); } }),
@@ -818,18 +818,20 @@
 
     async function recount() {
         const id = params.get('poll');
-        let ballots;
-        try { ballots = (await db().ref(`${V1}/polls/${id}/ballots`).once('value')).val() || {}; }
+        // Ballots and totals from one read, so they describe the same moment.
+        let snapshot;
+        try { snapshot = (await db().ref(`${V1}/polls/${id}`).once('value')).val() || {}; }
         catch (error) { setStatus(`Could not read ballots: ${error.message}`, 'error'); return; }
+        const ballots = snapshot.ballots || {};
         const expected = SB.computeTotals(detail.definition, ballots);
-        const differences = SB.compareTotals(expected, detail.totals);
+        const differences = SB.compareTotals(expected, snapshot.totals);
         if (!differences.length) { await confirmDialog({ title: 'Recount complete', body: h('p', { text: `The totals match all ${plural(Object.keys(ballots).length, 'ballot')}.` }), confirmLabel: 'OK' }); return; }
         const result = await confirmDialog({ title: 'Totals don’t match the ballots', body: h('div', null, h('p', { text: 'Recounting the ballots found these differences:' }),
             h('ul', null, differences.map(d => h('li', { text: `${d.path}: stored ${d.actual}, ballots say ${d.expected === null ? 'not an option' : d.expected}` })))),
         reason: true, reasonValue: 'Recount repair', confirmLabel: 'Repair totals' });
         if (!result) return;
         const audit = auditId();
-        save({ [`${V1}/polls/${id}/totals`]: expected, [`${V1}/polls/${id}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: result.reason, before: { differences } } }, 'Totals repaired.');
+        save({ ...SB.repairUpdates(id, differences, sv().increment), [`${V1}/polls/${id}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: result.reason, before: { differences } } }, 'Totals repaired.');
     }
 
     async function loadBallots() {

@@ -105,6 +105,9 @@
               "lastAuditId": {
                 ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
               },
+              "minTurnout": {
+                ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() <= 1000"
+              },
               "$other": {
                 ".validate": false
               }
