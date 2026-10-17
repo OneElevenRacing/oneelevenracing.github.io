@@ -78,15 +78,18 @@ test('computeTotals and compareTotals report every difference, including unexpec
     ]);
 });
 
-test('recount repairs move counters by the difference and drop unknown options', () => {
-    const updates = SB.repairUpdates('p', [
+test('a recount repair applies once, keeps votes that arrived meanwhile and drops unknown options', () => {
+    const differences = [
         { path: 'respondents', expected: 2, actual: 3 },
         { path: 'questions/0/options/d', expected: 1, actual: 0 },
         { path: 'questions/0/options/z', expected: null, actual: 4 }
-    ], inc);
-    assert.deepEqual(updates, {
-        'seasonPlanning/v1/polls/p/totals/respondents': { inc: -1 },
-        'seasonPlanning/v1/polls/p/totals/questions/0/options/d': { inc: 1 },
-        'seasonPlanning/v1/polls/p/totals/questions/0/options/z': null
-    });
+    ];
+    const fingerprint = SB.repairFingerprint(differences);
+    assert.equal(fingerprint, SB.repairFingerprint([...differences].reverse()), 'order does not matter');
+    // Since the snapshot, one more vote for "a" arrived (respondents 3 → 4).
+    const current = { respondents: 4, questions: [{ options: { a: 3, d: 0, z: 4 } }] };
+    const repaired = SB.applyRepair(current, differences, fingerprint, { at: 1, by: 'admin' });
+    assert.deepEqual(repaired, { respondents: 3, questions: [{ options: { a: 3, d: 1 } }], lastRepair: { fingerprint, at: 1, by: 'admin' } });
+    assert.equal(SB.applyRepair(repaired, differences, fingerprint, { at: 2, by: 'admin2' }), undefined, 'a second identical repair changes nothing');
+    assert.deepEqual(current.questions[0].options, { a: 3, d: 0, z: 4 }, 'the input is not modified');
 });

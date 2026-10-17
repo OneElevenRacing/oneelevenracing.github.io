@@ -190,13 +190,35 @@
         return differences;
     }
 
-    // Repairs found by a recount, as changes rather than replacements: each counter
-    // moves by (ballots − stored) from one consistent snapshot. Votes that arrive
-    // later add to both the ballots and the counters, so they're unaffected.
+    // A recount repair, applied inside a database transaction on the totals.
+    // Each counter moves by (ballots − stored) from one consistent snapshot, so votes
+    // that arrive meanwhile (which add to ballots and counters alike) are kept.
+    // The repair records which discrepancy it fixed; if that's already recorded
+    // (another admin repaired the same thing), it returns undefined and nothing changes.
     // Counters for options the poll doesn't have are removed.
-    function repairUpdates(pollId, differences, increment) {
-        const base = `${pollPath(pollId)}/totals`;
-        return Object.fromEntries(differences.map(d => [`${base}/${d.path}`, d.expected === null ? null : increment(d.expected - d.actual)]));
+    function repairFingerprint(differences) {
+        const text = JSON.stringify(differences.map(d => [d.path, d.expected, d.actual]).sort());
+        let h = 2166136261;
+        for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return `r${(h >>> 0).toString(16)}${text.length.toString(16)}`;
+    }
+
+    function applyRepair(current, differences, fingerprint, stamp) {
+        const totals = current ? JSON.parse(JSON.stringify(current)) : { respondents: 0 };
+        if (totals.lastRepair && totals.lastRepair.fingerprint === fingerprint) return undefined;
+        differences.forEach(d => {
+            const parts = d.path.split('/');
+            let node = totals;
+            parts.slice(0, -1).forEach(part => {
+                if (!node[part] || typeof node[part] !== 'object') node[part] = {};
+                node = node[part];
+            });
+            const last = parts[parts.length - 1];
+            if (d.expected === null) delete node[last];
+            else node[last] = (Number(node[last]) || 0) + (d.expected - d.actual);
+        });
+        totals.lastRepair = { fingerprint, ...stamp };
+        return totals;
     }
 
     // Admin correction: new answers, counter differences and an audit entry, all in
@@ -254,7 +276,8 @@
     return {
         LIMITS,
         controlUpdates,
-        repairUpdates,
+        repairFingerprint,
+        applyRepair,
         OPTION_ID,
         pollPath,
         questionList,

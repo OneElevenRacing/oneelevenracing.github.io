@@ -128,6 +128,13 @@
                 return callback;
             },
             off: () => { realtimeListeners.delete(path); },
+            // Like Firebase: undefined from the update function means "abort".
+            transaction: async update => {
+                const next = update(copy(read(path)));
+                if (next === undefined) return { committed: false, snapshot: snapshot(path) };
+                await ref(path).set(next);
+                return { committed: true, snapshot: snapshot(path) };
+            },
             push: () => ({ key: `sample${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}` }),
             update: async values => {
                 for (const [key, value] of Object.entries(values)) await ref([path, key].filter(Boolean).join('/')).set(value);

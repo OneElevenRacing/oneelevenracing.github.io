@@ -830,8 +830,15 @@
             h('ul', null, differences.map(d => h('li', { text: `${d.path}: stored ${d.actual}, ballots say ${d.expected === null ? 'not an option' : d.expected}` })))),
         reason: true, reasonValue: 'Recount repair', confirmLabel: 'Repair totals' });
         if (!result) return;
-        const audit = auditId();
-        save({ ...SB.repairUpdates(id, differences, sv().increment), [`${V1}/polls/${id}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: result.reason, before: { differences } } }, 'Totals repaired.');
+        // One atomic change to the totals that also records which discrepancy it fixed,
+        // so a second admin repairing the same thing at the same time changes nothing.
+        const fingerprint = SB.repairFingerprint(differences);
+        let outcome;
+        try {
+            outcome = await db().ref(`${V1}/polls/${id}/totals`).transaction(current => SB.applyRepair(current, differences, fingerprint, { at: now(), by: state.uid }));
+        } catch (error) { setStatus(`Not repaired: ${error.message}`, 'error'); return; }
+        if (!outcome.committed) { setStatus('These totals were already repaired, probably by another admin. Nothing changed.', 'warn'); return; }
+        save({ [`${V1}/polls/${id}/audit/${auditId()}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: result.reason, before: { differences } } }, 'Totals repaired.');
     }
 
     async function loadBallots() {

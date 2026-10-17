@@ -18,7 +18,22 @@
     function nameKey(text) {
         return String(text == null ? '' : text)
             .normalize('NFD').replace(/[̀-ͯ]/g, '')
+            // Control characters (invisible, and not allowed in database keys) never count.
+            .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
             .toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    // A short code that is always a valid database key, for storing something keyed by
+    // free text (written suggestions, saved track names). Keep the text itself in the
+    // stored value; the code is two 32-bit FNV-1a hashes, so clashes are vanishingly rare.
+    function storageKey(text, prefix = 'k') {
+        const value = String(text);
+        const hash = (seed, input) => {
+            let h = seed;
+            for (let i = 0; i < input.length; i++) { h ^= input.charCodeAt(i); h = Math.imul(h, 16777619); }
+            return (h >>> 0).toString(16).padStart(8, '0');
+        };
+        return `${prefix}${hash(2166136261, value)}${hash(2166136261, [...value].reverse().join('') + value.length)}`;
     }
 
     function slugify(text) {
@@ -466,7 +481,7 @@
 
     return {
         ID_PATTERN, IMAGE_PATTERN, PLACEHOLDER_IMAGE, SYSTEM_TRACKS, LIMITS,
-        nameKey, slugify, uniqueId, parseAliases, aliasList, withRename, findConflicts, validateImagePath,
+        nameKey, storageKey, slugify, uniqueId, parseAliases, aliasList, withRename, findConflicts, validateImagePath,
         buildLayoutIndex, resolveLayout, trackList,
         proposeSeed, seedWrites,
         parseCsv, csvCell, toCsv,

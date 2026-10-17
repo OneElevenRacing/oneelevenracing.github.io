@@ -33,11 +33,23 @@
     function finalGroup(key, review) {
         const seen = new Set();
         let current = key;
-        while (review[current] && review[current].action === 'merge' && review[current].target && !seen.has(current)) {
+        while (review.has(current) && review.get(current).action === 'merge' && review.get(current).target && !seen.has(current)) {
             seen.add(current);
-            current = review[current].target;
+            current = review.get(current).target;
         }
         return current;
+    }
+
+    // Decisions keyed by the suggestion's text. Accepts a plain object (each value may
+    // carry its own `key`, as stored) and returns a Map, so lookups only ever find
+    // real decisions, never built-in properties such as "constructor".
+    function decisionMap(review) {
+        const map = new Map();
+        Object.keys(review || {}).forEach(k => {
+            const value = review[k];
+            if (value && typeof value === 'object') map.set(typeof value.key === 'string' ? value.key : k, value);
+        });
+        return map;
     }
 
     // Everything drivers suggested: catalogue picks, written suggestions grouped by
@@ -45,7 +57,7 @@
     // wording, and the combined candidates once the admin's decisions are applied.
     // Each driver counts once per candidate.
     function aggregateNominations(definition, ballots, catalogue, review) {
-        const decisions = review || {};
+        const decisions = decisionMap(review);
         const known = classIndex(catalogue);
         const questions = SB.questionList(definition).map((q, i) => ({ q, i })).filter(({ q }) => q.kind === 'nomination');
         const classSupport = new Map();
@@ -70,9 +82,9 @@
         const classLabel = id => (catalogue && catalogue.classes && catalogue.classes[id] && catalogue.classes[id].name)
             || (questions.map(({ q }) => q.options && q.options[id]).find(Boolean) || {}).label || id;
         const writeIns = [...groups.values()].map(group => {
-            const decision = decisions[group.key] || null;
+            const decision = decisions.get(group.key) || null;
             const root = finalGroup(group.key, decisions);
-            const rootDecision = decisions[root] || null;
+            const rootDecision = decisions.get(root) || null;
             let status = 'pending';
             let classId = null;
             if (decision && decision.action === 'exclude') status = 'excluded';
@@ -190,6 +202,10 @@
     // catalogue doesn't recognise must be resolved first.
     function exclusionPlan(catalogue, seasons, setup) {
         const config = setup || {};
+        const resolved = new Map(Object.keys(config.unknown || {}).map(k => {
+            const value = config.unknown[k];
+            return value && typeof value === 'object' ? [value.name, value.locationId] : [k, value];
+        }));
         const index = C.buildLayoutIndex(catalogue || {});
         const locations = (catalogue && catalogue.locations) || {};
         const excluded = new Map();
@@ -205,7 +221,7 @@
                 if (!name || SYSTEM.has(C.nameKey(name))) return;
                 const layout = C.resolveLayout(catalogue, index, name);
                 if (layout && layout.system) return;
-                const fixed = config.unknown && config.unknown[name];
+                const fixed = resolved.get(name);
                 const locationId = layout ? layout.locationId : fixed && fixed !== 'ignore' ? fixed : null;
                 if (locationId) exclude(locationId, `Used in ${season.name || season.id} (${name})`);
                 else if (fixed !== 'ignore') {

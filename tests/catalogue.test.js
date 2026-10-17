@@ -154,3 +154,12 @@ test('track CSV export and re-import is unchanged; new rows create locations', (
     const zolderId = added.locations.changes[0].id;
     assert.deepEqual(added.layouts.changes.map(c => `${c.action}:${c.after.locationId === zolderId}`), ['add:true', 'add:true', 'unchanged:false']);
 });
+
+test('storage keys are always valid database keys, whatever the text', () => {
+    const awkward = ['x'.repeat(3000), 'a.b#c$d[e]f/g', 'tab\there\u0000\u0007', 'constructor', '__proto__', ''];
+    const keys = awkward.map(text => C.storageKey(text, 'w'));
+    keys.forEach(key => { assert.match(key, /^w[0-9a-f]{16}$/); });
+    assert.equal(new Set(keys).size, awkward.length, 'different text, different keys');
+    assert.equal(C.storageKey('Group C', 'w'), C.storageKey('Group C', 'w'));
+    assert.equal(C.nameKey('Group\u0000\u0007 C\u007f'), 'group c', 'control characters never count');
+});

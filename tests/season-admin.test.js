@@ -220,3 +220,34 @@ test('rule votes carry the minimum turnout into the poll control', () => {
     assert.equal(P.buildControl(draft).minTurnout, 6);
     assert.equal(P.buildControl(A.rulesDraft({ plan: null, proposals: [{ text: 'x' }], settings: {}, now: 0 })).minTurnout, undefined);
 });
+
+test('written suggestions with awkward text never break the review', () => {
+    const def = { questionCount: 1, questions: { 0: { kind: 'nomination', type: 'nomination', options: {}, allowWriteIns: true, maxWriteIns: 9 } } };
+    const long = `Long ${'x'.repeat(1990)}`;
+    const ballots = {
+        a: ballot([], ['constructor', '__proto__', 'toString']),
+        b: ballot([], ['Group\u0000 C', long]),
+        c: ballot([], ['group c'])
+    };
+    const none = A.aggregateNominations(def, ballots, catalogue, {});
+    assert.ok(none.writeIns.every(g => g.decision === null && g.status === 'pending'), 'built-in names are not mistaken for decisions');
+    assert.equal(none.writeIns.find(g => g.key === 'group c').count, 2, 'control characters are ignored when grouping');
+    // Decisions as stored: under safe codes, with the text in `key`.
+    const C = require('../catalogue.js');
+    const stored = {
+        [C.storageKey('constructor', 'w')]: { key: 'constructor', action: 'exclude', note: 'Not a class' },
+        [C.storageKey(C.nameKey(long), 'w')]: { key: C.nameKey(long), action: 'map', classId: 'gt3' }
+    };
+    const decided = A.aggregateNominations(def, ballots, catalogue, stored);
+    assert.equal(decided.writeIns.find(g => g.key === 'constructor').status, 'excluded');
+    assert.equal(decided.writeIns.find(g => g.key === C.nameKey(long)).status, 'mapped');
+    assert.equal(decided.writeIns.find(g => g.key === '__proto__').status, 'pending');
+});
+
+test('saved track-name resolutions work in both stored formats and with awkward names', () => {
+    const season = [{ id: 's', name: 'S', races: { race1: { trackName: 'constructor' }, race2: { trackName: 'Old Ring' } } }];
+    assert.deepEqual(A.exclusionPlan(catalogue, season, {}).unknown.map(u => u.name), ['constructor', 'Old Ring']);
+    const plan = A.exclusionPlan(catalogue, season, { unknown: { u1: { name: 'constructor', locationId: 'spa' }, 'Old Ring': 'ignore' } });
+    assert.equal(plan.blocking, false);
+    assert.deepEqual(plan.excluded.map(e => e.locationId), ['spa']);
+});

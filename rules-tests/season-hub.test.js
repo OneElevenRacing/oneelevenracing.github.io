@@ -130,6 +130,10 @@ describe('admin-only drafts, templates and settings', () => {
         await assertFails(get(ref(db('alice'), `${V1}/planAdmin`)));
         await assertFails(get(ref(db('alice'), `${V1}/planAdmin/season10`)));
         await assertFails(set(ref(db('alice'), `${V1}/planAdmin/season10/winner`), { classId: 'mine' }));
+        // A review decision for a 2,000-character write-in with control characters saves fine.
+        const C = require('../catalogue.js');
+        const text = `Group\u0000\u0007 ${'C'.repeat(1990)}`;
+        await assertSucceeds(set(ref(db('admin'), `${V1}/planAdmin/season10/nominations/p1/${C.storageKey(C.nameKey(text), 'w')}`), { key: C.nameKey(text), action: 'exclude', note: 'Too long' }));
         await assertSucceeds(get(ref(db('admin'), `${V1}/drafts`)));
     });
 

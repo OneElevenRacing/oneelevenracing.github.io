@@ -42,20 +42,34 @@
         T.loadSeasons();
         if (tools.seasons === null) return null;
         const stored = tools.planAdmin.trackSetup || {};
-        const setup = { ...stored, unknown: Object.fromEntries(Object.entries(stored.unknown || {}).map(([k, v]) => [T.decodeKey(k), v])) };
+        const setup = { ...stored, unknown: T.unknownNames(stored) };
         const seasonIds = stored.seasonIds ? Object.values(stored.seasonIds) : tools.seasons.slice(0, A.settings().exclusionSeasons).map(s => s.id);
         const plan = AC.exclusionPlan(A.state.catalogue, tools.seasons.filter(s => seasonIds.includes(s.id)), setup);
         return plan.excluded.map(e => e.locationId);
     }
 
-    // Saves a new version and makes it current, with a log entry.
-    function saveVersion(events, action, note, extra = {}) {
+    const CHANGED = 'The calendar changed while this was open (perhaps another admin is editing it). Nothing was saved; check the latest version.';
+
+    // Saves a new version and makes it current, but only if the calendar is still on
+    // the version the admin was looking at (`basedOn`). Done as one database
+    // transaction, so two admins can't overwrite each other's changes.
+    async function saveVersion(events, action, note, extra = {}, basedOn = null) {
         const id = A.newId();
-        const base = `${T.planPath()}/calendar`;
-        return T.decide({
-            [`${base}/versions/${id}`]: A.clean({ events, action, note, parent: calendar().currentVersion || null, generation: K.GENERATION_VERSION, at: sv().TIMESTAMP, by: A.state.uid, ...extra }),
-            [`${base}/currentVersion`]: id
-        }, 'calendar', `${action}: ${note}`, 'Calendar saved.');
+        const record = A.clean({ events, action, note, parent: basedOn, generation: K.GENERATION_VERSION, at: A.now(), by: A.state.uid, ...extra });
+        let outcome;
+        try {
+            outcome = await firebase.database().ref(`${T.planPath()}/calendar`).transaction(current => {
+                const cal = current || {};
+                if ((cal.currentVersion || null) !== basedOn) return undefined;
+                if (cal.finalised && cal.finalised.versionId === cal.currentVersion) return undefined;
+                cal.versions = cal.versions || {};
+                cal.versions[id] = record;
+                cal.currentVersion = id;
+                return cal;
+            });
+        } catch (error) { A.setStatus(`Not saved: ${error.message}`, 'error'); return false; }
+        if (!outcome.committed) { A.setStatus(CHANGED, 'warn'); A.rerender(); return false; }
+        return T.decide({}, 'calendar', `${action}: ${note}`, 'Calendar saved.');
     }
 
     function calendarTab() {
@@ -93,14 +107,14 @@
                 h('button', { type: 'button', text: 'Generate calendar', disabled: Boolean(problem), onclick: () => {
                     const result = K.generate({ drivers: info.drivers, catalogue: A.state.catalogue, excluded, target: target(), source: K.cryptoSource() });
                     if (result.problem) { A.setStatus(result.problem.message, 'error'); return; }
-                    saveVersion(result.events, 'generate', `${info.drivers.length} driver choices + ${result.events.length - info.drivers.length} random, shuffled`, { poolSnapshot: result.poolSnapshot });
+                    saveVersion(result.events, 'generate', `${info.drivers.length} driver choices + ${result.events.length - info.drivers.length} random, shuffled`, { poolSnapshot: result.poolSnapshot }, null);
                 } }));
         } else if (!locked && !K.sameDrivers(eventsOf(version), info.drivers)) {
             T.put(card, h('div', { class: 'sp-status sp-warn' }, 'Driver choices have changed since this version (for example a replacement was recorded). ',
                 h('button', { type: 'button', class: 'sp-link', text: 'Update driver choices', onclick: async () => {
                     const result = K.syncDrivers(eventsOf(version), info.drivers);
                     const body = h('ul', null, result.added.map(e => h('li', { text: `Add ${e.label} (driver choice)` })), result.removed.map(e => h('li', { text: `Remove ${e.label} (${e.source === 'driver' ? 'old driver choice' : 'its location is now a driver choice'})` })));
-                    if (await A.confirmDialog({ title: 'Update driver choices?', body, confirmLabel: 'Update' })) saveVersion(result.events, 'update drivers', `${result.added.length} added, ${result.removed.length} removed`);
+                    if (await A.confirmDialog({ title: 'Update driver choices?', body, confirmLabel: 'Update' })) saveVersion(result.events, 'update drivers', `${result.added.length} added, ${result.removed.length} removed`, {}, version.id);
                 } })));
         }
         return card;
@@ -113,9 +127,9 @@
             if (!await A.confirmDialog({ title, body: h('p', { text: explanation }), confirmLabel: title })) return;
             const result = compute();
             if (!result || result.problem) { A.setStatus((result && result.problem.message) || 'Nothing to change.', 'error'); return; }
-            saveVersion(result.events, action, explanation, result.poolSnapshot ? { poolSnapshot: result.poolSnapshot } : {});
+            saveVersion(result.events, action, explanation, result.poolSnapshot ? { poolSnapshot: result.poolSnapshot } : {}, version.id);
         };
-        const update = (list, action, note) => saveVersion(list, action, note);
+        const update = (list, action, note) => saveVersion(list, action, note, {}, version.id);
         const rows = events.map((event, index) => {
             const dateInput = h('input', { type: 'date', value: event.date || '', disabled: locked, 'aria-label': `Date for round ${index + 1}`, style: 'max-width:170px' });
             dateInput.addEventListener('change', () => update(events.map((e, i) => (i === index ? { ...e, date: dateInput.value || null } : e)), 'date', `Round ${index + 1}: ${dateInput.value || 'no date'}`));
@@ -177,8 +191,25 @@
         T.put(card, problems.length ? h('div', { class: 'sp-status sp-warn' }, 'Before finalising:', h('ul', { class: 'sp-errors', style: 'color:inherit' }, problems.map(p => h('li', { text: p }))))
             : h('p', { text: 'Everything checks out. Finalising fixes this version as the season calendar.' }),
         h('button', { type: 'button', text: 'Finalise calendar', disabled: problems.length > 0, onclick: async () => {
+            const shown = calendar().currentVersion;
             if (!await A.confirmDialog({ title: 'Finalise the calendar?', body: h('p', { text: 'This doesn’t create or change a championship.' }), confirmLabel: 'Finalise' })) return;
-            T.decide({ [`${T.planPath()}/calendar/finalised`]: { versionId: calendar().currentVersion, at: sv().TIMESTAMP, by: A.state.uid } }, 'calendar-finalise', `Calendar finalised with ${events.length} events`, 'Calendar finalised.');
+            const fresh = driverInfo();
+            const freshEvents = eventsOf(current());
+            const freshProblems = K.finaliseProblems({ events: freshEvents, target: target(), unresolvedDuplicates: fresh.unresolved || 0, exceptions: fresh.exceptions || {},
+                driversChanged: !K.sameDrivers(freshEvents, fresh.drivers || []) });
+            if (fresh.open) freshProblems.push('The track poll is still open.');
+            if (freshProblems.length) { A.setStatus(`Not finalised: ${freshProblems.join(' ')}`, 'warn'); A.rerender(); return; }
+            let outcome;
+            try {
+                outcome = await firebase.database().ref(`${T.planPath()}/calendar`).transaction(currentCal => {
+                    const cal = currentCal || {};
+                    if (cal.currentVersion !== shown || cal.finalised) return undefined;
+                    cal.finalised = { versionId: shown, at: A.now(), by: A.state.uid };
+                    return cal;
+                });
+            } catch (error) { A.setStatus(`Not finalised: ${error.message}`, 'error'); return; }
+            if (!outcome.committed) { A.setStatus(CHANGED, 'warn'); A.rerender(); return; }
+            T.decide({}, 'calendar-finalise', `Calendar finalised with ${freshEvents.length} events`, 'Calendar finalised.');
         } }));
         return card;
     }
@@ -193,7 +224,7 @@
                     h('div', { class: 'sp-item-meta', text: `${P.formatDateTime(v.at)} · ${A.driverName(v.by)} · ${v.note || ''}` })),
                 v.id === (version && version.id) || locked ? null : h('div', { class: 'sp-item-actions' }, h('button', { type: 'button', class: 'sp-link', text: 'Restore', onclick: async () => {
                     if (await A.confirmDialog({ title: 'Restore this version?', body: h('p', { text: `The calendar goes back to “${v.action}” from ${P.formatDateTime(v.at)}. The current version stays in this list.` }), confirmLabel: 'Restore' })) {
-                        saveVersion(eventsOf(v), 'restore', `Restored the version from ${P.formatDateTime(v.at)}`);
+                        saveVersion(eventsOf(v), 'restore', `Restored the version from ${P.formatDateTime(v.at)}`, {}, version ? version.id : null);
                     }
                 } }))))),
             list.length > 40 ? h('p', { class: 'sp-muted sp-small', text: `Showing the latest 40 of ${list.length} versions.` }) : null);
@@ -238,6 +269,11 @@
                 h('div', { class: 'sp-inline-actions' },
                     h('button', { type: 'button', text: published ? 'Republish summary' : 'Publish summary', onclick: async () => {
                         if (!await A.confirmDialog({ title: 'Publish the season summary?', body: h('p', { text: 'Drivers will see the winning class, the calendar and the rule outcomes shown below.' }), confirmLabel: 'Publish' })) return;
+                        if (JSON.stringify(buildSummary()) !== JSON.stringify(summary)) {
+                            A.setStatus('The summary changed while this was open. Nothing was published; check the preview and publish again.', 'warn');
+                            A.rerender();
+                            return;
+                        }
                         T.decide({ [`${V1}/plans/${tools.planId}/summary`]: { ...summary, publishedAt: sv().TIMESTAMP, publishedBy: A.state.uid } }, 'summary', 'Season summary published', 'Summary published.');
                     } }),
                     published ? h('button', { type: 'button', class: 'sp-link', text: 'Unpublish', onclick: async () => {

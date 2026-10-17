@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { ref, get, set, update, remove, increment, serverTimestamp } = require('firebase/database');
+const { ref, get, set, update, remove, increment, serverTimestamp, runTransaction } = require('firebase/database');
 const SB = require('../season-ballot.js');
 
 const HOUR = 60 * 60 * 1000;
@@ -477,12 +477,16 @@ describe('admin corrections and recounts', () => {
         const snapshot = (await get(ref(admin(), SB.pollPath('r1')))).val();
         const differences = SB.compareTotals(SB.computeTotals(def, snapshot.ballots), snapshot.totals);
         assert.deepEqual(differences, [{ path: 'questions/0/options/c4', expected: 1, actual: 7 }]);
-        // …while another driver votes for c4.
+        // …while another driver votes for c4, and a second admin repairs the same thing.
         await assertSucceeds(submit('dan', 'r1', def, [{ selections: pick(0, 1, 2, 3, 4) }]));
-        await assertSucceeds(update(ref(admin()), SB.repairUpdates('r1', differences, increment)));
+        const fingerprint = SB.repairFingerprint(differences);
+        const repair = uid => runTransaction(ref(db(uid), `${SB.pollPath('r1')}/totals`), current => SB.applyRepair(current, differences, fingerprint, { at: Date.now(), by: uid }));
+        const [first, second] = await Promise.all([repair('admin'), repair('admin2')]);
+        assert.equal([first.committed, second.committed].filter(Boolean).length, 1, 'only one repair is applied');
         const ballots = await read(`${SB.pollPath('r1')}/ballots`);
         assert.deepEqual(SB.compareTotals(SB.computeTotals(def, ballots), await totals('r1')), []);
         assert.equal((await totals('r1')).questions[0].options.c4, 2, 'Alice and Dan');
+        await assertFails(set(ref(db('alice'), `${SB.pollPath('r1')}/totals/lastRepair`), { fingerprint: 'x', at: 1, by: 'alice' }));
         await assertFails(set(ref(db('alice'), `${SB.pollPath('r1')}/totals/questions/0/options/c4`), 1));
     });
 });

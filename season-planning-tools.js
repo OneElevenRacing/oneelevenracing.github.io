@@ -20,6 +20,13 @@
     const encodeKey = key => key.replace(/[.#$[\]/%]/g, ch => `%${ch.charCodeAt(0).toString(16)}`);
     const decodeKey = key => key.replace(/%([0-9a-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
     const planPath = () => `${V1}/planAdmin/${tools.planId}`;
+
+    // Saved track-name resolutions as { name: locationId } (new entries keep the name
+    // inside the value; older ones used the encoded name as the key).
+    function unknownNames(stored) {
+        return Object.fromEntries(Object.entries((stored && stored.unknown) || {}).filter(([, v]) => v)
+            .map(([k, v]) => (typeof v === 'object' ? [v.name, v.locationId] : [decodeKey(k), v])));
+    }
     const stamp = () => ({ at: sv().TIMESTAMP, by: A.state.uid });
 
     function logEntry(action, summary) {
@@ -79,7 +86,20 @@
 
     // A poll prepared by a season step: set the closing date (and an optional message),
     // then publish straight away, or save it as a draft to edit the questions first.
-    async function createDraft(draft, action, summary, extraUpdates = () => ({})) {
+    // Remembers what the admin was shown. Call the returned check when they confirm:
+    // if the live data has changed meanwhile it explains, redraws and returns false,
+    // so a decision is never saved on the basis of out-of-date information.
+    function snapshotOf(compute, message) {
+        const before = JSON.stringify(compute());
+        return () => {
+            if (JSON.stringify(compute()) === before) return true;
+            A.setStatus(message || 'Something changed while this was open, so nothing was saved. Check the latest information and try again.', 'warn');
+            A.rerender();
+            return false;
+        };
+    }
+
+    async function createDraft(draft, action, summary, extraUpdates = () => ({}), stillCurrent = () => true) {
         const definition = P.buildDefinition({ ...draft, title: draft.title || 'Poll' }, A.state.catalogue);
         const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(draft.closesAt) });
         const message = h('textarea', { rows: 2, maxLength: 4000, style: 'min-height:0;font-family:inherit;font-size:16px' });
@@ -92,7 +112,7 @@
             A.field('Message for drivers (optional)', message),
             h('p', { class: 'sp-small sp-muted', text: `Opens as soon as you publish. Results: ${P.VISIBILITY[draft.resultVisibility] || 'after closing'}${draft.labelsHidden ? ', class names hidden' : ''}.` }));
         const choice = await A.confirmDialog({ title: 'Ready to publish', body, confirmLabel: 'Publish now', altLabel: 'Edit questions first' });
-        if (!choice) return;
+        if (!choice || !stillCurrent()) return;
         const id = A.newId();
         const closesAt = P.londonInputToUtc(closes.value);
         const ready = A.clean({ ...draft, opensAt: A.now(), closesAt: Number.isNaN(closesAt) ? draft.closesAt : closesAt, description: message.value.trim() || undefined });
@@ -120,15 +140,20 @@
         if (data.error) return h('p', { class: 'sp-status sp-error', text: data.error });
         if (!data.definition || !data.ballots) return loading();
         const reviewRaw = ((tools.planAdmin.nominations || {})[nomination.pollId]) || {};
-        const review = Object.fromEntries(Object.entries(reviewRaw).map(([k, v]) => [decodeKey(k), v]));
+        // Stored under safe codes with the text in `key`; older entries used encoded text keys.
+        const review = Object.fromEntries(Object.entries(reviewRaw).map(([k, v]) => [v && typeof v.key === 'string' ? v.key : decodeKey(k), v]));
         const result = AC.aggregateNominations(data.definition, data.ballots, A.state.catalogue, review);
+        const liveReview = () => Object.fromEntries(Object.entries(((tools.planAdmin.nominations || {})[nomination.pollId]) || {})
+            .map(([k, v]) => [v && typeof v.key === 'string' ? v.key : decodeKey(k), v]));
+        const unchanged = snapshotOf(() => AC.aggregateNominations(data.definition, data.ballots, A.state.catalogue, liveReview()).candidates.map(c => [c.id, c.count, c.label]),
+            'The suggestions or your review changed while you were choosing. Nothing was saved; check the shortlist again.');
         const poll = polls.find(p => p.id === nomination.pollId);
         return h('div', null,
             pollPicker(polls, nomination.pollId, id => { nomination.pollId = id; A.rerender(); }, 'Suggestion poll'),
             h('p', null, h('strong', { text: poll.title }), ` · ${A.plural(result.respondents, 'response')} · `, A.phaseBadge(poll.phase),
 ),
             writeInCard(result),
-            shortlistCard(result));
+            shortlistCard(result, unchanged));
     }
 
     function writeInCard(result) {
@@ -150,8 +175,12 @@
     const className = id => ((A.state.catalogue.classes || {})[id] || {}).name || id;
 
     function writeInActions(group, groups) {
-        const path = `${planPath()}/nominations/${nomination.pollId}/${encodeKey(group.key)}`;
-        const record = (decision, summary) => decide({ [path]: decision ? { ...decision, ...stamp() } : null }, 'review-suggestion', summary);
+        const path = `${planPath()}/nominations/${nomination.pollId}/${C.storageKey(group.key, 'w')}`;
+        const legacyPath = `${planPath()}/nominations/${nomination.pollId}/${encodeKey(group.key)}`;
+        const record = (decision, summary) => decide({
+            [path]: decision ? { ...decision, key: group.key, ...stamp() } : null,
+            ...(group.decision && !group.decision.key ? { [legacyPath]: null } : {})
+        }, 'review-suggestion', summary);
         if (group.decision) return [h('button', { type: 'button', class: 'sp-link', text: 'Undo decision', onclick: () => record(null, `Undid the decision for “${group.label}”`) })];
         const actions = [];
         if (group.suggestedClassId) {
@@ -192,7 +221,7 @@
         return actions;
     }
 
-    function shortlistCard(result) {
+    function shortlistCard(result, unchanged) {
         const saved = (tools.planAdmin.shortlist && tools.planAdmin.shortlist.pollId === nomination.pollId) ? tools.planAdmin.shortlist : null;
         const chosen = new Map((saved ? Object.values(saved.items || {}) : []).map(item => [item.classId, item.label]));
         const rows = result.candidates.map(c => {
@@ -222,11 +251,12 @@
                 h('button', { type: 'button', text: 'Start round 1', onclick: () => {
                     const items = picked();
                     if (items.length < 2) { A.setStatus('Choose at least two classes for a voting round.', 'error'); return; }
+                    if (!unchanged()) return;
                     const draft = AC.roundDraft({ plan: A.activePlan(), number: 1, options: items.map(i => ({ id: i.classId, label: i.label })), settings: A.settings(), now: A.now() });
-                    createDraft(draft, 'create-round', `Round 1 draft created with ${items.length} classes`, id => ({
+                    createDraft(draft, 'create-round', `Round 1 with ${items.length} classes`, id => ({
                         [`${planPath()}/shortlist`]: { pollId: nomination.pollId, items, ...stamp() },
                         [`${planPath()}/rounds/${id}`]: { number: 1, ...stamp() }
-                    }));
+                    }), unchanged);
                 } })));
     }
 
@@ -304,7 +334,12 @@
         }
         const label = id => (rows.find(r => r.id === id) || { label: id }).label;
         const safe = meta.runoffFor ? meta.safe || [] : [];
+        const unchanged = snapshotOf(() => ({
+            rows: R.rows(data.definition, 0, (tools.cache[poll.id] || {}).totals || {}, {}).map(r => [r.id, r.count]),
+            decided: Boolean(((tools.planAdmin.rounds || {})[poll.id] || {}).decision)
+        }), 'This round’s results or decision changed while you were deciding (perhaps another admin). Nothing was saved; check again.');
         const finish = (method, ids, note) => {
+            if (!unchanged()) return;
             const advancing = [...safe, ...ids];
             const labels = advancing.map(id => labelFor(id, data.definition, meta));
             const nextNumber = (meta.number || 1) + 1;
@@ -317,7 +352,7 @@
             const draft = AC.roundDraft({ plan: A.activePlan(), number: nextNumber, options: advancing.map((id, i) => ({ id, label: labels[i] })), settings: A.settings(), now: A.now() });
             createDraft(draft, 'round-decision', `${poll.title}: ${labels.join(', ')} go through (${method})`, id => ({
                 ...updates(id), [`${planPath()}/rounds/${id}`]: { number: nextNumber, ...stamp() }
-            }));
+            }), unchanged);
         };
         if (!result.tie) {
             const ids = result.advancing.filter(id => !safe.includes(id));
@@ -331,11 +366,12 @@
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Run a runoff', onclick: async () => {
                     const carry = AC.runoffCarry(meta, result, label);
                     if (!await A.confirmDialog({ title: 'Create a runoff?', body: h('p', { text: `Drivers choose ${result.needed} of the ${result.tied.length} tied classes. ${carry.safeLabels.join(', ') || 'No classes'} go through already.` }), confirmLabel: 'Set up runoff' })) return;
+                    if (!unchanged()) return;
                     const draft = AC.roundDraft({ plan: A.activePlan(), number: meta.number || 1, options: result.tied.map(id => ({ id, label: label(id) })), quota: result.needed, settings: A.settings(), now: A.now(), runoff: true });
                     createDraft(draft, 'runoff', `${poll.title}: runoff between ${result.tied.map(label).join(', ')}`, id => ({
                         [`${planPath()}/rounds/${poll.id}/decision`]: { method: 'runoff', advancing: carry.safe, labels: carry.safeLabels, note: 'Runoff for the tied places', nextDraftId: id, ...stamp() },
                         [`${planPath()}/rounds/${id}`]: { number: meta.number || 1, runoffFor: poll.id, safe: carry.safe, needed: carry.needed, safeLabels: carry.safeLabels, ...stamp() }
-                    }));
+                    }), unchanged);
                 } }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Put all tied classes through', onclick: async () => {
                     const r = await A.confirmDialog({ title: 'Put all tied classes through?', body: h('p', { text: `${A.plural(result.safe.length + result.tied.length, 'class', 'classes')} go through instead of ${target}.` }), reason: true, reasonValue: 'All tied classes advance', confirmLabel: 'Confirm' });
@@ -389,7 +425,7 @@
         if (tools.seasons === null) { put(card, loading()); return card; }
         if (tools.seasonsError) put(card, h('p', { class: 'sp-status sp-error', text: `Could not read championships: ${tools.seasonsError}` }));
         const stored = tools.planAdmin.trackSetup || {};
-        const setup = { ...stored, unknown: Object.fromEntries(Object.entries(stored.unknown || {}).map(([k, v]) => [decodeKey(k), v])) };
+        const setup = { ...stored, unknown: unknownNames(stored) };
         const seasonIds = setup.seasonIds ? Object.values(setup.seasonIds) : tools.seasons.slice(0, A.settings().exclusionSeasons).map(s => s.id);
         const chosen = tools.seasons.filter(s => seasonIds.includes(s.id));
         const plan = AC.exclusionPlan(A.state.catalogue, chosen, setup);
@@ -412,7 +448,7 @@
             put(card, h('div', { class: 'sp-status sp-error' }, h('strong', { text: 'Resolve these track names before creating the poll:' }),
                 h('ul', { class: 'sp-list', style: 'border:0' }, plan.unknown.map(u => {
                     const picker = select([['', 'Choose the location…'], ...locationPairs, ['ignore', 'Ignore this name']], '', `Location for ${u.name}`);
-                    picker.addEventListener('change', () => { if (picker.value) saveSetup({ [`unknown/${encodeKey(u.name)}`]: picker.value }, `“${u.name}” → ${picker.value === 'ignore' ? 'ignored' : locations[picker.value].name}`); });
+                    picker.addEventListener('change', () => { if (picker.value) saveSetup({ [`unknown/${C.storageKey(u.name, 'u')}`]: { name: u.name, locationId: picker.value } }, `“${u.name}” → ${picker.value === 'ignore' ? 'ignored' : locations[picker.value].name}`); });
                     return h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' }, h('div', null, h('strong', { text: u.name }), h('span', { class: 'sp-small', text: ` (used in ${u.uses.join(', ')})` })), picker);
                 }))));
         }
@@ -451,6 +487,9 @@
         if (!data.definition || !data.ballots) { put(card, loading()); return card; }
         const config = ((tools.planAdmin.trackResolution || {})[track.pollId]) || {};
         const result = AC.trackResolution(data.definition, data.ballots, config);
+        const unchanged = snapshotOf(() => AC.trackResolution(data.definition, data.ballots, ((tools.planAdmin.trackResolution || {})[track.pollId]) || {})
+            .rows.map(r => [r.uid, r.layoutId, r.status, r.finalLayoutId || null]),
+        'Drivers’ track choices changed while this was open (perhaps another admin). Nothing was saved; check again.');
         const options = data.definition.questions[0].options;
         const layoutLabel = id => (options[id] || { label: id }).label;
         const locationName = id => (Object.values(options).find(o => o.locationId === id) || {}).locationName || id;
@@ -470,11 +509,11 @@
                 h('ul', { class: 'sp-list' }, rows.map(row => h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title' }, A.driverName(row.uid), ' ', statusBadge(row)),
                         h('div', { class: 'sp-item-meta', text: `Chose ${layoutLabel(row.layoutId)} · submitted ${P.formatDateTime(row.submittedAt)}${row.status === 'replaced' ? ` · now ${layoutLabel(row.finalLayoutId)}` : ''}` })),
-                    h('div', { class: 'sp-item-actions' }, rowActions(row, conflict, result, base, layoutLabel, locationName))))),
+                    h('div', { class: 'sp-item-actions' }, rowActions(row, conflict, result, base, layoutLabel, locationName, unchanged))))),
                 conflict.exception ? h('button', { type: 'button', class: 'sp-link', text: 'Remove the exception', onclick: () => decide({ [`${base}/exceptions/${conflict.locationId}`]: null }, 'track-exception', `${locationName(conflict.locationId)}: exception removed`) })
                     : h('button', { type: 'button', class: 'sp-link', text: 'Allow them to share this location…', onclick: async () => {
                         const r = await A.confirmDialog({ title: `Let drivers share ${locationName(conflict.locationId)}?`, body: h('p', { text: 'Both layouts stay in the calendar. This is recorded as an exception.' }), reason: true, confirmLabel: 'Record exception' });
-                        if (r) decide({ [`${base}/exceptions/${conflict.locationId}`]: r.reason }, 'track-exception', `${locationName(conflict.locationId)} shared: ${r.reason}`);
+                        if (r && unchanged()) decide({ [`${base}/exceptions/${conflict.locationId}`]: r.reason }, 'track-exception', `${locationName(conflict.locationId)} shared: ${r.reason}`);
                     } })));
         });
         if (result.invalid.length) put(card, h('p', { class: 'sp-status sp-error', text: `Some recorded replacements clash with another driver’s location: ${result.invalid.map(i => A.driverName(i.uid)).join(', ')}. Choose a free location for them.` }));
@@ -494,12 +533,12 @@
         }[row.status] || null;
     }
 
-    function rowActions(row, conflict, result, base, layoutLabel, locationName) {
+    function rowActions(row, conflict, result, base, layoutLabel, locationName, unchanged) {
         const actions = [];
         if (row.status === 'tie') {
             actions.push(h('button', { type: 'button', class: 'sp-secondary', text: `${A.driverName(row.uid)} keeps it`, onclick: async () => {
                 const r = await A.confirmDialog({ title: `${A.driverName(row.uid)} keeps ${locationName(conflict.locationId)}?`, body: h('p', { text: 'The others will need replacements.' }), reason: true, confirmLabel: 'Confirm' });
-                if (r) decide({ [`${base}/keeps/${conflict.locationId}`]: row.uid }, 'track-tie', `${locationName(conflict.locationId)}: ${A.driverName(row.uid)} keeps it (${r.reason})`);
+                if (r && unchanged()) decide({ [`${base}/keeps/${conflict.locationId}`]: row.uid }, 'track-tie', `${locationName(conflict.locationId)}: ${A.driverName(row.uid)} keeps it (${r.reason})`);
             } }));
         }
         if (row.status === 'replace' || row.status === 'replaced') {
@@ -509,7 +548,7 @@
                 const r = await A.confirmDialog({ title: `Replacement for ${A.driverName(row.uid)}`, body: h('div', null,
                     h('p', { text: `Originally chose ${layoutLabel(row.layoutId)}. Only locations nobody else has are listed.` }), A.field('New choice', picker)),
                 reason: true, reasonLabel: 'Note (e.g. how they told you)', confirmLabel: 'Save replacement' });
-                if (!r || !picker.value) return;
+                if (!r || !picker.value || !unchanged()) return;
                 const audit = A.auditId();
                 decide({
                     [`${base}/replacements/${row.uid}`]: { layoutId: picker.value, note: r.reason, ...stamp() },
@@ -621,9 +660,17 @@
                         h('div', { class: `sp-outcome sp-outcome-${o.outcome}` }, h('span', { 'aria-hidden': 'true', text: o.outcome === 'pass' ? '✓ ' : o.outcome === 'fail' ? '✕ ' : '– ' }), o.label,
                             done ? h('span', { class: 'sp-muted', text: ` · confirmed ${P.formatDate(done.at)}` }) : h('span', { class: 'sp-muted', text: ' · provisional' }))),
                     done ? h('button', { type: 'button', class: 'sp-link', text: 'Reopen', onclick: () => decide({ [`${planPath()}/outcomes/${key}`]: null }, 'rule-outcome', `Outcome reopened: ${o.prompt}`) })
-                        : h('button', { type: 'button', class: 'sp-secondary', text: 'Confirm outcome', onclick: () => decide({ [`${planPath()}/outcomes/${key}`]: A.clean({
+                        : h('button', { type: 'button', class: 'sp-secondary', text: 'Confirm outcome', onclick: () => {
+                            const fresh = AC.ruleOutcomes(data.definition, data.totals, { minTurnout: data.control && data.control.minTurnout ? data.control.minTurnout : 0 }).find(x => x.index === o.index);
+                            if (!fresh || fresh.label !== o.label || (tools.planAdmin.outcomes || {})[key]) {
+                                A.setStatus('This result changed or was already confirmed. Nothing was saved; check it again.', 'warn');
+                                A.rerender();
+                                return;
+                            }
+                            decide({ [`${planPath()}/outcomes/${key}`]: A.clean({
                             pollId: poll.id, questionIndex: o.index, prompt: o.prompt, outcome: o.outcome, label: o.label, yes: o.yes, no: o.no, proposalId: proposal ? proposal.id : undefined, ...stamp() }) },
-                        'rule-outcome', `${o.prompt}: ${o.label}`, 'Outcome confirmed.') }));
+                        'rule-outcome', `${o.prompt}: ${o.label}`, 'Outcome confirmed.');
+                        } }));
             })));
         });
         return card;
@@ -699,7 +746,7 @@
 
     // Shared with season-planning-calendar.js and season-planning-season.js.
     window.SeasonTools = {
-        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, createDraft, classPairs,
+        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf,
         suggestionsTab, roundsTab, tracksTab, rulesTab, historyTab
     };
 
