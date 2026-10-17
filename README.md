@@ -75,6 +75,18 @@ the Firebase SDK scripts. Security rules are kept in `firestore.rules` (Firestor
 `database.rules.json` (Realtime Database). Editing these files does not change the live
 rules; paste them into the Firebase console (or deploy them) after any change.
 
+### Testing the Realtime Database rules
+
+The rules tests run against a local Firebase emulator and never touch live data. They need
+Java 17 or newer. Once, run `npm install`; then run `npm run test:rules`. The website itself
+still needs no packages or build step; `package.json` only lists these development tools.
+
+Drivers can read only the database branches the site uses (race info, weather, season data
+and driver profiles); admins can read everything. Season-planning ballots live under
+`seasonPlanning/v1/polls/<poll>/ballots`. A driver can read only their own ballot. Each ballot is
+saved together with its vote counters in one update, and the rules reject one without the
+other. Publishing a poll freezes its questions and sets every counter to zero.
+
 Drivers can enter results only for existing races (up to race 30) in the active season.
 Track names, special events, the schedule and past seasons are admin-only. Race weather
 slots can be generated once by any driver; only admins can overwrite or reset them.
