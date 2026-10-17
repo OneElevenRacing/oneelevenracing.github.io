@@ -523,7 +523,8 @@
         } else if (q.source === 'classes') {
             parts.push(catalogueChecklist(q, 'classes', updateSummary));
         } else if (q.source === 'layouts') {
-            parts.push(locationChecklist(q, updateSummary));
+            parts.push(locationChecklist(q, updateSummary),
+                bindCheck(q, 'allowRandom', 'Drivers can tick “I’m happy with a random track” instead of picking', updateSummary));
         }
         if (q.type === 'multi' || q.type === 'class') {
             const min = bindNumber(q, 'minSelections', 0, 1000, updateSummary);

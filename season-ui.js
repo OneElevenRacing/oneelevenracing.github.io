@@ -121,7 +121,12 @@
     }
 
     function choiceControls(question, index, answer, onChange) {
-        const options = optionEntries(question);
+        // Track questions can offer "I'm happy with a random track" as a tick box
+        // above the list (stored as an ordinary option, so it's counted and checked).
+        const RANDOM = P.RANDOM_TRACK;
+        const hasRandom = question.type === 'track' && Boolean(question.options && question.options[RANDOM]);
+        const options = optionEntries(question).filter(([id]) => !(hasRandom && id === RANDOM));
+        let randomBox = null;
         const multi = isMulti(question);
         const name = nextId(`q${index}`);
         const searchable = options.length > 8;
@@ -144,6 +149,10 @@
                 if (multi) input.disabled = full && !input.checked;
             });
             notice.textContent = full && question.maxSelections > 0 ? `You've chosen ${question.maxSelections}. Untick one to change your choice.` : '';
+            if (randomBox) {
+                randomBox.checked = answer.selections.includes(RANDOM);
+                if (randomBox.checked) notice.textContent = 'You’ve asked for a random track. Pick a layout below instead if you change your mind.';
+            }
             renderChips();
         };
 
@@ -170,6 +179,18 @@
         };
 
         let list;
+        if (hasRandom) {
+            randomBox = h('input', { type: 'checkbox', checked: answer.selections.includes(RANDOM) });
+            randomBox.addEventListener('change', () => {
+                answer.selections = randomBox.checked ? [RANDOM] : [];
+                answer.skipped = false;
+                syncLimit();
+                onChange();
+            });
+            parts.push(h('label', { class: 'sp-option sp-random-option' }, randomBox,
+                h('span', null, h('strong', { text: 'I’m happy with a random track' }), h('span', { class: 'sp-muted sp-small', text: ' instead of picking one' }))));
+        }
+
         if (question.type === 'track') {
             const groups = new Map();
             options.forEach(entry => {

@@ -173,7 +173,10 @@ test('track drafts freeze the eligible layouts with their locations', () => {
     const plan = A.exclusionPlan(catalogue, [seasons[0]], { unknown: { 'Old Ring': 'ignore' } });
     const draft = A.trackDraft({ plan: null, eligible: plan.eligible, catalogue, settings: {}, now: 0 });
     const def = P.buildDefinition(draft, catalogue);
-    assert.deepEqual(Object.keys(def.questions[0].options).sort(), ['imola', 'monza', 'spa-2022']);
+    assert.deepEqual(Object.keys(def.questions[0].options).sort(), ['imola', 'monza', 'random-track', 'spa-2022']);
+    assert.equal(def.questions[0].options['random-track'].locationId, undefined, 'the random choice has no location');
+    const noRandom = P.buildDefinition(A.trackDraft({ plan: null, eligible: plan.eligible, catalogue, settings: {}, now: 0, allowRandom: false }), catalogue);
+    assert.ok(!noRandom.questions[0].options['random-track']);
     assert.equal(def.questions[0].options.monza.locationName, 'Monza');
 });
 
@@ -250,4 +253,15 @@ test('saved track-name resolutions work in both stored formats and with awkward 
     const plan = A.exclusionPlan(catalogue, season, { unknown: { u1: { name: 'constructor', locationId: 'spa' }, 'Old Ring': 'ignore' } });
     assert.equal(plan.blocking, false);
     assert.deepEqual(plan.excluded.map(e => e.locationId), ['spa']);
+});
+
+test('a random-track pick never clashes and reserves no calendar place', () => {
+    const def = JSON.parse(JSON.stringify(trackDef));
+    def.questions[0].options['random-track'] = { label: 'Random track' };
+    const result = A.trackResolution(def, { alex: pick('random-track', 1), sam: pick('random-track', 2), kim: pick('monza', 3) }, {});
+    assert.deepEqual(result.random, ['alex', 'sam']);
+    assert.equal(result.unresolved, 0);
+    assert.deepEqual(result.assignments.map(a => a.uid), ['kim']);
+    assert.ok(result.freeLocations.every(l => l.locationId), 'the random choice is never offered as a replacement');
+    assert.deepEqual(result.rows.map(r => `${r.uid}:${r.status}`), ['alex:random', 'sam:random', 'kim:unique']);
 });

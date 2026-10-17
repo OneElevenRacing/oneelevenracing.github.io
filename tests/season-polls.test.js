@@ -84,7 +84,8 @@ test('building a definition freezes options with stable IDs and location snapsho
     assert.deepEqual(def.questions[4], { id: 'q5', index: 4, type: 'text', required: false, prompt: 'Notes', kind: 'text', maxLength: 500 });
     assert.equal(P.describeQuota(def.questions[0]), 'Choose exactly 2 of 3 options.');
     assert.equal(P.describeQuota(def.questions[1]), 'Choose up to 2 classes, or write your own.');
-    assert.equal(P.describeQuota(def.questions[2]), 'Choose exactly 1 of 3 layouts.');
+    assert.equal(P.describeQuota(def.questions[2]), 'Choose 1 of 3 layouts, or ask for a random track.');
+    assert.equal(def.questions[2].options['random-track'].label, 'Random track');
 });
 
 test('draft validation explains what blocks publishing', () => {

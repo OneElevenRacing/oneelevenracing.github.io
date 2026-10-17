@@ -137,7 +137,8 @@ test('a full dummy season runs end to end under the database rules', async () =>
     const options = trackDef.questions[0].options;
     assert.ok(!Object.values(options).some(o => o.locationName === 'Monza'), 'last season’s locations are excluded');
     const layoutAt = (name, n = 0) => Object.entries(options).filter(([, o]) => o.locationName === name)[n][0];
-    const trackPicks = { d1: layoutAt('Brands Hatch', 0), d2: layoutAt('Donington'), d3: layoutAt('Brands Hatch', 1), d4: layoutAt('Imola'), d5: layoutAt('Silverstone'), d6: layoutAt('Oulton Park') };
+    assert.ok(options[P.RANDOM_TRACK], 'drivers can ask for a random track');
+    const trackPicks = { d1: layoutAt('Brands Hatch', 0), d2: layoutAt('Donington'), d3: layoutAt('Brands Hatch', 1), d4: layoutAt('Imola'), d5: layoutAt('Silverstone'), d6: P.RANDOM_TRACK };
     for (const uid of DRIVERS) { await assertSucceeds(vote(uid, 'tracks', trackDef, [{ selections: [trackPicks[uid]] }])); await sleep(5); }
     await close('tracks', { state: 'published' });
     let resolution = AC.trackResolution(trackDef, await read(`${V1}/polls/tracks/ballots`), {});
@@ -151,6 +152,8 @@ test('a full dummy season runs end to end under the database rules', async () =>
     const config = (await read(`${V1}/planAdmin/${PLAN}/trackResolution/tracks`));
     resolution = AC.trackResolution(trackDef, await read(`${V1}/polls/tracks/ballots`), config);
     assert.equal(resolution.unresolved, 0);
+    assert.deepEqual(resolution.random, ['d6']);
+    assert.equal(resolution.assignments.length, 5, 'the random pick reserves no track');
 
     // 7. Rule vote: one passes, one ties and fails.
     const ruleDef = await publish('rules', AC.rulesDraft({ plan, proposals: [{ text: 'Allow ghosting?' }, { text: 'Reverse grid?' }], settings: {}, now: Date.now() }), catalogue);

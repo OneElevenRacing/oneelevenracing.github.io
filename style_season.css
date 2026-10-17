@@ -506,3 +506,5 @@
 .sp .sp-tabs .sp-tab-link:hover { background: var(--sp-soft); color: var(--sp-ink); }
 .sp .sp-stephead:hover { background: var(--sp-soft); color: var(--sp-ink); }
 .sp .sp-stephead:hover .sp-stepline { color: var(--sp-muted); }
+.sp-random-option { margin-bottom: 8px; background: var(--sp-soft); }
+.sp-random-option:has(input:checked) { background: #fff; }

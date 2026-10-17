@@ -517,6 +517,7 @@
                     } })));
         });
         if (result.invalid.length) put(card, h('p', { class: 'sp-status sp-error', text: `Some recorded replacements clash with another driver’s location: ${result.invalid.map(i => A.driverName(i.uid)).join(', ')}. Choose a free location for them.` }));
+        if (result.random.length) put(card, h('p', { class: 'sp-small', text: `Happy with a random track (no clash possible; the calendar draw fills their place): ${result.random.map(A.driverName).join(', ')}.` }));
         put(card, h('details', { class: 'sp-table-toggle' }, h('summary', { text: 'Show every driver’s current track' }),
             h('div', { class: 'sp-table-wrap' }, h('table', null, h('thead', null, h('tr', null, h('th', { text: 'Driver' }), h('th', { text: 'Track' }), h('th', { text: 'Source' }))),
                 h('tbody', null, result.assignments.map(a => h('tr', null, h('td', { text: A.driverName(a.uid) }), h('td', { text: layoutLabel(a.layoutId) }), h('td', { text: a.source === 'replacement' ? 'Replacement' : 'Original' }))))))));
@@ -529,7 +530,8 @@
             replace: h('span', { class: 'sp-badge sp-red', text: 'Needs a replacement' }),
             replaced: h('span', { class: 'sp-badge sp-green', text: 'Replacement recorded' }),
             tie: h('span', { class: 'sp-badge sp-amber', text: 'Tie' }),
-            exception: h('span', { class: 'sp-badge', text: 'Shared' })
+            exception: h('span', { class: 'sp-badge', text: 'Shared' }),
+            random: h('span', { class: 'sp-badge', text: 'Random track' })
         }[row.status] || null;
     }
 

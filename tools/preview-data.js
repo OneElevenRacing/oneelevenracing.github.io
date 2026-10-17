@@ -52,9 +52,11 @@
                 'sample-tracks': { control: tracks,
                     definition: { schema: 1, revision: 1, title: 'Track choice', questionCount: 1, questions: { 0: { id: 'q1', index: 0, type: 'track', kind: 'choice', required: true, prompt: 'Which track layout would you like on the calendar?', minSelections: 1, maxSelections: 1,
                         options: { 'brands-hatch': { label: 'Brands Hatch', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch.png' }, 'brands-hatch-indy': { label: 'Brands Hatch Indy', locationId: 'brands', locationName: 'Brands Hatch', imagePath: 'Logos_and_icons/racetracks/Brands_Hatch_Indy.png' }, monza: { label: 'Monza', locationId: 'monza', locationName: 'Monza', imagePath: 'Logos_and_icons/racetracks/Monza.png' },
-            imola: { label: 'Imola', locationId: 'imola', locationName: 'Imola', imagePath: 'Logos_and_icons/racetracks/Imola.png' }, 'donington-gp': { label: 'Donington GP', locationId: 'donington', locationName: 'Donington', imagePath: 'Logos_and_icons/racetracks/Donington_GP.png' } } } } },
-                    ballots: { demo1: ballot(t - 4 * 24 * hour, { 0: pickOne('brands-hatch') }), demo2: ballot(t - 3 * 24 * hour, { 0: pickOne('brands-hatch-indy') }), demo3: ballot(t - 2 * 24 * hour, { 0: pickOne('monza') }) },
-                    totals: { respondents: 3, questions: { 0: { options: { 'brands-hatch': 1, 'brands-hatch-indy': 1, monza: 1 } } } } },
+            imola: { label: 'Imola', locationId: 'imola', locationName: 'Imola', imagePath: 'Logos_and_icons/racetracks/Imola.png' }, 'donington-gp': { label: 'Donington GP', locationId: 'donington', locationName: 'Donington', imagePath: 'Logos_and_icons/racetracks/Donington_GP.png' },
+            'random-track': { label: 'Random track' } } } } },
+                    ballots: { demo1: ballot(t - 4 * 24 * hour, { 0: pickOne('brands-hatch') }), demo2: ballot(t - 3 * 24 * hour, { 0: pickOne('brands-hatch-indy') }), demo3: ballot(t - 2 * 24 * hour, { 0: pickOne('monza') }),
+                        demo4: ballot(t - 30 * hour, { 0: pickOne('random-track') }) },
+                    totals: { respondents: 4, questions: { 0: { options: { 'brands-hatch': 1, 'brands-hatch-indy': 1, monza: 1, 'random-track': 1 } } } } },
                 'sample-rules': { control: rules,
                     definition: { schema: 1, revision: 1, title: 'Rule changes', questionCount: 2, questions: {
                         0: { id: 'q1', index: 0, type: 'yesno', kind: 'choice', required: false, prompt: 'Allow ghosting on the formation lap?', minSelections: 1, maxSelections: 1, options: { yes: { label: 'Yes' }, no: { label: 'No' } } },
@@ -98,7 +100,7 @@
     // Sample season planning: a plan with polls in each state, for the Polls & Forms pages.
     data.realtime.seasonPlanning ||= {};
     data.realtime.seasonPlanning.v1 ||= {};
-    if (data.realtime.seasonPlanning.v1.sampleVersion !== 3) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 3, visibility: { drivers: true } });
+    if (data.realtime.seasonPlanning.v1.sampleVersion !== 4) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 4, visibility: { drivers: true } });
     const realtimeListeners = new Map();
     const seasonListeners = new Set();
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }

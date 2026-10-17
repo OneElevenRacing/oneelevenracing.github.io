@@ -33,7 +33,7 @@
         const options = data.definition.questions[0].options;
         return {
             ready: true, poll, open: poll.phase === 'open', unresolved: resolution.unresolved, exceptions: config.exceptions || {},
-            drivers: K.driverEvents(resolution.assignments, options)
+            drivers: K.driverEvents(resolution.assignments, options), randomCount: resolution.random.length
         };
     }
 
@@ -96,7 +96,7 @@
         const pool = K.randomPool(A.state.catalogue, { excluded, taken: info.drivers.map(d => d.locationId) });
         T.put(card,
             A.field('Number of events (1–24)', targetInput),
-            h('p', { class: 'sp-small' }, info.poll ? `${A.plural(info.drivers.length, 'driver choice')} from “${info.poll.title}”. ` : info.note || '',
+            h('p', { class: 'sp-small' }, info.poll ? `${A.plural(info.drivers.length, 'driver choice')} from “${info.poll.title}”${info.randomCount ? ` (${info.randomCount} more asked for a random track)` : ''}. ` : info.note || '',
                 `${A.plural(pool.length, 'eligible location')} for random draws (excluded and already-chosen locations, and layouts not allowed in random draws, are left out).`),
             info.open ? h('p', { class: 'sp-status sp-warn', text: 'The track poll is still open, so driver choices may change.' }) : null,
             info.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(info.unresolved, 'driver choice')} still ${info.unresolved === 1 ? 'needs' : 'need'} a decision in the track picks step.` }) : null);

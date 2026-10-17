@@ -246,17 +246,20 @@
         };
     }
 
-    function trackDraft({ plan, eligible, catalogue, settings, now }) {
+    function trackDraft({ plan, eligible, catalogue, settings, now, allowRandom = true }) {
         const locations = (catalogue && catalogue.locations) || {};
         const fixedOptions = {};
         eligible.forEach(track => {
             fixedOptions[track.id] = { label: track.name, locationId: track.locationId, locationName: (locations[track.locationId] || {}).name || track.shortName, imagePath: track.imagePath };
         });
+        if (allowRandom) fixedOptions[P.RANDOM_TRACK] = { ...P.RANDOM_TRACK_OPTION };
         const stage = stageFor(plan, 'Tracks');
         return baseDraft(settings, now, {
             title: 'Track choice', summary: 'Pick one track layout for next season’s calendar.', kind: 'track', resultVisibility: 'hidden', labelsHidden: false,
             planId: plan ? plan.id : undefined, stageId: stage ? stage.id : undefined,
-            questions: [{ type: 'track', source: 'fixed', fixedOptions, prompt: 'Which track layout would you like on the calendar?', help: 'Locations used last season aren’t available.', required: true, minSelections: 1, maxSelections: 1 }]
+            questions: [{ type: 'track', source: 'fixed', fixedOptions, prompt: 'Which track layout would you like on the calendar?',
+                help: allowRandom ? 'Locations used last season aren’t available. Not fussed? Tick the box for a random track.' : 'Locations used last season aren’t available.',
+                required: true, minSelections: 1, maxSelections: 1 }]
         });
     }
 
@@ -272,9 +275,12 @@
         const options = (definition.questions[index] && definition.questions[index].options) || {};
         const locationOf = layoutId => (options[layoutId] || {}).locationId || null;
         const choices = [];
+        const random = [];
         entriesOf(ballots).forEach(([uid, ballot]) => {
             const layoutId = SB.selectedOptions(definition, ballot)[index][0];
-            if (layoutId) choices.push({ uid, layoutId, locationId: locationOf(layoutId), submittedAt: ballot.submittedAt });
+            if (!layoutId) return;
+            if (!locationOf(layoutId)) random.push({ uid, layoutId, locationId: null, submittedAt: ballot.submittedAt, status: 'random', finalLayoutId: null });
+            else choices.push({ uid, layoutId, locationId: locationOf(layoutId), submittedAt: ballot.submittedAt });
         });
         const byLocation = new Map();
         choices.forEach(choice => {
@@ -316,13 +322,14 @@
         });
         const free = new Map();
         Object.entries(options).forEach(([layoutId, option]) => {
-            if (assigned.has(option.locationId)) return;
+            if (!option.locationId || assigned.has(option.locationId)) return;
             if (!free.has(option.locationId)) free.set(option.locationId, { locationId: option.locationId, name: option.locationName || option.locationId, layouts: [] });
             free.get(option.locationId).layouts.push({ id: layoutId, label: option.label });
         });
         const list = [...rows.values()];
         return {
-            rows: list.sort((a, b) => a.submittedAt - b.submittedAt),
+            rows: [...list, ...random].sort((a, b) => a.submittedAt - b.submittedAt),
+            random: random.map(r => r.uid),
             conflicts,
             invalid,
             freeLocations: [...free.values()].sort((a, b) => a.name.localeCompare(b.name)),

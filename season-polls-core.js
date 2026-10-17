@@ -9,6 +9,10 @@
     'use strict';
 
     const ZONE = 'Europe/London';
+    // A track question's "I'm happy with a random track" choice: an ordinary option
+    // (so votes are counted and checked like any other) without a location.
+    const RANDOM_TRACK = 'random-track';
+    const RANDOM_TRACK_OPTION = { label: 'Random track' };
     const DAY = 24 * 60 * 60 * 1000;
     const LIMITS = { questions: 50, options: 1000, writeIns: 200, textLength: 2000 };
     const QUESTION_TYPES = {
@@ -126,10 +130,12 @@
     function describeQuota(question, optionCount) {
         const count = optionCount === undefined ? Object.keys(question.options || {}).length : optionCount;
         const { minSelections: min, maxSelections: max } = question;
+        const random = question.type === 'track' && question.options && question.options[RANDOM_TRACK];
         const noun = question.type === 'track' ? 'layout' : question.type === 'class' || question.type === 'nomination' ? 'class' : 'option';
         const many = n => (n === 1 ? noun : noun === 'class' ? 'classes' : `${noun}s`);
         if (question.kind === 'text') return question.required ? 'Write your answer.' : 'Optional.';
         if (question.type === 'yesno') return 'Choose Yes or No.';
+        if (random && min === 1 && max === 1) return `Choose 1 of ${count - 1} ${many(count - 1)}, or ask for a random track.`;
         if (min === max) return `Choose exactly ${min} of ${count} ${many(count)}.`;
         if (min === 0) return `Choose up to ${max} ${many(max)}${question.allowWriteIns ? ', or write your own' : ''}.`;
         return `Choose ${min} to ${max} of ${count} ${many(count)}.`;
@@ -142,7 +148,7 @@
             case 'multi': return { ...base, source: 'manual', options: [], minSelections: 1, maxSelections: 2 };
             case 'class': return { ...base, source: 'classes', sourceIds: [], minSelections: 1, maxSelections: 1 };
             case 'nomination': return { ...base, source: 'classes', sourceIds: [], minSelections: 0, maxSelections: 0, allowWriteIns: true, maxWriteIns: 20 };
-            case 'track': return { ...base, source: 'layouts', sourceIds: [] };
+            case 'track': return { ...base, source: 'layouts', sourceIds: [], allowRandom: true };
             case 'yesno': return { ...base };
             default: return { ...base, type: 'text', required: false, maxLength: 2000 };
         }
@@ -167,10 +173,11 @@
             const all = C.trackList(catalogue || {}).filter(track => !track.system);
             const allowed = question.sourceIds && question.sourceIds.length ? new Set(question.sourceIds) : null;
             const locations = (catalogue && catalogue.locations) || {};
-            return all.filter(track => !allowed || allowed.has(track.id)).map(track => ({
+            const layouts = all.filter(track => !allowed || allowed.has(track.id)).map(track => ({
                 id: track.id, label: track.name, locationId: track.locationId,
                 locationName: (locations[track.locationId] || {}).name || track.shortName, imagePath: track.imagePath
             }));
+            return question.allowRandom ? [...layouts, { id: RANDOM_TRACK, ...RANDOM_TRACK_OPTION }] : layouts;
         }
         const taken = new Set();
         return (question.options || []).map(option => {
@@ -394,7 +401,7 @@
     }
 
     return {
-        ZONE, DAY, LIMITS, QUESTION_TYPES, VISIBILITY, BUILT_IN_TEMPLATES, DEFAULT_SETTINGS,
+        ZONE, DAY, LIMITS, RANDOM_TRACK, RANDOM_TRACK_OPTION, QUESTION_TYPES, VISIBILITY, BUILT_IN_TEMPLATES, DEFAULT_SETTINGS,
         pollPhase, resultsAccess, formatDateTime, formatDate, relative, londonInputToUtc, utcToLondonInput,
         draftKey, clearDrafts, defaultQuota, describeQuota, blankQuestion, resolveOptions, validateDraft,
         buildDefinition, buildControl, indexEntry, draftQuestions, draftFromTemplate, groupPolls, planProgress
