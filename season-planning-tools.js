@@ -43,6 +43,14 @@
             .sort((a, b) => a.opensAt - b.opensAt);
     }
 
+    // Links from a step to the poll's own page and, while it's live, straight to its editor.
+    function pollLinks(poll) {
+        const id = encodeURIComponent(poll.id);
+        return h('span', { class: 'sp-poll-links' },
+            h('a', { class: 'sp-small', href: `season-planning-admin.html?poll=${id}`, text: 'Open poll' }),
+            poll.state === 'published' ? h('a', { class: 'sp-small', href: `season-planning-admin.html?edit=${id}`, text: 'Edit poll' }) : null);
+    }
+
     // A poll's definition (an admin can still edit it while it's open) plus live
     // totals, control and, when asked for, live ballots. Each is subscribed to once for the page's lifetime, so
     // decisions always use the current answers and a failed read isn't retried in a loop.
@@ -168,8 +176,7 @@
         const poll = polls.find(p => p.id === nomination.pollId);
         return h('div', null,
             pollPicker(polls, nomination.pollId, id => { nomination.pollId = id; A.rerender(); }, 'Suggestion poll'),
-            h('p', null, h('strong', { text: poll.title }), ` · ${A.plural(result.respondents, 'response')} · `, A.phaseBadge(poll.phase),
-),
+            h('p', null, h('strong', { text: poll.title }), ` · ${A.plural(result.respondents, 'response')} · `, A.phaseBadge(poll.phase), ' ', pollLinks(poll)),
             writeInCard(result),
             shortlistCard(result, unchanged));
     }
@@ -314,7 +321,7 @@
 
     function roundCard(poll, meta) {
         const card = h('section', { class: 'sp-card' }, h('div', { class: 'sp-card-head' },
-            h('h2', null, h('a', { href: `season-planning-admin.html?poll=${encodeURIComponent(poll.id)}`, text: poll.title })), A.phaseBadge(poll.phase)));
+            h('h2', null, h('a', { href: `season-planning-admin.html?poll=${encodeURIComponent(poll.id)}`, text: poll.title })), h('span', { class: 'sp-inline-actions', style: 'align-items:center' }, pollLinks(poll), A.phaseBadge(poll.phase))));
         if (poll.phase === 'open' || poll.phase === 'scheduled') {
             put(card, h('p', { class: 'sp-muted', text: `The decision appears here once the round closes (${P.formatDateTime(poll.closesAt)}). You can close it early from the poll page.` }));
             return card;
@@ -488,7 +495,8 @@
                 } })),
             h('p', { class: 'sp-small', text: `${A.plural(plan.eligible.length, 'layout')} at ${A.plural(new Set(plan.eligible.map(t => t.locationId)).size, 'location')} will be offered. The list is frozen when the poll is published.` }),
             h('button', { type: 'button', text: 'Open track picks', disabled: plan.blocking || !plan.eligible.length, onclick: () => {
-                const draft = AC.trackDraft({ plan: A.activePlan(), eligible: plan.eligible, catalogue: A.state.catalogue, settings: A.settings(), now: A.now() });
+                const season = A.activePlan();
+                const draft = AC.trackDraft({ plan: season, eligible: plan.eligible, catalogue: A.state.catalogue, settings: A.settings(), now: A.now(), askRules: Boolean(season) && AC.includedSteps(season).includes('rules') });
                 createDraft(draft, 'create-track-poll', `Track poll draft with ${plan.eligible.length} layouts; excluded ${plan.excluded.map(e => e.name).join(', ') || 'none'}`, () => ({}));
             } }));
         return card;
@@ -513,8 +521,7 @@
         const locationName = id => (Object.values(options).find(o => o.locationId === id) || {}).locationName || id;
         const base = `${planPath()}/trackResolution/${track.pollId}`;
         put(card, 
-            h('p', null, A.phaseBadge(poll.phase), ` ${A.plural(result.rows.length, 'driver')} chose a layout. `, poll.phase === 'open' ? 'Provisional until the poll closes. ' : '',
-),
+            h('p', null, A.phaseBadge(poll.phase), ` ${A.plural(result.rows.length, 'driver')} chose a layout. `, poll.phase === 'open' ? 'Provisional until the poll closes. ' : '', pollLinks(poll)),
             result.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(result.unresolved, 'driver')} still ${result.unresolved === 1 ? 'needs' : 'need'} a replacement or a decision. The calendar can’t be finalised until this is resolved.` })
                 : h('p', { class: 'sp-status sp-ok', text: 'No unresolved duplicates.' }),
             h('p', { class: 'sp-muted sp-small', text: 'Rule: when drivers chose layouts at the same location, the one who submitted last keeps it; earlier drivers pick again. Contact them outside the website and record their new choice here.' }));
@@ -666,7 +673,7 @@
         const confirmed = tools.planAdmin.outcomes || {};
         const proposalFor = (pollId, index) => proposals().find(p => p.pollId === pollId && p.questionIndex === index);
         polls.forEach(poll => {
-            put(card, h('h3', { style: 'margin:14px 0 4px' }, poll.title, ' ', A.phaseBadge(poll.phase)));
+            put(card, h('h3', { style: 'margin:14px 0 4px' }, poll.title, ' ', A.phaseBadge(poll.phase), ' ', pollLinks(poll)));
             if (poll.phase === 'open' || poll.phase === 'scheduled') { put(card, h('p', { class: 'sp-muted', text: `Outcomes appear when the vote closes (${P.formatDateTime(poll.closesAt)}).` })); return; }
             const data = pollData(poll.id);
             if (!data.definition) { put(card, loading()); return; }

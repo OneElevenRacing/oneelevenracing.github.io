@@ -269,3 +269,17 @@ test('a random-track pick never clashes and reserves no calendar place', () => {
     assert.ok(result.freeLocations.every(l => l.locationId), 'the random choice is never offered as a replacement');
     assert.deepEqual(result.rows.map(r => `${r.uid}:${r.status}`), ['alex:random', 'sam:random', 'kim:unique']);
 });
+
+test('a track poll can also ask for rule-change ideas without disturbing the track question', () => {
+    const catalogue = { locations: { monza: { name: 'Monza' } }, layouts: { 'monza-gp': { name: 'Monza GP', locationId: 'monza' }, spa: { name: 'Spa', locationId: 'monza' } } };
+    const eligible = [{ id: 'monza-gp', name: 'Monza GP', locationId: 'monza' }, { id: 'spa', name: 'Spa', locationId: 'monza' }];
+    const plain = A.trackDraft({ plan: null, eligible, catalogue, settings: {}, now: 0 });
+    assert.equal(plain.questions.length, 1);
+    const asking = A.trackDraft({ plan: null, eligible, catalogue, settings: {}, now: 0, askRules: true });
+    assert.equal(asking.questions.length, 2);
+    const definition = P.buildDefinition(asking, catalogue);
+    assert.equal(definition.questions[0].type, 'track');
+    assert.equal(definition.questions[1].kind, 'text');
+    assert.equal(definition.questions[1].required, false);
+    assert.deepEqual(P.validateDraft({ ...asking, title: 'Tracks', opensAt: 0, closesAt: 1 }, catalogue), []);
+});

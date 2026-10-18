@@ -282,6 +282,8 @@
                 problems.push(`${label}: the number of choices can't change after votes.`);
             }
             if (old.kind === 'nomination') {
+                const capped = q => q.maxSelections < Object.keys(q.options || {}).length;
+                if ((capped(old) || capped(now)) && now.maxSelections !== old.maxSelections) problems.push(`${label}: the most classes each driver can pick can't change after votes.`);
                 if (Boolean(now.allowWriteIns) !== Boolean(old.allowWriteIns)) problems.push(`${label}: written suggestions can't be switched on or off after votes.`);
                 else if (old.allowWriteIns && now.maxWriteIns < old.maxWriteIns) problems.push(`${label}: the written-suggestion limit can only go up after votes.`);
             }

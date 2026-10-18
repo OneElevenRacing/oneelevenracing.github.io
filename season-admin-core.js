@@ -246,7 +246,9 @@
         };
     }
 
-    function trackDraft({ plan, eligible, catalogue, settings, now, allowRandom = true }) {
+    // `askRules` adds an optional written question so drivers can propose rule changes
+    // with their track pick; the Rule changes step lists those answers.
+    function trackDraft({ plan, eligible, catalogue, settings, now, allowRandom = true, askRules = false }) {
         const locations = (catalogue && catalogue.locations) || {};
         const fixedOptions = {};
         eligible.forEach(track => {
@@ -259,7 +261,8 @@
             planId: plan ? plan.id : undefined, stageId: stage ? stage.id : undefined,
             questions: [{ type: 'track', source: 'fixed', fixedOptions, prompt: 'Which track layout would you like on the calendar?',
                 help: allowRandom ? 'Locations used last season aren’t available. Not fussed? Tick the box for a random track.' : 'Locations used last season aren’t available.',
-                required: true, minSelections: 1, maxSelections: 1 }]
+                required: true, minSelections: 1, maxSelections: 1 },
+            ...(askRules ? [{ type: 'text', prompt: 'Any rule changes you’d like to propose for next season?', help: 'Optional. Admins turn suggestions into proposals for the rule vote.', required: false, maxLength: 2000 }] : [])]
         });
     }
 

@@ -202,7 +202,9 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
 
 1. **Start a season.** Name it and untick any steps you don't need this time. Drivers see the
    ticked steps as the progress strip on Polls & Forms. **Edit season** changes this later.
-2. **Car-class suggestions:** create the suggestions poll. When it closes, review the written
+2. **Car-class suggestions:** create the suggestions poll. By default each driver can pick up
+   to 5 listed classes (change **Most classes each driver can pick** in the editor, or leave
+   it blank for no limit). When it closes, review the written
    suggestions (match, merge, add as a new class or exclude), tick the shortlist and press
    **Start round 1**.
 3. **Car-class voting rounds:** when a round closes, check the result. If there's a tie at the
@@ -210,7 +212,9 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
    explanation. Then set up the next round. When one class is left, confirm the winner. (If
    you skipped suggestions, tick the classes for round 1 here instead.)
 4. **Track picks:** tick the previous seasons to exclude, adjust if needed, resolve any unknown
-   track names and press **Open track picks**. After it closes, contact drivers who lost a
+   track names and press **Open track picks**. If the season includes rule changes, the track
+   poll also asks drivers (optionally) for rule-change ideas; they appear under **Written
+   suggestions from drivers** in the Rule changes step. After it closes, contact drivers who lost a
    shared location, record their new choice (only free locations are offered), and settle
    any identical submission times.
 5. **Rule changes:** turn suggestions into Yes/No proposals, flag related ones, open the vote
@@ -223,6 +227,7 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
    championship in Championship Admin as usual; publishing the summary doesn't do that for
    you. **Finish season** at the top of the page when you're done.
 
+Each poll in a step has **Open poll** and, while it's live, **Edit poll** links.
 Each step has an **Activity** list of its decisions; **Full activity log** (bottom of the Season
 page, or Settings) shows everything.
 

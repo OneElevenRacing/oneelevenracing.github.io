@@ -203,3 +203,18 @@ test('a suggestions question with every class unticked offers none and asks for 
     assert.equal(P.describeQuota(question), 'Write in the classes you’d like (up to 20).');
     assert.deepEqual(P.validateDraft({ ...draft, questions: [{ ...none, allowWriteIns: false }] }, cat), ['Question 1: offer catalogue classes, written suggestions, or both.']);
 });
+
+test('a suggestions poll can cap how many listed classes each driver picks', () => {
+    const cat = { classes: Object.fromEntries(['a', 'b', 'c', 'd', 'e', 'f'].map(id => [id, { name: id.toUpperCase() }])) };
+    const template = P.BUILT_IN_TEMPLATES.find(t => t.id === 'builtin-nomination');
+    const draft = { ...P.draftFromTemplate(template, {}, 0), opensAt: 0, closesAt: 1 };
+    assert.deepEqual(P.validateDraft(draft, cat), []);
+    const question = P.buildDefinition(draft, cat).questions[0];
+    assert.equal(question.maxSelections, 5, 'the template suggests up to 5');
+    assert.equal(P.describeQuota(question), 'Choose up to 5 classes, or write your own.');
+    assert.equal(P.draftQuestions({ questionCount: 1, questions: { 0: question } })[0].maxPicks, 5, 'the cap survives Duplicate and editing');
+    const uncapped = P.buildDefinition({ ...draft, questions: [{ ...draft.questions[0], maxPicks: undefined }] }, cat).questions[0];
+    assert.equal(uncapped.maxSelections, 6);
+    assert.equal(P.draftQuestions({ questionCount: 1, questions: { 0: uncapped } })[0].maxPicks, undefined);
+    assert.match(P.validateDraft({ ...draft, questions: [{ ...draft.questions[0], maxPicks: 0 }] }, cat).join(' '), /most classes per driver/);
+});

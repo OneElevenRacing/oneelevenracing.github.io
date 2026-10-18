@@ -223,6 +223,7 @@
             if (question.type === 'nomination') {
                 if (!options.length && !question.allowWriteIns) errors.push(`${label}: offer catalogue classes, written suggestions, or both.`);
                 if (question.allowWriteIns && !(question.maxWriteIns >= 1 && question.maxWriteIns <= LIMITS.writeIns)) errors.push(`${label}: written suggestions must be limited to 1–${LIMITS.writeIns}.`);
+                if (question.maxPicks !== undefined && question.maxPicks !== null && !(Number.isInteger(question.maxPicks) && question.maxPicks >= 1)) errors.push(`${label}: the most classes per driver must be 1 or more (or left blank for no limit).`);
             }
         });
         return errors;
@@ -255,7 +256,9 @@
             });
             const count = Object.keys(options).length;
             if (question.type === 'nomination') {
-                questions[index] = { ...base, kind: 'nomination', minSelections: 0, maxSelections: count, options,
+                // maxPicks caps how many listed classes one driver can pick (blank: no cap).
+                const cap = question.maxPicks >= 1 ? Math.min(question.maxPicks, count) : count;
+                questions[index] = { ...base, kind: 'nomination', minSelections: 0, maxSelections: cap, options,
                     ...(question.allowWriteIns ? { allowWriteIns: true, maxWriteIns: question.maxWriteIns } : { allowWriteIns: false }) };
                 if (!count) delete questions[index].options;
                 return;
@@ -282,7 +285,10 @@
             draft.fixedOptions = JSON.parse(JSON.stringify(q.options || {}));
             draft.minSelections = q.minSelections;
             draft.maxSelections = q.maxSelections;
-            if (q.kind === 'nomination') Object.assign(draft, { allowWriteIns: q.allowWriteIns === true, maxWriteIns: q.maxWriteIns || 20 });
+            if (q.kind === 'nomination') {
+                Object.assign(draft, { allowWriteIns: q.allowWriteIns === true, maxWriteIns: q.maxWriteIns || 20 });
+                if (q.maxSelections < Object.keys(q.options || {}).length) draft.maxPicks = q.maxSelections;
+            }
             list.push(draft);
         }
         return list;
@@ -327,7 +333,7 @@
     const BUILT_IN_TEMPLATES = [
         { id: 'builtin-nomination', name: 'Car-class suggestions', kind: 'nomination', description: 'Drivers pick any classes from the catalogue and can write in new ones.',
             draft: { title: 'Car class suggestions', summary: 'Suggest the classes you would like to race next season.',
-                questions: [{ ...blankQuestion('nomination'), prompt: 'Which car classes would you like to race next season?', help: 'Choose as many as you like and add any that are missing.' },
+                questions: [{ ...blankQuestion('nomination'), maxPicks: 5, prompt: 'Which car classes would you like to race next season?', help: 'Choose up to 5 and add any that are missing.' },
                     { ...blankQuestion('text'), prompt: 'Anything else about the car choice?' }] } },
         { id: 'builtin-elimination', name: 'Car-class voting round', kind: 'elimination', description: 'An exact number of choices from a fixed shortlist.',
             draft: { title: 'Car class round 1', summary: 'Vote for the classes that should go through to the next round.', labelsHidden: true, resultVisibility: 'live',

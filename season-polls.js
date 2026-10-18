@@ -81,9 +81,14 @@
         const elapsed = Math.round(performance.now() - stripStart);
         const animate = !UI.reduceMotion() && elapsed < 2500;
         return h('ol', { class: `sp-progress${animate ? ' sp-progress-animate' : ''}`, 'aria-label': 'Season planning stages', style: `--elapsed:${elapsed}ms` }, stages.map((stage, i) => {
-            const label = { done: 'finished', open: 'open now', scheduled: stage.opensAt ? `opens ${P.formatDate(stage.opensAt)}` : 'scheduled', upcoming: 'not started' }[stage.status];
-            return h('li', { class: `sp-step sp-step-${stage.status}`, style: `--i:${i}`, 'aria-current': stage.status === 'open' ? 'step' : undefined },
-                h('span', { class: 'sp-step-dot', 'aria-hidden': 'true', text: stage.status === 'done' ? '✓' : String(i + 1) }),
+            // An open stage shows as done for this driver once they've answered all its open polls.
+            const open = stage.polls.filter(poll => poll.phase === 'open');
+            const answered = stage.status === 'open' && open.length > 0 && open.every(poll => hub.submitted[poll.id] === true);
+            const status = answered ? 'done' : stage.status;
+            const label = answered ? 'open now, you’ve taken part'
+                : { done: 'finished', open: 'open now', scheduled: stage.opensAt ? `opens ${P.formatDate(stage.opensAt)}` : 'not yet open', upcoming: 'not yet open' }[stage.status];
+            return h('li', { class: `sp-step sp-step-${status}`, style: `--i:${i}`, 'aria-current': stage.status === 'open' ? 'step' : undefined },
+                h('span', { class: 'sp-step-dot', 'aria-hidden': 'true', text: status === 'done' ? '✓' : String(i + 1) }),
                 h('span', { class: 'sp-step-label', text: stage.label }),
                 h('span', { class: 'sp-visually-hidden', text: `, ${label}` }));
         }));
@@ -92,7 +97,7 @@
     function yourProgress(stages) {
         const items = stages.flatMap(stage => (stage.polls.length ? stage.polls : [null]).map(poll => {
             let status;
-            if (!poll) status = h('span', { class: 'sp-muted', text: 'Not started' });
+            if (!poll) status = h('span', { class: 'sp-muted', text: 'Not yet open' });
             else if (poll.phase === 'scheduled') status = h('span', { class: 'sp-muted', text: `Opens ${P.formatDate(poll.opensAt)}` });
             else if (hub.submitted[poll.id] === true) status = h('span', { class: 'sp-green-text', text: 'Submitted' });
             else if (poll.phase === 'open') status = h('span', { class: 'sp-red-text', text: 'Open now' });

@@ -548,6 +548,7 @@
                 h('p', { class: 'sp-muted sp-small', style: 'margin-top:-6px', text: 'Set both to the same number for “choose exactly”.' }), suggest);
         }
         if (q.type === 'nomination') {
+            parts.push(field('Most classes each driver can pick', bindNumber(q, 'maxPicks', 1, 1000, updateSummary), 'Stops anyone ticking every class. Leave blank for no limit.'));
             parts.push(bindCheck(q, 'allowWriteIns', 'Drivers can write in their own suggestions', () => { updateSummary(); rerender(); }));
             if (q.allowWriteIns) parts.push(field('Most written suggestions per driver', bindNumber(q, 'maxWriteIns', 1, 200, updateSummary), 'A technical safeguard, not a quota (up to 200).'));
         }
