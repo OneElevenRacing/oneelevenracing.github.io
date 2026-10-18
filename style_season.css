@@ -346,9 +346,9 @@
 .sp-actionbar-count strong { font-size: 1.3rem; display: inline-block; }
 .sp-actionbar button { flex: 0 1 auto; }
 @media (max-width: 420px) {
-    .sp-actionbar-count { font-size: 0.85rem; white-space: nowrap; }
+    .sp-actionbar-count { font-size: 0.85rem; line-height: 1.25; min-width: 0; }
     .sp-actionbar-count strong { font-size: 1.15rem; }
-    .sp-driver .sp-actionbar button { padding-left: 14px; padding-right: 14px; white-space: nowrap; }
+    .sp-driver .sp-actionbar button { flex: none; padding-left: 14px; padding-right: 14px; white-space: nowrap; }
 }
 
 .sp-answers { margin: 8px 0; }
@@ -385,7 +385,8 @@
 .sp-tabs .sp-tab-link[aria-selected="true"] { color: var(--sp-ink); border-bottom: 3px solid var(--sp-red); }
 .sp-dialog.sp-dialog-wide { width: min(760px, calc(100vw - 24px)); }
 .sp-preview { border: 1px dashed #bdbdbd; border-radius: var(--sp-radius); padding: 12px; }
-.sp-preview .sp-actionbar { margin: 12px -12px -12px; border-radius: 0 0 var(--sp-radius) var(--sp-radius); box-shadow: none; border-bottom: 0; }
+/* In the preview window the bar sticks to the window's very bottom, over its 16px padding. */
+.sp-preview .sp-actionbar { bottom: -16px; margin: 12px -12px -12px; border-radius: 0 0 var(--sp-radius) var(--sp-radius); box-shadow: 0 -6px 14px -12px rgba(0, 0, 0, 0.35); border-bottom: 0; }
 .sp-admin-stages { margin: 8px 0 12px; padding-left: 22px; }
 .sp-admin-stages li { margin: 4px 0; }
 .sp-stage-editor { padding-left: 22px; }
