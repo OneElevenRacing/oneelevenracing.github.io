@@ -21,8 +21,10 @@
     <script src="season-calendar.js"></script>
     <script defer src="checkAuth.js"></script>
     <script defer src="season-polls.js"></script>
+    <!-- The header shows straight away; the page content appears once sign-in is confirmed. -->
+    <script>document.addEventListener('oneEleven:activeDriver', function () { document.body.classList.remove('sp-auth-pending'); });</script>
 </head>
-<body data-show-after-auth="true" style="display:none">
+<body data-show-after-auth="true" class="sp-auth-pending">
     <header>
         <a href="main.html" class="back-button" id="backLink" aria-label="Back to home">
             <img src="Logos_and_icons/back.png" alt="">

@@ -194,7 +194,11 @@ Everything happens on **Season Planning → Season**, a checklist of steps. Each
 status: *To do*, *Waiting* (for votes), **Needs you**, *Done* or *Skipped*. The line at the
 top, **What needs doing**, always points at the next thing to do; press **Go** to open it.
 Polls created from a step only ask for a closing date and an optional message, then
-publish. Choose **Edit questions first** if you want to change the questions.
+publish. Choose **Edit questions first** if you want to change the questions. That saves a
+draft; it then appears in the step as **Saved draft → Open draft** until you publish it.
+
+In the poll editor, **Classes to offer** starts with every class ticked. Untick the ones to
+leave out, or press **Untick all** for a suggestions poll that only asks for written answers.
 
 1. **Start a season.** Name it and untick any steps you don't need this time. Drivers see the
    ticked steps as the progress strip on Polls & Forms. **Edit season** changes this later.

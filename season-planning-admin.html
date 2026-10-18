@@ -27,8 +27,10 @@
     <script defer src="season-planning-tools.js"></script>
     <script defer src="season-planning-calendar.js"></script>
     <script defer src="season-planning-season.js"></script>
+    <!-- The header shows straight away; the page content appears once sign-in is confirmed. -->
+    <script>document.addEventListener('oneEleven:adminDriver', function () { document.body.classList.remove('sp-auth-pending'); });</script>
 </head>
-<body data-require-admin="true" data-denied-url="settings.html" style="display:none">
+<body data-require-admin="true" data-denied-url="settings.html" class="sp-auth-pending">
     <header>
         <a href="admin.html" class="back-button" id="backLink" aria-label="Back to Admin">
             <img src="Logos_and_icons/back.png" alt="">

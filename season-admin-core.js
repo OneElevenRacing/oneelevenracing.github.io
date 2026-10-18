@@ -397,16 +397,22 @@
 
     // Status of every step for the admin checklist: 'skipped', 'todo', 'waiting',
     // 'decide' (needs the admin) or 'done', with a one-line explanation.
-    function seasonSteps({ plan, polls, roundDrafts = [], planAdmin = {}, trackUnresolved = null, now }) {
+    // `stepDrafts` lists saved drafts per step ({ suggestions, tracks, rules }), so a
+    // step whose poll is still a draft points at it instead of "create".
+    function seasonSteps({ plan, polls, roundDrafts = [], stepDrafts = {}, planAdmin = {}, trackUnresolved = null, now }) {
         const included = new Set(includedSteps(plan));
         const latest = list => (list && list.length ? list[list.length - 1] : null);
         const closed = poll => poll && (poll.phase === 'closed' || poll.phase === 'finalised' || poll.phase === 'archived');
         const when = ts => P.formatDateTime(ts, { year: false });
         const rounds = polls.rounds || [];
         const result = {};
+        const draftLine = step => {
+            const list = stepDrafts[step] || [];
+            return list.length ? ['decide', `“${list[0].title || 'Untitled poll'}” is saved as a draft: finish and publish it`] : null;
+        };
 
         const suggestion = latest(polls.suggestions);
-        if (!suggestion) result.suggestions = ['todo', 'Create the suggestions poll'];
+        if (!suggestion) result.suggestions = draftLine('suggestions') || ['todo', 'Create the suggestions poll'];
         else if (!closed(suggestion)) result.suggestions = ['waiting', suggestion.phase === 'scheduled' ? `Opens ${when(suggestion.opensAt)}` : `Voting closes ${when(suggestion.closesAt)}`];
         else if (planAdmin.shortlist && (rounds.length || roundDrafts.length)) result.suggestions = ['done', `Shortlist of ${Object.values(planAdmin.shortlist.items || {}).length} classes`];
         else result.suggestions = ['decide', 'Review the suggestions and pick the shortlist'];
@@ -421,7 +427,7 @@
         else result.rounds = ['decide', 'Open the next round or confirm the winner'];
 
         const trackPoll = latest(polls.tracks);
-        if (!trackPoll) result.tracks = ['todo', 'Check the exclusions and open track picks'];
+        if (!trackPoll) result.tracks = draftLine('tracks') || ['todo', 'Check the exclusions and open track picks'];
         else if (!closed(trackPoll)) result.tracks = ['waiting', `Track picks close ${when(trackPoll.closesAt)}`];
         else if (trackUnresolved === null) result.tracks = ['decide', 'Check for drivers who picked the same location'];
         else if (trackUnresolved > 0) result.tracks = ['decide', `${trackUnresolved} ${trackUnresolved === 1 ? 'driver needs' : 'drivers need'} a replacement track`];
@@ -430,7 +436,8 @@
         const proposals = Object.values(planAdmin.proposals || {}).filter(p => p && p.status !== 'withdrawn');
         const rulePoll = latest(polls.rules);
         const outcomes = planAdmin.outcomes || {};
-        if (!rulePoll && !proposals.length) result.rules = ['todo', 'Add the rule proposals'];
+        if (!rulePoll && draftLine('rules')) result.rules = draftLine('rules');
+        else if (!rulePoll && !proposals.length) result.rules = ['todo', 'Add the rule proposals'];
         else if (!rulePoll) result.rules = ['todo', `Open the rule vote (${proposals.length} ${proposals.length === 1 ? 'proposal' : 'proposals'})`];
         else if (!closed(rulePoll)) result.rules = ['waiting', `Rule vote closes ${when(rulePoll.closesAt)}`];
         else {

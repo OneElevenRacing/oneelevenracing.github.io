@@ -19,8 +19,10 @@
     <script src="season-polls-core.js"></script>
     <script defer src="checkAuth.js"></script>
     <script defer src="racing-setup.js"></script>
+    <!-- The header shows straight away; the page content appears once sign-in is confirmed. -->
+    <script>document.addEventListener('oneEleven:adminDriver', function () { document.body.classList.remove('sp-auth-pending'); });</script>
 </head>
-<body data-require-admin="true" data-denied-url="settings.html" style="display:none">
+<body data-require-admin="true" data-denied-url="settings.html" class="sp-auth-pending">
     <header>
         <a href="admin.html" class="back-button" aria-label="Back to Admin">
             <img src="Logos_and_icons/back.png" alt="">

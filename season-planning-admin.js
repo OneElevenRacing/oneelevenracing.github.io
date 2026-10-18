@@ -453,17 +453,17 @@
                 } })));
 
         const actions = isDraft
-            ? [h('button', { type: 'button', class: 'sp-secondary', text: 'Save draft', onclick: saveDraft }),
+            ? [h('button', { type: 'button', class: 'sp-secondary', text: 'Save draft', onclick: event => UI.saveFeedback(event.currentTarget, saveDraft, { note: $('barNote') }) }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
                 h('button', { type: 'button', text: 'Publish…', onclick: publishDraft })]
             : [h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
-                h('button', { type: 'button', text: 'Save template', onclick: saveTemplate })];
+                h('button', { type: 'button', text: 'Save template', onclick: event => UI.saveFeedback(event.currentTarget, saveTemplate, { note: $('barNote') }) })];
         fill($('view'),
             h('h2', { class: 'sp-section-title', style: 'margin-top:4px !important' }, isDraft ? 'Edit draft poll' : 'Edit template', ' ',
                 h('span', { id: 'dirtyFlag', class: 'sp-badge sp-amber', hidden: !editor.dirty, text: 'Unsaved changes' })),
             d.replaces ? h('p', { class: 'sp-status sp-warn', text: 'This draft replaces a published poll. Publishing it closes the original and links the two.' }) : null,
             errors, basics, timing, questions,
-            h('div', { class: 'sp-actionbar' }, h('span', { class: 'sp-small sp-muted', text: isDraft ? 'Drivers can’t see drafts.' : 'Templates only shape new drafts.' }), h('div', { class: 'sp-inline-actions' }, actions)),
+            h('div', { class: 'sp-actionbar' }, h('span', { id: 'barNote', class: 'sp-small sp-muted', 'aria-live': 'polite', text: isDraft ? 'Drivers can’t see drafts.' : 'Templates only shape new drafts.' }), h('div', { class: 'sp-inline-actions' }, actions)),
             isDraft ? h('p', null, h('button', { type: 'button', class: 'sp-link', text: 'Save as template', onclick: draftToTemplate }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Delete draft', onclick: async () => { editor.dirty = false; await deleteDraft(editor.id, d); location.href = '?tab=polls'; } })) : null);
     }
@@ -550,14 +550,32 @@
         const entries = Object.entries((state.catalogue && state.catalogue[group]) || {}).filter(([, e]) => e.active !== false)
             .sort(([, a], [, b]) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
         if (!entries.length) return h('p', { class: 'sp-status sp-warn' }, 'No car classes in the catalogue yet. ', h('a', { href: 'racing-setup.html', text: 'Add them in Racing Setup' }), q.type === 'nomination' ? ' or rely on written suggestions.' : '.');
-        const chosen = new Set(q.sourceIds || []);
-        const list = h('div', { class: 'sp-checklist' }, entries.map(([id, e]) => {
+        // Every class starts ticked ("offer all"). Unticking narrows the list; unticking
+        // everything offers none (a suggestions poll can then rely on written answers).
+        const all = !(q.sourcePicked === true || (q.sourceIds && q.sourceIds.length));
+        const chosen = new Set(all ? entries.map(([id]) => id) : q.sourceIds || []);
+        const count = h('span', { class: 'sp-small sp-muted' });
+        const store = () => {
+            const everything = entries.every(([id]) => chosen.has(id));
+            q.sourcePicked = everything ? undefined : true;
+            q.sourceIds = everything ? [] : [...chosen];
+            count.textContent = everything ? `All ${entries.length} classes` : chosen.size ? `${chosen.size} of ${entries.length} classes` : 'No classes: written suggestions only';
+        };
+        const boxes = entries.map(([id, e]) => {
             const input = h('input', { type: 'checkbox', checked: chosen.has(id) });
-            input.addEventListener('change', () => { if (input.checked) chosen.add(id); else chosen.delete(id); q.sourceIds = [...chosen]; markDirty(); updateSummary(); });
-            return h('label', { class: 'sp-check' }, input, e.name);
-        }));
+            input.addEventListener('change', () => { if (input.checked) chosen.add(id); else chosen.delete(id); store(); markDirty(); updateSummary(); });
+            return { id, input, label: h('label', { class: 'sp-check' }, input, e.name) };
+        });
+        const setAll = on => () => { boxes.forEach(b => { b.input.checked = on; if (on) chosen.add(b.id); else chosen.delete(b.id); }); store(); markDirty(); updateSummary(); };
+        store();
         return h('div', { class: 'sp-field' }, h('p', { style: 'font-weight:600;margin:0', text: 'Classes to offer' }),
-            h('p', { class: 'sp-hint', text: 'Leave all unticked to offer every active class. Options are frozen when you publish.' }), list);
+            h('p', { class: 'sp-hint', text: q.type === 'nomination'
+                ? 'Untick classes to leave them out. Untick all to ask for written suggestions only. Options are frozen when you publish.'
+                : 'Untick classes to leave them out. Options are frozen when you publish.' }),
+            h('div', { class: 'sp-inline-actions', style: 'margin:2px 0 4px;align-items:center' }, count,
+                h('button', { type: 'button', class: 'sp-link', text: 'Tick all', onclick: setAll(true) }),
+                h('button', { type: 'button', class: 'sp-link', text: 'Untick all', onclick: setAll(false) })),
+            h('div', { class: 'sp-checklist' }, boxes.map(b => b.label)));
     }
 
     function locationChecklist(q, updateSummary) {
@@ -586,7 +604,8 @@
     }
 
     async function saveDraft() {
-        if (await save({ [`${V1}/drafts/${editor.id}`]: draftRecord() }, 'Draft saved.')) { editor.dirty = false; $('dirtyFlag').hidden = true; }
+        if (await save({ [`${V1}/drafts/${editor.id}`]: draftRecord() }, 'Draft saved.')) { editor.dirty = false; $('dirtyFlag').hidden = true; return true; }
+        return false;
     }
 
     function previewDraft() {
@@ -672,7 +691,9 @@
             editor.dirty = false;
             if (!editor.templateKey) location.href = `?template=${encodeURIComponent(id)}`;
             else $('dirtyFlag').hidden = true;
+            return true;
         }
+        return false;
     }
 
     // ---------- A published poll ----------
@@ -920,6 +941,31 @@
             setStatus(`Could not load ${key}: ${error.message}`, 'error');
         });
     }
+
+    // Switching between the main sections (Season, Polls, Settings…) happens in place,
+    // without loading the page again. Poll pages and the editor are still their own pages.
+    const isMain = search => { const p = new URLSearchParams(search); return !p.get('poll') && !p.get('draft') && !p.get('template'); };
+    function syncParams() {
+        [...params.keys()].forEach(key => params.delete(key));
+        new URLSearchParams(location.search).forEach((value, key) => params.set(key, value));
+    }
+    document.addEventListener('click', event => {
+        const link = event.target.closest && event.target.closest('a[href]');
+        if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || link.target || link.hasAttribute('download')) return;
+        const url = new URL(link.href, location.href);
+        if (url.origin !== location.origin || url.pathname !== location.pathname || !isMain(location.search) || !isMain(url.search)) return;
+        event.preventDefault();
+        if (url.href !== location.href) history.pushState(null, '', url);
+        syncParams();
+        window.scrollTo(0, 0);
+        route();
+        UI.enter($('view'));
+    });
+    window.addEventListener('popstate', () => {
+        if (!isMain(location.search)) { location.reload(); return; }
+        syncParams();
+        route();
+    });
 
     // Shared with season-planning-tools.js.
     window.SeasonAdmin = {

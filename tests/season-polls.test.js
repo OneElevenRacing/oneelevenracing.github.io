@@ -189,3 +189,17 @@ test('rule summaries respect a minimum turnout', () => {
     assert.match(R.summaryText(rows, { respondents: 3, yesNo: true }), /Passes \(2 Yes, 1 No\)/);
     assert.match(R.summaryText(rows, { respondents: 3, yesNo: true, minTurnout: 5 }), /No decision — fewer than 5 votes/);
 });
+
+test('a suggestions question with every class unticked offers none and asks for written suggestions', () => {
+    const cat = { classes: { a: { name: 'A' }, b: { name: 'B' } } };
+    const blank = P.blankQuestion('nomination');
+    assert.equal(P.resolveOptions(blank, cat).length, 2, 'untouched means every active class');
+    const none = { ...blank, prompt: 'Which classes?', sourcePicked: true };
+    assert.deepEqual(P.resolveOptions(none, cat), []);
+    assert.deepEqual(P.resolveOptions({ ...blank, sourcePicked: true, sourceIds: ['b'] }, cat).map(o => o.id), ['b']);
+    const draft = { title: 'Ideas', opensAt: 0, closesAt: 1e13, resultVisibility: 'hidden', questions: [none] };
+    assert.deepEqual(P.validateDraft(draft, cat), []);
+    const question = P.buildDefinition(draft, cat).questions[0];
+    assert.equal(P.describeQuota(question), 'Write in the classes you’d like (up to 20).');
+    assert.deepEqual(P.validateDraft({ ...draft, questions: [{ ...none, allowWriteIns: false }] }, cat), ['Question 1: offer catalogue classes, written suggestions, or both.']);
+});

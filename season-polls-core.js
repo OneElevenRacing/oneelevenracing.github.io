@@ -135,6 +135,10 @@
         const many = n => (n === 1 ? noun : noun === 'class' ? 'classes' : `${noun}s`);
         if (question.kind === 'text') return question.required ? 'Write your answer.' : 'Optional.';
         if (question.type === 'yesno') return 'Choose Yes or No.';
+        if (question.type === 'nomination' && count === 0) {
+            const up = question.maxWriteIns ? ` (up to ${question.maxWriteIns})` : '';
+            return question.required ? `Write in the classes you’d like${up}.` : `Write in any classes you’d like${up}.`;
+        }
         if (random && min === 1 && max === 1) return `Choose 1 of ${count - 1} ${many(count - 1)}, or ask for a random track.`;
         if (min === max) return `Choose exactly ${min} of ${count} ${many(count)}.`;
         if (min === 0) return `Choose up to ${max} ${many(max)}${question.allowWriteIns ? ', or write your own' : ''}.`;
@@ -155,7 +159,8 @@
     }
 
     // The options a draft question would offer, from its manual list or the catalogue.
-    // An empty sourceIds list means "every active entry".
+    // An empty sourceIds list means "every active entry", unless sourcePicked is set:
+    // then exactly the ticked entries are offered (possibly none, for write-ins only).
     function resolveOptions(question, catalogue) {
         if (question.type === 'yesno') return [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }];
         if (question.type === 'text') return [];
@@ -165,7 +170,8 @@
         }
         if (question.source === 'classes') {
             const classes = (catalogue && catalogue.classes) || {};
-            const ids = question.sourceIds && question.sourceIds.length ? question.sourceIds : Object.keys(classes).filter(id => classes[id].active !== false);
+            const picked = question.sourcePicked === true || Boolean(question.sourceIds && question.sourceIds.length);
+            const ids = picked ? (question.sourceIds || []) : Object.keys(classes).filter(id => classes[id].active !== false);
             return ids.filter(id => classes[id]).map(id => ({ id, label: classes[id].name }))
                 .sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
         }

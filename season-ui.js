@@ -67,6 +67,34 @@
         { opacity: 1, transform: 'none' }
     ], { duration: 240 });
 
+    const tickIcon = () => h('span', { class: 'sp-btn-tick', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' });
+
+    // A button that saves: spinner while working, then a green tick for a moment.
+    // `task` returns true when it worked. A note element, if given, says when.
+    async function saveFeedback(button, task, { busyLabel = 'Saving…', doneLabel = 'Saved', note = null } = {}) {
+        const label = button.textContent;
+        button.disabled = true;
+        button.classList.add('sp-sending');
+        fill(button, h('span', { class: 'sp-spinner', 'aria-hidden': 'true' }), busyLabel);
+        let ok = false;
+        try { ok = await task(); } catch (error) { ok = false; }
+        button.classList.remove('sp-sending');
+        if (ok) {
+            button.classList.add('sp-sent');
+            fill(button, tickIcon(), doneLabel);
+            if (note && note.isConnected) {
+                note.textContent = `${doneLabel} at ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+                note.classList.remove('sp-muted');
+                note.classList.add('sp-green-text');
+                play(note, [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 260 });
+            }
+            await new Promise(resolve => setTimeout(resolve, 1600));
+            button.classList.remove('sp-sent');
+        }
+        if (button.isConnected) { fill(button, label); button.disabled = false; }
+        return ok;
+    }
+
     const pulse = element => play(element, [{ transform: 'scale(1)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 280 });
 
     const nudge = element => play(element, [
@@ -108,7 +136,7 @@
                 const target = q.minSelections === q.maxSelections ? ` of ${q.maxSelections}` : '';
                 fill(counter, h('strong', { class: ready ? '' : 'sp-red-text', text: String(count) }), `${target} selected`);
             } else {
-                fill(counter, h('strong', { class: ready === list.length ? '' : 'sp-red-text', text: String(ready) }), ` of ${list.length} questions ready`);
+                fill(counter, h('strong', { class: ready === list.length ? '' : 'sp-red-text', text: String(ready) }), ` of ${list.length} questions answered`);
             }
             const now = counter.firstChild.textContent;
             if (shown !== null && now !== shown) pulse(counter.firstChild);
@@ -553,5 +581,5 @@
     }
 
 
-    window.SeasonUI = { h, fill, play, enter, reduceMotion, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
+    window.SeasonUI = { h, fill, play, enter, reduceMotion, saveFeedback, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
 })();

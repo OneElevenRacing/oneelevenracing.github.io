@@ -126,6 +126,25 @@
         await decide({ ...A.publishUpdatesFor(id, ready), ...extraUpdates(id) }, action, `${summary} (published)`, `Published “${ready.title}”.`);
     }
 
+    // Drafts saved from a step ("Edit questions first", or Save draft in the editor),
+    // newest first, so the step can offer them again.
+    function planDrafts(kind) {
+        return Object.entries(A.state.drafts || {}).filter(([, d]) => d && d.kind === kind && d.planId === tools.planId)
+            .map(([id, d]) => ({ id, ...d })).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+
+    function draftNotice(kind) {
+        const list = planDrafts(kind);
+        if (!list.length) return null;
+        return h('section', { class: 'sp-card sp-draft-notice' },
+            h('h2', { text: list.length === 1 ? 'Saved draft' : 'Saved drafts' }),
+            h('p', { class: 'sp-small sp-muted', style: 'margin:0 0 4px', text: 'Drivers can’t see drafts. Open one to finish the questions and publish it.' }),
+            h('ul', { class: 'sp-clist' }, list.map(d => h('li', { class: 'sp-crow' },
+                h('span', { class: 'sp-crow-name' }, h('span', { class: 'sp-crow-title', text: d.title || 'Untitled poll' }),
+                    h('span', { class: 'sp-crow-meta', text: d.updatedAt ? `Saved ${P.formatDateTime(d.updatedAt, { year: false })}` : 'Not published yet' })),
+                h('span', { class: 'sp-crow-actions' }, h('a', { class: 'sp-btn sp-btn-small', href: `season-planning-admin.html?draft=${encodeURIComponent(d.id)}`, text: 'Open draft' }))))));
+    }
+
     // ---------- Suggestions ----------
 
     const nomination = { pollId: null };
@@ -416,7 +435,7 @@
         if (!Object.keys((A.state.catalogue && A.state.catalogue.layouts) || {}).length) {
             return h('p', { class: 'sp-status sp-warn' }, 'Set up the track catalogue in ', h('a', { href: 'racing-setup.html', text: 'Racing Setup' }), ' first.');
         }
-        return h('div', null, exclusionsCard(), duplicatesCard());
+        return h('div', null, planPolls('track').length ? null : draftNotice('track'), exclusionsCard(), duplicatesCard());
     }
 
     function exclusionsCard() {
@@ -567,7 +586,7 @@
 
     function rulesTab() {
         if (!tools.planId) return needPlan();
-        return h('div', null, proposalsCard(), outcomesCard(), writtenCard());
+        return h('div', null, planPolls('rules').length ? null : draftNotice('rules'), proposalsCard(), outcomesCard(), writtenCard());
     }
 
     function proposals() {
@@ -748,7 +767,7 @@
 
     // Shared with season-planning-calendar.js and season-planning-season.js.
     window.SeasonTools = {
-        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf,
+        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf, planDrafts, draftNotice,
         suggestionsTab, roundsTab, tracksTab, rulesTab, historyTab
     };
 

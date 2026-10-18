@@ -61,7 +61,8 @@
                 trackUnresolved = AC.trackResolution(data.definition, data.ballots, ((T.tools.planAdmin.trackResolution || {})[track.id]) || {}).unresolved;
             }
         }
-        return { plan, polls, roundDrafts, planAdmin: T.tools.planAdmin || {}, trackUnresolved, now: A.now() };
+        const stepDrafts = { suggestions: T.planDrafts('nomination'), tracks: T.planDrafts('track'), rules: T.planDrafts('rules') };
+        return { plan, polls, roundDrafts, stepDrafts, planAdmin: T.tools.planAdmin || {}, trackUnresolved, now: A.now() };
     }
 
     // ---------- Starting and editing a season ----------
@@ -117,8 +118,10 @@
     function suggestionsBody(plan, state) {
         if (state.polls.suggestions.length) return T.suggestionsTab();
         return h('div', null,
+            T.draftNotice('nomination'),
             h('p', { class: 'sp-small', text: 'Drivers pick any car classes from the catalogue and can write in new ones. When it closes, you review the suggestions and pick the shortlist for voting.' }),
-            h('button', { type: 'button', text: 'Create the suggestions poll', onclick: () => {
+            h('button', { type: 'button', class: state.stepDrafts.suggestions.length ? 'sp-secondary' : undefined,
+                text: state.stepDrafts.suggestions.length ? 'Start a new suggestions poll instead' : 'Create the suggestions poll', onclick: () => {
                 const template = P.BUILT_IN_TEMPLATES.find(t => t.id === 'builtin-nomination');
                 const draft = { ...P.draftFromTemplate(template, A.settings(), A.now()), planId: plan.id, stageId: stageId(plan, 'Suggestions') };
                 T.createDraft(draft, 'create-suggestions-poll', 'Suggestions poll');

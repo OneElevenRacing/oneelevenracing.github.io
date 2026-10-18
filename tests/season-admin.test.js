@@ -190,6 +190,10 @@ test('season steps: statuses follow polls and decisions, and skipped steps say s
     assert.deepEqual(byId(steps), { suggestions: 'todo', rounds: 'waiting', tracks: 'todo', rules: 'skipped', calendar: 'waiting', summary: 'todo' });
     assert.equal(A.nextStep(steps).id, 'suggestions');
 
+    steps = A.seasonSteps({ plan, polls: {}, stepDrafts: { suggestions: [{ id: 'd1', title: 'Car class suggestions' }] }, now });
+    assert.equal(byId(steps).suggestions, 'decide');
+    assert.equal(steps[0].line, '“Car class suggestions” is saved as a draft: finish and publish it');
+
     steps = A.seasonSteps({ plan, polls: { suggestions: [poll('s', 'closed')] }, now });
     assert.equal(byId(steps).suggestions, 'decide');
     assert.equal(byId(steps).rounds, 'todo');
