@@ -225,3 +225,26 @@ input::placeholder {
         width: 100%;
     }
 }
+
+/* Link to Racing Setup */
+.setup-intro {
+    text-align: center;
+    margin: 0 0 20px;
+}
+
+.setup-link {
+    display: block;
+    width: fit-content;
+    margin: 0 auto;
+    padding: 12px 24px;
+    border-radius: 8px;
+    background-color: #000;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.setup-link:hover,
+.setup-link:focus-visible {
+    background-color: #333;
+}

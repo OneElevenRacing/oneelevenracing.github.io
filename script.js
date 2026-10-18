@@ -174,6 +174,11 @@ function fetchAndUpdateRaceInfo() {
 }
 
 function logoutUser() {
+    // Unfinished season-poll answers are kept in this tab only until sign-out.
+    try {
+        Object.keys(sessionStorage).filter(function(key) { return key.indexOf('oneElevenBallotDraft:') === 0; })
+            .forEach(function(key) { sessionStorage.removeItem(key); });
+    } catch (error) { /* storage unavailable */ }
     firebase.auth().signOut().then(function() {
         window.location.href = 'index.html';
     }).catch(function(error) {
@@ -208,6 +213,20 @@ function goBack() {
 
 function showAlert() {
     alert('Coming Soon!');
+}
+
+// Polls & Forms opens once an admin has switched it on for drivers (Season Planning →
+// Overview). Admins can always open it. Until then drivers see the old message.
+function openPollsAndForms() {
+    var user = firebase.auth().currentUser;
+    if (!user) { showAlert(); return; }
+    Promise.all([
+        firebase.database().ref('drivers/' + user.uid + '/isAdmin').once('value'),
+        firebase.database().ref('seasonPlanning/v1/visibility/drivers').once('value')
+    ]).then(function(results) {
+        if (results[0].val() === true || results[1].val() === true) window.location.href = 'season-polls.html';
+        else showAlert();
+    }).catch(function() { showAlert(); });
 }
 
 function setupMenuDropdown() {

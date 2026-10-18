@@ -14,6 +14,8 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <script src="tracks.js"></script>
+  <script src="catalogue.js"></script>
+  <script src="track-catalogue.js"></script>
 
   <style>
     @font-face {
@@ -528,6 +530,7 @@
   </header>
 
   <main class="container">
+    <p class="status warn" data-track-catalogue-status role="status" hidden></p>
     <section class="active-summary" aria-labelledby="activeSummaryHeading">
       <div>
         <p class="eyebrow">Active championship</p>
@@ -698,8 +701,15 @@
     let editEditor;
 
     function getTrackList() {
+      if (window.oneElevenTracks) return window.oneElevenTracks.selectable();
       return (typeof trackData !== 'undefined' && Array.isArray(trackData)) ? trackData : [];
     }
+
+    // Redraw the schedule track menus when the shared track catalogue loads or changes.
+    document.addEventListener('oneEleven:tracksChanged', () => {
+      if (createEditor) createEditor.render();
+      if (editEditor) editEditor.render();
+    });
 
     function sortRaceKeys(races) {
       return Object.keys(races || {}).sort((a, b) => {

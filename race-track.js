@@ -32,6 +32,14 @@
         return season.homepageTrackOverride || nextTrack(season);
     }
 
+    // Images come from the shared catalogue, which also resolves former track names.
+    function trackImage(name) {
+        if (window.oneElevenTracks) return window.oneElevenTracks.imageFor(name);
+        const tracks = typeof trackData !== 'undefined' && Array.isArray(trackData) ? trackData : [];
+        const track = tracks.find(item => item.name === name);
+        return track ? track.imagePath : 'Logos_and_icons/racetracks/TBD.png';
+    }
+
     let seasonDoc = null;
     let season = null;
     let fallback = 'TBD';
@@ -44,9 +52,7 @@
         const name = selectedTrack(season, fallback);
         if (el('raceLocation')) el('raceLocation').textContent = name;
         if (el('raceTrackImage')) {
-            const tracks = typeof trackData !== 'undefined' && Array.isArray(trackData) ? trackData : [];
-            const track = tracks.find(item => item.name === name);
-            el('raceTrackImage').src = track ? track.imagePath : 'Logos_and_icons/racetracks/TBD.png';
+            el('raceTrackImage').src = trackImage(name);
             el('raceTrackImage').alt = `${name} track layout`;
         }
         const select = el('raceTrackSelect');
@@ -59,7 +65,10 @@
             select.value = season && !season.homepageTrackOverride ? '__automatic__' : name;
         }
         if (el('currentRaceTrack')) {
-            el('currentRaceTrack').textContent = `Showing: ${name}${season && !season.homepageTrackOverride ? ' (automatic)' : ''}`;
+            const tracks = window.oneElevenTracks;
+            const unmapped = tracks && tracks.status() === 'catalogue' && !tracks.resolve(name)
+                ? ' — not in the track catalogue; add it in Racing Setup' : '';
+            el('currentRaceTrack').textContent = `Showing: ${name}${season && !season.homepageTrackOverride ? ' (automatic)' : ''}${unmapped}`;
         }
         const automaticOption = select.querySelector('option[value="__automatic__"]');
         if (automaticOption) automaticOption.disabled = !season;
@@ -107,6 +116,8 @@
             select.addEventListener('change', () => { formDirty = true; });
         }
     });
+
+    document.addEventListener('oneEleven:tracksChanged', () => { if (ready) render(); });
 
     document.addEventListener('oneEleven:activeDriver', () => {
         if (started || (!el('raceTrackImage') && !el('raceTrackSelect'))) return;
