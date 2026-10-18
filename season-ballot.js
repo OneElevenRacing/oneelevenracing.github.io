@@ -255,6 +255,73 @@
         return updates;
     }
 
+    // ---------- Editing a live poll ----------
+    // Before anyone has voted, anything can change. Once votes are in, only changes
+    // that keep every stored ballot valid and fair: wording, new options, removing
+    // options nobody chose, and allowing more written suggestions. Everything else
+    // needs "Replace with a corrected poll".
+    function liveEditProblems(before, after, totals) {
+        const respondents = (totals && totals.respondents) || 0;
+        if (!respondents) return [];
+        const problems = [];
+        const voters = respondents === 1 ? '1 driver has' : `${respondents} drivers have`;
+        if (after.questionCount !== before.questionCount) {
+            return [`${voters} voted, so questions can't be added or removed.`];
+        }
+        questionList(before).forEach((old, i) => {
+            const now = after.questions[i];
+            const label = `Question ${i + 1}`;
+            if (!now || now.id !== old.id) { problems.push(`${voters} voted, so questions can't be moved.`); return; }
+            if (now.kind !== old.kind || (now.type || '') !== (old.type || '')) problems.push(`${label}: the type can't change after votes.`);
+            if (now.required !== old.required) problems.push(`${label}: whether it's required can't change after votes.`);
+            if (old.kind === 'text') {
+                if (now.maxLength < old.maxLength) problems.push(`${label}: the character limit can only go up after votes.`);
+                return;
+            }
+            if (old.kind === 'choice' && (now.minSelections !== old.minSelections || now.maxSelections !== old.maxSelections)) {
+                problems.push(`${label}: the number of choices can't change after votes.`);
+            }
+            if (old.kind === 'nomination') {
+                if (Boolean(now.allowWriteIns) !== Boolean(old.allowWriteIns)) problems.push(`${label}: written suggestions can't be switched on or off after votes.`);
+                else if (old.allowWriteIns && now.maxWriteIns < old.maxWriteIns) problems.push(`${label}: the written-suggestion limit can only go up after votes.`);
+            }
+            const counts = (totals.questions && totals.questions[i] && totals.questions[i].options) || {};
+            Object.keys(old.options || {}).forEach(id => {
+                if (!(now.options && now.options[id]) && (Number(counts[id]) || 0) > 0) {
+                    problems.push(`${label}: “${old.options[id].label}” has votes, so it can't be removed.`);
+                }
+            });
+        });
+        return [...new Set(problems)];
+    }
+
+    // The definition, its counters, the hub entry and an audit entry in one update.
+    // `basedOnRespondents` lets the rules refuse the edit if a vote arrived meanwhile.
+    function liveEditUpdates({ pollId, before, after, totals, index = {}, auditId, adminUid, reason, timestamp }) {
+        const base = pollPath(pollId);
+        const respondents = (totals && totals.respondents) || 0;
+        const definition = { ...after, revision: (before.revision || 1) + 1, lastAuditId: auditId, basedOnRespondents: respondents };
+        const updates = {
+            [`${base}/definition`]: definition,
+            [`${base}/audit/${auditId}`]: { at: timestamp, by: adminUid, action: 'edit-poll', reason, fromRevision: before.revision || 1, before, after: definition }
+        };
+        if (!respondents) {
+            // Nobody has voted: start the counters again to match the new questions.
+            updates[`${base}/totals/questions`] = emptyTotals(after).questions || null;
+        } else {
+            questionList(after).forEach((question, i) => {
+                const old = before.questions[i] || {};
+                const oldIds = Object.keys(old.options || {});
+                const newIds = Object.keys(question.options || {});
+                newIds.filter(id => !oldIds.includes(id)).forEach(id => { updates[`${base}/totals/questions/${i}/options/${id}`] = 0; });
+                oldIds.filter(id => !newIds.includes(id)).forEach(id => { updates[`${base}/totals/questions/${i}/options/${id}`] = null; });
+            });
+        }
+        Object.entries(index).forEach(([key, value]) => { updates[`seasonPlanning/v1/index/${pollId}/${key}`] = value; });
+        updates[`seasonPlanning/v1/index/${pollId}/updatedAt`] = timestamp;
+        return updates;
+    }
+
     // Changing a published poll's timing, visibility or state: the control fields,
     // the matching hub index fields and an audit entry, in one update.
     const INDEX_FIELDS = ['state', 'opensAt', 'closesAt', 'resultVisibility', 'labelsHidden'];
@@ -276,6 +343,8 @@
     return {
         LIMITS,
         controlUpdates,
+        liveEditProblems,
+        liveEditUpdates,
         repairFingerprint,
         applyRepair,
         OPTION_ID,

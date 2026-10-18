@@ -233,8 +233,15 @@ Any poll can also run on its own, outside a season (a suggestion box, a quick vo
 - Drivers can't change an answer after submitting; an admin can, from the poll's page
   (**Individual answers → Correct these answers**), with a reason that's kept in the history.
 - Changing a published poll's dates or results setting, or closing it, always asks for a
-  reason. Questions and options can't change after publishing; use **Replace with a
-  corrected poll** instead.
+  reason.
+- **Editing a live poll:** open the poll and press **Edit poll**. Until someone votes you can
+  change anything. Once votes are in you can reword the title, questions and options, add
+  options and remove options nobody has picked; the editor tells you if a change isn't
+  allowed (for example the number of choices). For those, use **Replace with a corrected
+  poll**. Every edit asks what changed and is kept in the poll's history. Drivers see the
+  change straight away; anyone part-way through is asked to check their answers.
+- **Deleting a poll:** archive it first, then press **Delete…** on its page and tick the
+  confirmation. This removes its questions, answers, results and history for good.
 - "Hide class names" only changes what's shown. It isn't secret: someone determined could
   still work the names out.
 - If a poll's totals ever look wrong, use **Recount from ballots** on its page.
@@ -244,6 +251,14 @@ Any poll can also run on its own, outside a season (a suggestion box, a quick vo
   the Submit button spins and turns into a tick, and the hub's progress strip fills in.
   Anyone who has switched on "reduce motion" on their phone or computer sees no movement.
   The admin pages don't animate.
+
+## Publishing updated rules
+
+Some updates change `database.rules.json` as well as the pages (the one that added editing
+live polls and deleting archived polls did). After merging such an update into `main`,
+publish the rules again the same way as in [step 3](#3-publish-the-new-database-rules):
+copy the whole file and paste it into **Realtime Database → Rules → Publish**. Until you do,
+the new features are refused with "permission denied"; everything else keeps working.
 
 ## Hiding it again
 

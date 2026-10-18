@@ -93,3 +93,54 @@ test('a recount repair applies once, keeps votes that arrived meanwhile and drop
     assert.equal(SB.applyRepair(repaired, differences, fingerprint, { at: 2, by: 'admin2' }), undefined, 'a second identical repair changes nothing');
     assert.deepEqual(current.questions[0].options, { a: 3, d: 0, z: 4 }, 'the input is not modified');
 });
+
+test('live edits: anything goes before votes; afterwards only changes that keep ballots valid', () => {
+    const before = {
+        schema: 1, revision: 1, title: 'Cars', questionCount: 2,
+        questions: {
+            0: { id: 'q1', index: 0, kind: 'choice', type: 'multi', required: true, prompt: 'Pick 2', minSelections: 2, maxSelections: 2, options: { a: { label: 'A' }, b: { label: 'B' }, c: { label: 'C' } } },
+            1: { id: 'q2', index: 1, kind: 'text', type: 'text', required: false, prompt: 'Notes', maxLength: 100 }
+        }
+    };
+    const clone = () => JSON.parse(JSON.stringify(before));
+    const voted = { respondents: 2, questions: { 0: { options: { a: 2, b: 1, c: 0 } } } };
+    const nobody = { respondents: 0, questions: { 0: { options: { a: 0, b: 0, c: 0 } } } };
+
+    const reworded = clone();
+    reworded.title = 'Car classes';
+    reworded.questions[0].prompt = 'Pick two classes';
+    reworded.questions[0].options.a.label = 'GT3';
+    reworded.questions[0].options.d = { label: 'D' };
+    delete reworded.questions[0].options.c;
+    reworded.questions[1].maxLength = 200;
+    assert.deepEqual(SB.liveEditProblems(before, reworded, voted), []);
+
+    const structural = clone();
+    structural.questions[0].maxSelections = 3;
+    structural.questions[0].required = false;
+    delete structural.questions[0].options.b;
+    assert.deepEqual(SB.liveEditProblems(before, structural, nobody), [], 'nobody has voted yet');
+    assert.deepEqual(SB.liveEditProblems(before, structural, voted), [
+        "Question 1: whether it's required can't change after votes.",
+        "Question 1: the number of choices can't change after votes.",
+        'Question 1: “B” has votes, so it can\'t be removed.'
+    ]);
+    const fewer = clone();
+    fewer.questionCount = 1;
+    delete fewer.questions[1];
+    assert.deepEqual(SB.liveEditProblems(before, fewer, voted), ["2 drivers have voted, so questions can't be added or removed."]);
+
+    const updates = SB.liveEditUpdates({ pollId: 'p', before, after: reworded, totals: voted, index: { title: 'Car classes' }, auditId: 'e1', adminUid: 'admin', reason: 'Typo', timestamp: 'NOW' });
+    const base = 'seasonPlanning/v1/polls/p';
+    assert.equal(updates[`${base}/definition`].revision, 2);
+    assert.equal(updates[`${base}/definition`].basedOnRespondents, 2);
+    assert.equal(updates[`${base}/definition`].lastAuditId, 'e1');
+    assert.equal(updates[`${base}/totals/questions/0/options/d`], 0);
+    assert.equal(updates[`${base}/totals/questions/0/options/c`], null);
+    assert.ok(!(`${base}/totals/questions/0/options/a` in updates), 'counters with votes are left alone');
+    assert.equal(updates['seasonPlanning/v1/index/p/title'], 'Car classes');
+    assert.equal(updates[`${base}/audit/e1`].action, 'edit-poll');
+
+    const fresh = SB.liveEditUpdates({ pollId: 'p', before, after: structural, totals: nobody, auditId: 'e2', adminUid: 'admin', reason: 'Fix', timestamp: 'NOW' });
+    assert.deepEqual(fresh[`${base}/totals/questions`], { 0: { options: { a: 0, c: 0 } } });
+});

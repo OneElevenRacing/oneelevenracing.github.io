@@ -325,6 +325,12 @@
 .sp-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
 .sp .sp-chip { min-height: 36px; padding: 4px 12px; font-family: var(--sp-body); font-size: 0.85rem; text-transform: none; letter-spacing: 0; }
 .sp-writeins { margin-top: 6px; }
+.sp-fixed-options { display: grid; gap: 4px; margin: 4px 0 8px; }
+.sp-fixed-option { display: flex; align-items: center; gap: 8px; }
+.sp-fixed-option input { flex: 1 1 auto; min-width: 0; }
+.sp-vote-count { flex: none; width: 4.5em; text-align: right; font-size: 0.8rem; color: var(--sp-muted); }
+.sp-fixed-add { display: flex; gap: 6px; }
+.sp-fixed-add input { flex: 1 1 auto; min-width: 0; }
 .sp-writein { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-bottom: 8px; }
 
 .sp-actionbar {

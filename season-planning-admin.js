@@ -60,7 +60,7 @@
     // ---------- Dialogs ----------
 
     // Resolves with { reason } when confirmed, or null when cancelled.
-    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Reason (kept in the history)', reasonValue = '', danger = false, wide = false, altLabel = null }) {
+    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Reason (kept in the history)', reasonValue = '', danger = false, wide = false, altLabel = null, validate = null }) {
         return new Promise(resolve => {
             const dialog = $('dialog');
             dialog.classList.toggle('sp-dialog-wide', wide);
@@ -81,6 +81,8 @@
             $('dialogForm').onsubmit = event => {
                 event.preventDefault();
                 if (reasonInput && !reasonInput.value.trim()) { error.hidden = false; error.textContent = 'Please give a reason.'; reasonInput.focus(); return; }
+                const problem = validate ? validate() : '';
+                if (problem) { error.hidden = false; error.textContent = problem; return; }
                 finish({ reason: reasonInput ? reasonInput.value.trim() : '' });
             };
             dialog.showModal();
@@ -393,7 +395,8 @@
 
     function renderEditor() {
         const d = editor.data;
-        const isDraft = editor.mode === 'draft';
+        const isLive = editor.mode === 'live';
+        const isDraft = editor.mode === 'draft' || isLive;
         const plan = activePlan();
         const errors = h('div', { id: 'builderErrors', role: 'alert' });
 
@@ -403,37 +406,40 @@
             field(isDraft ? 'Poll title *' : 'Default poll title', bindText(d, 'title')),
             field('Short summary', bindText(d, 'summary', { max: 300 }), 'Shown on the drivers’ hub card.'),
             optionalField('Introduction', d, 'description', () => bindText(d, 'description', { multiline: true, rows: 3, max: 4000 }), 'Shown at the top of the poll.'),
-            field('Type of poll', selectOf(Object.entries(KINDS), d.kind || 'custom', v => { d.kind = v; })),
-            isDraft ? field('Season stage', selectOf([['', 'Standalone poll (not part of a season plan)'], ...(plan ? (plan.stages || []).filter(Boolean).map(s => [`${plan.id}|${s.id}`, `${plan.title}: ${s.label}`]) : [])],
+            isLive ? null : field('Type of poll', selectOf(Object.entries(KINDS), d.kind || 'custom', v => { d.kind = v; })),
+            isDraft && !isLive ? field('Season stage', selectOf([['', 'Standalone poll (not part of a season plan)'], ...(plan ? (plan.stages || []).filter(Boolean).map(s => [`${plan.id}|${s.id}`, `${plan.title}: ${s.label}`]) : [])],
                 d.planId && d.stageId ? `${d.planId}|${d.stageId}` : '', v => { const [planId, stageId] = v.split('|'); d.planId = planId || undefined; d.stageId = stageId || undefined; })) : null);
 
-        const timing = h('section', { class: 'sp-card' }, h('h2', { text: isDraft ? 'Timing and results' : 'Default results setting' }));
-        if (isDraft) {
-            const dateInput = key => {
-                const input = h('input', { type: 'datetime-local', value: d[key] ? P.utcToLondonInput(d[key]) : '' });
-                input.addEventListener('change', () => {
-                    const value = P.londonInputToUtc(input.value);
-                    d[key] = Number.isNaN(value) ? undefined : value;
-                    markDirty();
-                });
-                return input;
-            };
-            timing.append(h('div', { class: 'sp-row' }, field('Opens (UK time)', dateInput('opensAt')), field('Closes (UK time)', dateInput('closesAt'))));
-        }
-        timing.append(field('Results', selectOf(Object.entries(P.VISIBILITY), d.resultVisibility || settings().resultVisibility, v => { d.resultVisibility = v; }),
-            'Live: drivers see totals while voting. After closing: totals appear once the poll closes. Snapshot: only results you publish. Hidden: admins only.'),
-            bindCheck(d, 'labelsHidden', 'Hide class names in results charts (presentation only)'));
-        if (isDraft) {
-            const pick = h('div', { class: 'sp-option-list', hidden: d.allDrivers !== false });
-            const chosen = new Set(d.eligible || []);
-            fill(pick, activeDrivers().map(([uid, driver]) => {
-                const input = h('input', { type: 'checkbox', checked: chosen.has(uid) });
-                input.addEventListener('change', () => { if (input.checked) chosen.add(uid); else chosen.delete(uid); d.eligible = [...chosen]; markDirty(); });
-                return h('label', { class: 'sp-option' }, input, driver.name);
-            }));
-            const all = h('input', { type: 'checkbox', checked: d.allDrivers !== false });
-            all.addEventListener('change', () => { d.allDrivers = all.checked; pick.hidden = all.checked; markDirty(); });
-            timing.append(h('label', { class: 'sp-check' }, all, 'Every active driver can take part'), pick);
+        // A live poll's dates and results setting are changed on its own page.
+        const timing = isLive ? null : h('section', { class: 'sp-card' }, h('h2', { text: isDraft ? 'Timing and results' : 'Default results setting' }));
+        if (!isLive) {
+            if (isDraft) {
+                const dateInput = key => {
+                    const input = h('input', { type: 'datetime-local', value: d[key] ? P.utcToLondonInput(d[key]) : '' });
+                    input.addEventListener('change', () => {
+                        const value = P.londonInputToUtc(input.value);
+                        d[key] = Number.isNaN(value) ? undefined : value;
+                        markDirty();
+                    });
+                    return input;
+                };
+                timing.append(h('div', { class: 'sp-row' }, field('Opens (UK time)', dateInput('opensAt')), field('Closes (UK time)', dateInput('closesAt'))));
+            }
+            timing.append(field('Results', selectOf(Object.entries(P.VISIBILITY), d.resultVisibility || settings().resultVisibility, v => { d.resultVisibility = v; }),
+                'Live: drivers see totals while voting. After closing: totals appear once the poll closes. Snapshot: only results you publish. Hidden: admins only.'),
+                bindCheck(d, 'labelsHidden', 'Hide class names in results charts (presentation only)'));
+            if (isDraft) {
+                const pick = h('div', { class: 'sp-option-list', hidden: d.allDrivers !== false });
+                const chosen = new Set(d.eligible || []);
+                fill(pick, activeDrivers().map(([uid, driver]) => {
+                    const input = h('input', { type: 'checkbox', checked: chosen.has(uid) });
+                    input.addEventListener('change', () => { if (input.checked) chosen.add(uid); else chosen.delete(uid); d.eligible = [...chosen]; markDirty(); });
+                    return h('label', { class: 'sp-option' }, input, driver.name);
+                }));
+                const all = h('input', { type: 'checkbox', checked: d.allDrivers !== false });
+                all.addEventListener('change', () => { d.allDrivers = all.checked; pick.hidden = all.checked; markDirty(); });
+                timing.append(h('label', { class: 'sp-check' }, all, 'Every active driver can take part'), pick);
+            }
         }
 
         const questionsBox = h('div');
@@ -452,19 +458,24 @@
                     questionsBox.lastElementChild.querySelector('input').focus();
                 } })));
 
-        const actions = isDraft
+        const actions = isLive
+            ? [h('a', { class: 'sp-link', href: `?poll=${encodeURIComponent(editor.id)}`, text: 'Cancel' }),
+                h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
+                h('button', { type: 'button', text: 'Save changes…', onclick: saveLiveEdit })]
+            : isDraft
             ? [h('button', { type: 'button', class: 'sp-secondary', text: 'Save draft', onclick: event => UI.saveFeedback(event.currentTarget, saveDraft, { note: $('barNote') }) }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
                 h('button', { type: 'button', text: 'Publish…', onclick: publishDraft })]
             : [h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
                 h('button', { type: 'button', text: 'Save template', onclick: event => UI.saveFeedback(event.currentTarget, saveTemplate, { note: $('barNote') }) })];
         fill($('view'),
-            h('h2', { class: 'sp-section-title', style: 'margin-top:4px !important' }, isDraft ? 'Edit draft poll' : 'Edit template', ' ',
+            h('h2', { class: 'sp-section-title', style: 'margin-top:4px !important' }, isLive ? 'Edit live poll' : isDraft ? 'Edit draft poll' : 'Edit template', ' ',
                 h('span', { id: 'dirtyFlag', class: 'sp-badge sp-amber', hidden: !editor.dirty, text: 'Unsaved changes' })),
+            isLive ? h('div', { id: 'liveVotes', style: 'margin-bottom:10px' }, liveVotesNote()) : null,
             d.replaces ? h('p', { class: 'sp-status sp-warn', text: 'This draft replaces a published poll. Publishing it closes the original and links the two.' }) : null,
             errors, basics, timing, questions,
-            h('div', { class: 'sp-actionbar' }, h('span', { id: 'barNote', class: 'sp-small sp-muted', 'aria-live': 'polite', text: isDraft ? 'Drivers can’t see drafts.' : 'Templates only shape new drafts.' }), h('div', { class: 'sp-inline-actions' }, actions)),
-            isDraft ? h('p', null, h('button', { type: 'button', class: 'sp-link', text: 'Save as template', onclick: draftToTemplate }),
+            h('div', { class: 'sp-actionbar' }, h('span', { id: 'barNote', class: 'sp-small sp-muted', 'aria-live': 'polite', text: isLive ? 'Changes go live when you save.' : isDraft ? 'Drivers can’t see drafts.' : 'Templates only shape new drafts.' }), h('div', { class: 'sp-inline-actions' }, actions)),
+            isDraft && !isLive ? h('p', null, h('button', { type: 'button', class: 'sp-link', text: 'Save as template', onclick: draftToTemplate }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Delete draft', onclick: async () => { editor.dirty = false; await deleteDraft(editor.id, d); location.href = '?tab=polls'; } })) : null);
     }
 
@@ -481,7 +492,7 @@
         };
         const move = dir => { const j = i + dir; if (j < 0 || j >= d.questions.length) return; [d.questions[i], d.questions[j]] = [d.questions[j], d.questions[i]]; markDirty(); rerender(); };
         const typeSelect = selectOf(Object.entries(P.QUESTION_TYPES), q.type, value => {
-            d.questions[i] = { ...P.blankQuestion(value), prompt: q.prompt, help: q.help };
+            d.questions[i] = { ...P.blankQuestion(value), id: q.id, prompt: q.prompt, help: q.help };
             rerender();
         });
         const body = h('div');
@@ -511,10 +522,7 @@
         }
         if (q.type === 'yesno') return parts;
         if (q.source === 'fixed') {
-            const labels = Object.values(q.fixedOptions || {}).map(o => o.label);
-            parts.push(h('div', { class: 'sp-field' }, h('p', { style: 'font-weight:600;margin:0', text: 'Options (kept exactly from the original poll)' }),
-                h('p', { class: 'sp-small', text: labels.join(', ') || 'None' }),
-                q.type === 'single' || q.type === 'multi' ? h('button', { type: 'button', class: 'sp-link', text: 'Edit as a text list instead', onclick: () => { q.source = 'manual'; q.options = labels; delete q.fixedOptions; markDirty(); rerender(); } }) : null));
+            parts.push(fixedOptionsEditor(q, updateSummary));
         } else if (q.type === 'single' || q.type === 'multi') {
             const area = h('textarea', { rows: 5, style: 'min-height:0;font-family:inherit;font-size:1rem' });
             area.value = (q.options || []).map(o => (typeof o === 'string' ? o : o.label)).join('\n');
@@ -544,6 +552,67 @@
             if (q.allowWriteIns) parts.push(field('Most written suggestions per driver', bindNumber(q, 'maxWriteIns', 1, 200, updateSummary), 'A technical safeguard, not a quota (up to 200).'));
         }
         return parts;
+    }
+
+    // Options kept from a published poll (Duplicate, Replace, or editing it live). Each
+    // keeps its ID, so votes stay attached: labels can be reworded, options added, and
+    // options nobody has picked removed.
+    function fixedOptionsEditor(q, updateSummary) {
+        q.fixedOptions = q.fixedOptions || {};
+        const live = editor.mode === 'live' && editor.live;
+        const original = live && Object.values(live.definition.questions || {}).find(x => x && x.id === q.id);
+        const counts = (original && live.totals && live.totals.questions && live.totals.questions[original.index] && live.totals.questions[original.index].options) || {};
+        const list = h('div', { class: 'sp-fixed-options' });
+        const changed = () => { markDirty(); updateSummary(); };
+        const render = () => fill(list, Object.entries(q.fixedOptions).map(([id, option]) => {
+            const votes = Number(counts[id]) || 0;
+            const input = h('input', { type: 'text', value: option.label || '', maxLength: 200, 'aria-label': `Name of option “${option.label}”` });
+            input.addEventListener('input', () => { option.label = input.value; changed(); });
+            return h('div', { class: 'sp-fixed-option' }, input,
+                live ? h('span', { class: 'sp-vote-count', text: votes === 1 ? '1 vote' : `${votes} votes` }) : null,
+                h('button', { type: 'button', class: 'sp-link', text: 'Remove', disabled: votes > 0, title: votes ? 'Options with votes can’t be removed' : undefined,
+                    'aria-label': `Remove “${option.label}”`, onclick: () => { delete q.fixedOptions[id]; render(); changed(); } }));
+        }));
+        const add = (id, option) => { if (!id || q.fixedOptions[id]) return; q.fixedOptions[id] = option; render(); changed(); };
+        let adder;
+        if (q.type === 'class' || q.type === 'nomination') {
+            const classes = Object.entries((state.catalogue && state.catalogue.classes) || {}).filter(([, c]) => c.active !== false)
+                .sort(([, a], [, b]) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+            const pick = h('select', { 'aria-label': 'Class to add' });
+            const refill = () => fill(pick, h('option', { value: '', text: 'Add a class…' }), classes.filter(([id]) => !q.fixedOptions[id]).map(([id, c]) => h('option', { value: id, text: c.name })));
+            pick.addEventListener('change', () => { const c = state.catalogue.classes[pick.value]; if (c) add(pick.value, { label: c.name }); refill(); });
+            refill();
+            adder = pick;
+        } else if (q.type === 'track') {
+            const tracks = C.trackList(state.catalogue || {}).filter(t => !t.system);
+            const pick = h('select', { 'aria-label': 'Track layout to add' });
+            const refill = () => fill(pick, h('option', { value: '', text: 'Add a track layout…' }), tracks.filter(t => !q.fixedOptions[t.id]).map(t => h('option', { value: t.id, text: t.name })));
+            pick.addEventListener('change', () => {
+                const t = tracks.find(x => x.id === pick.value);
+                const location = t && state.catalogue.locations && state.catalogue.locations[t.locationId];
+                if (t) add(t.id, { label: t.name, locationId: t.locationId, locationName: (location && location.name) || t.shortName || t.name, ...(t.imagePath ? { imagePath: t.imagePath } : {}) });
+                refill();
+            });
+            refill();
+            adder = pick;
+        } else {
+            const text = h('input', { type: 'text', maxLength: 200, placeholder: 'New option', 'aria-label': 'New option' });
+            const go = () => {
+                const label = text.value.trim();
+                if (!label) return;
+                let id = C.slugify(label).slice(0, 56);
+                for (let n = 2; q.fixedOptions[id]; n++) id = `${C.slugify(label).slice(0, 52)}-${n}`;
+                add(id, { label });
+                text.value = '';
+                text.focus();
+            };
+            text.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); go(); } });
+            adder = h('div', { class: 'sp-fixed-add' }, text, h('button', { type: 'button', class: 'sp-secondary', text: 'Add', onclick: go }));
+        }
+        render();
+        return h('div', { class: 'sp-field' }, h('p', { style: 'font-weight:600;margin:0', text: 'Options' }),
+            h('p', { class: 'sp-hint', text: live ? 'Rename, add or remove options. Options with votes can’t be removed.' : 'Kept from the original poll. Rename, add or remove options.' }),
+            list, adder);
     }
 
     function catalogueChecklist(q, group, updateSummary) {
@@ -700,13 +769,103 @@
 
     const detail = { control: undefined, definition: undefined, totals: null, audit: {}, snapshot: null, reveal: false, ballots: null };
 
+    // Archived polls can be deleted for good (for example one made by mistake).
+    async function deletePoll(id, entry) {
+        const respondents = (detail.totals && detail.totals.respondents) || 0;
+        const sure = h('input', { type: 'checkbox' });
+        const plan = entry.planId && state.plans && state.plans[entry.planId];
+        const answers = !respondents ? '' : respondents === 1 ? '1 driver’s answers, ' : `${respondents} drivers’ answers, `;
+        const body = h('div', null,
+            h('p', { style: 'margin-top:0', text: `“${entry.title}” will be removed for good: its questions, ${answers}the results and its change history. This can’t be undone.` }),
+            plan ? h('p', { class: 'sp-status sp-warn', text: `This poll belongs to the season “${plan.title}”. Season steps that used its results won’t find it any more.` }) : null,
+            respondents ? h('p', { class: 'sp-small sp-muted', text: 'If you might need the numbers, download the totals from Results first.' }) : null,
+            h('label', { class: 'sp-check' }, sure, 'I understand this permanently deletes the poll'));
+        const ok = await confirmDialog({ title: 'Delete this poll?', body, confirmLabel: 'Delete permanently', danger: true,
+            validate: () => (sure.checked ? '' : 'Tick the box to confirm.') });
+        if (!ok) return;
+        if (await save({ [`${V1}/polls/${id}`]: null, [`${V1}/index/${id}`]: null }, `Deleted “${entry.title}”.`)) location.href = '?tab=polls';
+    }
+
+    // ---------- Editing a live poll ----------
+    // Uses the same editor as drafts. Before anyone votes anything can change; after
+    // that, SB.liveEditProblems explains what can't (use Replace for those).
+    function startLiveEditor() {
+        const id = params.get('edit');
+        if (editor.mode === 'live' && editor.id === id) return;
+        const base = `${V1}/polls/${id}`;
+        $('backLink').href = `season-planning-admin.html?poll=${encodeURIComponent(id)}`;
+        $('backLink').setAttribute('aria-label', 'Back to the poll');
+        editor.mode = 'live';
+        editor.id = id;
+        editor.live = { definition: undefined, totals: undefined, control: undefined };
+        fill($('view'), h('p', { class: 'sp-muted', text: 'Loading…' }));
+        const ready = () => {
+            const live = editor.live;
+            if (live.definition === undefined || live.control === undefined || live.totals === undefined) return;
+            if (!live.definition || !live.control || live.control.state !== 'published') {
+                editor.mode = null;
+                fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Only published polls can be edited. This one has closed, been archived or no longer exists.' }));
+                return;
+            }
+            if (editor.data) { renderEditor(); return; }
+            const entry = (state.index && state.index[id]) || {};
+            editor.data = { title: live.definition.title, summary: entry.summary || '', description: live.definition.description || '', kind: entry.kind || 'custom',
+                questions: P.draftQuestions(live.definition) };
+            editor.dirty = false;
+            renderEditor();
+        };
+        db().ref(`${base}/definition`).once('value').then(s => { editor.live.definition = s.val(); ready(); }, () => { editor.live.definition = null; ready(); });
+        db().ref(`${base}/control`).on('value', s => { editor.live.control = s.val(); ready(); });
+        db().ref(`${base}/totals`).on('value', s => {
+            const first = editor.live.totals === undefined;
+            const before = editor.live.totals;
+            editor.live.totals = s.val() || {};
+            if (first) { ready(); return; }
+            const was = (before && before.respondents) || 0;
+            const now = editor.live.totals.respondents || 0;
+            if (editor.data && was !== now) { const box = $('liveVotes'); if (box) fill(box, liveVotesNote()); }
+        }, () => { editor.live.totals = {}; ready(); });
+    }
+
+    function liveVotesNote() {
+        const n = (editor.live.totals && editor.live.totals.respondents) || 0;
+        return n
+            ? h('p', { class: 'sp-status sp-warn', style: 'margin:0' }, `${n === 1 ? '1 driver has' : `${n} drivers have`} voted. You can change wording, add options and remove options nobody has picked. To change anything else, use `,
+                h('a', { href: `?poll=${encodeURIComponent(editor.id)}`, text: 'Replace with a corrected poll' }), '.')
+            : h('p', { class: 'sp-status', style: 'margin:0', text: 'Nobody has voted yet, so you can change anything. Drivers see the changes straight away.' });
+    }
+
+    async function saveLiveEdit() {
+        const id = editor.id;
+        const d = editor.data;
+        const live = editor.live;
+        const errors = P.validateDraft({ ...d, opensAt: 0, closesAt: 1 }, state.catalogue);
+        if (errors.length) { showErrors(errors); return false; }
+        const after = P.buildDefinition(d, state.catalogue);
+        const problems = SB.liveEditProblems(live.definition, after, live.totals);
+        if (problems.length) { showErrors(problems); return false; }
+        showErrors([]);
+        const result = await confirmDialog({ title: 'Save changes to the live poll?', body: h('p', { style: 'margin-top:0', text: 'Drivers see the changes straight away. Anyone part-way through will be asked to check their answers.' }),
+            reason: true, reasonLabel: 'What changed? (kept in the poll’s history)', confirmLabel: 'Save changes' });
+        if (!result) return false;
+        const index = { title: after.title, summary: (d.summary || '').trim().slice(0, 300) || null };
+        const updates = SB.liveEditUpdates({ pollId: id, before: live.definition, after, totals: live.totals, index, auditId: auditId(), adminUid: state.uid, reason: result.reason, timestamp: sv().TIMESTAMP });
+        if (!(await save(updates))) {
+            setStatus('Not saved. A driver may have voted while you were editing; check the changes and save again.', 'error');
+            return false;
+        }
+        editor.dirty = false;
+        location.href = `?poll=${encodeURIComponent(id)}`;
+        return true;
+    }
+
     function startDetail() {
         const id = params.get('poll');
         $('backLink').href = 'season-planning-admin.html?tab=polls';
         $('backLink').setAttribute('aria-label', 'Back to all polls');
         const base = `${V1}/polls/${id}`;
         db().ref(`${base}/control`).on('value', s => { detail.control = s.val(); renderDetail(); });
-        db().ref(`${base}/definition`).once('value').then(s => { detail.definition = s.val(); renderDetail(); });
+        db().ref(`${base}/definition`).on('value', s => { detail.definition = s.val(); renderDetail(); });
         db().ref(`${base}/totals`).on('value', s => { detail.totals = s.val(); renderDetailResults(); });
         db().ref(`${base}/audit`).on('value', s => { detail.audit = s.val() || {}; renderHistory(); });
         db().ref(`${base}/snapshot`).on('value', s => { detail.snapshot = s.val(); renderDetailResults(); });
@@ -721,11 +880,13 @@
         const entry = state.index[id] || {};
         const phase = P.pollPhase(control, now());
         const lifecycle = [];
+        if (control.state === 'published') lifecycle.push(h('a', { class: 'sp-btn sp-btn-secondary', href: `?edit=${encodeURIComponent(id)}`, text: 'Edit poll' }));
         if (phase === 'open' || phase === 'scheduled') lifecycle.push(h('button', { type: 'button', class: 'sp-secondary', text: 'Close now', onclick: () => changeState(['closed'], 'Close this poll now?', 'close') }));
         if (phase === 'closed') lifecycle.push(h('button', { type: 'button', text: 'Finalise', onclick: () => changeState(control.state === 'published' ? ['closed', 'finalised'] : ['finalised'], 'Finalise this poll?', 'finalise') }));
         if (phase !== 'archived') lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Archive', onclick: () => changeState(['archived'], 'Archive this poll?', 'archive') }));
         lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Preview', 'aria-label': 'Preview as driver', onclick: () => previewDialog(definition) }),
             h('button', { type: 'button', class: 'sp-link', text: 'Duplicate', 'aria-label': 'Duplicate as a new draft', onclick: () => duplicate(false) }));
+        if (phase === 'archived') lifecycle.push(h('button', { type: 'button', class: 'sp-link sp-red-text', text: 'Delete…', 'aria-label': 'Delete this poll permanently', onclick: () => deletePoll(id, entry) }));
         if (phase !== 'finalised' && phase !== 'archived' && !entry.replacedBy) lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Replace…', 'aria-label': 'Replace with a corrected poll', onclick: () => duplicate(true) }));
         const eligible = control.allDrivers === false ? Object.keys(control.eligible || {}).map(driverName).join(', ') : 'Every active driver';
 
@@ -931,6 +1092,7 @@
     function route() {
         if (!NEEDED.every(key => loaded.has(key))) return;
         if (params.get('poll')) renderDetail();
+        else if (params.get('edit')) startLiveEditor();
         else if (params.get('draft') || params.get('template')) startEditor();
         else renderMain();
     }
@@ -944,7 +1106,7 @@
 
     // Switching between the main sections (Season, Polls, Settings…) happens in place,
     // without loading the page again. Poll pages and the editor are still their own pages.
-    const isMain = search => { const p = new URLSearchParams(search); return !p.get('poll') && !p.get('draft') && !p.get('template'); };
+    const isMain = search => { const p = new URLSearchParams(search); return !p.get('poll') && !p.get('edit') && !p.get('draft') && !p.get('template'); };
     function syncParams() {
         [...params.keys()].forEach(key => params.delete(key));
         new URLSearchParams(location.search).forEach((value, key) => params.set(key, value));

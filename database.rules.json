@@ -75,6 +75,7 @@
       "v1": {
         "polls": {
           "$poll": {
+            ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && !newData.exists() && data.child('control/state').val() == 'archived'",
             "control": {
               ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true",
               ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && newData.exists() && (!data.exists() || (newData.child('lastAuditId').isString() && !root.child('seasonPlanning/v1/polls/' + $poll).child('audit/' + newData.child('lastAuditId').val()).exists() && newData.parent().child('audit/' + newData.child('lastAuditId').val()).exists()))",
@@ -114,7 +115,7 @@
             },
             "definition": {
               ".read": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && (root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('allDrivers').val() == true || root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('eligible/' + auth.uid).val() == true) && root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('state').val() != null && root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('state').val() != 'draft'",
-              ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && newData.exists() && (!data.exists() || root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('state').val() == 'draft')",
+              ".write": "auth != null && root.child('drivers/' + auth.uid + '/active').val() == true && root.child('drivers/' + auth.uid + '/isAdmin').val() == true && newData.exists() && (!data.exists() || root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('state').val() == 'draft' || (root.child('seasonPlanning/v1/polls/' + $poll).child('control').child('state').val() == 'published' && newData.child('revision').val() == data.child('revision').val() + 1 && newData.child('lastAuditId').isString() && !root.child('seasonPlanning/v1/polls/' + $poll).child('audit/' + newData.child('lastAuditId').val()).exists() && newData.parent().child('audit/' + newData.child('lastAuditId').val() + '/action').val() == 'edit-poll' && newData.child('basedOnRespondents').val() == root.child('seasonPlanning/v1/polls/' + $poll).child('totals/respondents').val()))",
               ".validate": "newData.hasChildren(['schema', 'revision', 'title', 'questionCount', 'questions']) && newData.child('questions').child((newData.child('questionCount').val() - 1) + '').exists()",
               "schema": {
                 ".validate": "newData.val() == 1"
@@ -194,6 +195,12 @@
                     ".validate": false
                   }
                 }
+              },
+              "lastAuditId": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40"
+              },
+              "basedOnRespondents": {
+                ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0"
               },
               "$other": {
                 ".validate": false

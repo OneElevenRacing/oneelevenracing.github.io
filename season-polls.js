@@ -45,10 +45,8 @@
         if (!live || hub.liveTotals[live.id] !== undefined) return;
         hub.liveTotals[live.id] = null;
         db().ref(`${V1}/polls/${live.id}/control/minTurnout`).once('value').then(snapshot => { hub.minTurnout[live.id] = snapshot.val() || 0; }, () => {});
-        db().ref(`${V1}/polls/${live.id}/definition`).once('value').then(snapshot => {
-            hub.definitions[live.id] = snapshot.val();
-            db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
-        }).catch(() => {});
+        db().ref(`${V1}/polls/${live.id}/definition`).on('value', snapshot => { hub.definitions[live.id] = snapshot.val(); renderHub(); }, () => {});
+        db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
     }
 
     function deadline(entry) {
@@ -200,6 +198,24 @@
         } catch (error) { /* ignore unreadable drafts */ }
     }
 
+    // After an admin edit, keep each answer whose question still exists, minus any
+    // option that was removed, and ask the driver to check before submitting.
+    function adoptRevision(previous, next) {
+        poll.updated = true;
+        poll.voteKey = '';
+        if (!poll.answers) return;
+        const oldIds = SB.questionList(previous).map(q => q && q.id);
+        poll.answers = SB.questionList(next).map(question => {
+            const blank = { selections: [], writeIns: [], text: '', skipped: false };
+            const at = oldIds.indexOf(question.id);
+            const old = at >= 0 ? poll.answers[at] : null;
+            if (!old || previous.questions[at].kind !== question.kind) return blank;
+            return { ...blank, ...old, selections: (old.selections || []).filter(id => question.options && question.options[id]) };
+        });
+        if (poll.mode === 'review') poll.mode = 'form';
+        saveDraft();
+    }
+
     function clearDraft() {
         try { sessionStorage.removeItem(draftStorageKey()); } catch (error) { /* ignore */ }
     }
@@ -252,7 +268,7 @@
         }
         if (!control || poll.definition === undefined || poll.ballot === undefined) return;
         const phase = P.pollPhase(control, now());
-        const key = `${phase}|${poll.ballot ? poll.ballot.revision : 'none'}|${poll.mode}`;
+        const key = `${phase}|${poll.ballot ? poll.ballot.revision : 'none'}|${poll.mode}|${poll.definition.revision}`;
         if (key === poll.voteKey) return;
         poll.voteKey = key;
         if (poll.ballot) {
@@ -272,6 +288,7 @@
             UI.renderForm(panel, { definition: poll.definition, answers: poll.answers, onChange: saveDraft, onReview: () => { poll.mode = 'review'; renderPoll(); window.scrollTo(0, 0); } });
         }
         poll.screen = poll.mode;
+        if (poll.updated) panel.prepend(h('p', { class: 'sp-status sp-warn', role: 'status', text: 'An admin has updated this poll. Please check your answers before submitting.' }));
         if (previous !== poll.screen) UI.enter(panel, previous === 'form' ? 'right' : previous === 'review' ? 'left' : 'below');
     }
 
@@ -375,9 +392,16 @@
         const base = `${V1}/polls/${pollId}`;
         db().ref(`${V1}/index/${pollId}`).on('value', snapshot => { poll.entry = snapshot.val(); renderPoll(); }, () => { poll.entry = null; renderPoll(); });
         db().ref(`${base}/control`).on('value', snapshot => { poll.control = snapshot.val(); renderPoll(); }, () => { poll.control = null; renderPoll(); });
-        db().ref(`${base}/definition`).once('value')
-            .then(snapshot => { poll.definition = snapshot.val(); if (!poll.definition) poll.definitionError = new Error('missing'); renderPoll(); })
-            .catch(error => { poll.definitionError = error; poll.definition = null; renderPoll(); });
+        // Followed live: an admin can edit a published poll (wording, options).
+        db().ref(`${base}/definition`).on('value', snapshot => {
+            const next = snapshot.val();
+            if (!next) { poll.definitionError = new Error('missing'); poll.definition = null; renderPoll(); return; }
+            const previous = poll.definition;
+            poll.definition = next;
+            poll.definitionError = null;
+            if (previous && previous.revision !== next.revision) adoptRevision(previous, next);
+            renderPoll();
+        }, error => { poll.definitionError = error; poll.definition = null; renderPoll(); });
         // Firebase shows a pending write locally before the server accepts it, so while
         // a vote is being sent the receipt waits for the server's answer.
         db().ref(`${base}/ballots/${uid}`).on('value', snapshot => {

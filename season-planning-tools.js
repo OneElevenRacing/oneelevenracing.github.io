@@ -43,9 +43,8 @@
             .sort((a, b) => a.opensAt - b.opensAt);
     }
 
-    // Loads (once) a poll's definition, totals and, for admins, ballots.
-    // A poll's definition (fixed once published) plus live totals, control and, when
-    // asked for, live ballots. Each is subscribed to once for the page's lifetime, so
+    // A poll's definition (an admin can still edit it while it's open) plus live
+    // totals, control and, when asked for, live ballots. Each is subscribed to once for the page's lifetime, so
     // decisions always use the current answers and a failed read isn't retried in a loop.
     function pollData(id, { ballots = false } = {}) {
         const entry = tools.cache[id] || (tools.cache[id] = {});
@@ -53,9 +52,9 @@
         const failed = error => { entry.error = error.message; A.rerender(); };
         if (!entry.subscribed) {
             entry.subscribed = true;
-            db().ref(`${base}/definition`).once('value').then(s => {
+            db().ref(`${base}/definition`).on('value', s => {
                 entry.definition = s.val();
-                if (!entry.definition) entry.error = 'This poll has no questions saved.';
+                entry.error = entry.definition ? entry.error : 'This poll has no questions saved.';
                 A.rerender();
             }, failed);
             db().ref(`${base}/totals`).on('value', s => { entry.totals = s.val(); A.rerender(); }, failed);

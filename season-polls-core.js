@@ -210,6 +210,7 @@
             }
             const options = resolveOptions(question, catalogue);
             if (options.length > LIMITS.options) errors.push(`${label}: up to ${LIMITS.options} options.`);
+            if (options.some(option => !String(option.label || '').trim())) errors.push(`${label}: every option needs a name.`);
             if (['single', 'track', 'yesno', 'class', 'multi'].includes(question.type) && options.length < 2) {
                 errors.push(`${label}: needs at least two options.`);
             }
@@ -230,8 +231,15 @@
     // Freezes a draft into the published definition the database rules check.
     function buildDefinition(draft, catalogue) {
         const questions = {};
+        // Kept question IDs stay (live edits compare them); new questions get a free one.
+        const used = new Set(draft.questions.map(q => q.id).filter(Boolean));
+        let next = 1;
+        const freshId = () => { while (used.has(`q${next}`)) next++; used.add(`q${next}`); return `q${next}`; };
+        const seen = new Set();
         draft.questions.forEach((question, index) => {
-            const base = { id: question.id || `q${index + 1}`, index, type: question.type, required: question.required !== false, prompt: question.prompt.trim() };
+            const id = question.id && !seen.has(question.id) ? question.id : freshId();
+            seen.add(id);
+            const base = { id, index, type: question.type, required: question.required !== false, prompt: question.prompt.trim() };
             if (question.help && question.help.trim()) base.help = question.help.trim();
             if (question.type === 'text') {
                 questions[index] = { ...base, kind: 'text', maxLength: question.maxLength };
@@ -239,7 +247,7 @@
             }
             const options = {};
             resolveOptions(question, catalogue).forEach(option => {
-                const stored = { label: option.label };
+                const stored = { label: String(option.label).trim() };
                 if (option.locationId) stored.locationId = option.locationId;
                 if (option.locationName) stored.locationName = option.locationName;
                 if (option.imagePath) stored.imagePath = option.imagePath;
@@ -268,7 +276,7 @@
         const list = [];
         for (let i = 0; i < definition.questionCount; i++) {
             const q = definition.questions[i];
-            const draft = { type: q.type || (q.kind === 'text' ? 'text' : 'single'), prompt: q.prompt, help: q.help || '', required: q.required !== false };
+            const draft = { id: q.id, type: q.type || (q.kind === 'text' ? 'text' : 'single'), prompt: q.prompt, help: q.help || '', required: q.required !== false };
             if (q.kind === 'text') { list.push({ ...draft, type: 'text', maxLength: q.maxLength }); continue; }
             if (draft.type !== 'yesno') draft.source = 'fixed';
             draft.fixedOptions = JSON.parse(JSON.stringify(q.options || {}));

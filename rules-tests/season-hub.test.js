@@ -1,10 +1,11 @@
 // Rules tests for the driver hub data: poll index, season plans, result snapshots,
 // and the admin-only drafts, templates and settings.
 const { describe, it, before, beforeEach, after } = require('node:test');
+const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { ref, get, set, update, serverTimestamp } = require('firebase/database');
+const { ref, get, set, update, remove, increment, serverTimestamp } = require('firebase/database');
 const SB = require('../season-ballot.js');
 const P = require('../season-polls-core.js');
 
@@ -144,5 +145,58 @@ describe('admin-only drafts, templates and settings', () => {
         await assertFails(set(ref(a, `${V1}/settings/targetEvents`), 25));
         await assertFails(set(ref(a, `${V1}/settings/resultVisibility`), 'public'));
         await assertFails(set(ref(a, `${V1}/settings/colour`), 'red'));
+    });
+});
+
+describe('editing a live poll and deleting archived polls', () => {
+    const vote = (uid, pollId, definition, selections) => SB.submissionUpdates({ pollId, uid, definition,
+        answers: SB.normaliseAnswers(definition, [{ selections }]), submissionId: `s-${uid}`, increment, timestamp: serverTimestamp() });
+    const current = async pollId => {
+        let result;
+        await env.withSecurityRulesDisabled(async ctx => {
+            const [d, t] = await Promise.all([get(ref(ctx.database(), `${V1}/polls/${pollId}/definition`)), get(ref(ctx.database(), `${V1}/polls/${pollId}/totals`))]);
+            result = { definition: d.val(), totals: t.val() };
+        });
+        return result;
+    };
+    const edit = (pollId, before, after, totals, auditId) => SB.liveEditUpdates({ pollId, before, after, totals, index: { title: after.title },
+        auditId, adminUid: 'admin', reason: 'Fix wording', timestamp: serverTimestamp() });
+
+    it('an admin edits a published poll with an audit entry; drivers and unaudited edits are refused', async () => {
+        await assertSucceeds(update(ref(db('admin')), publishAll('p1', draft())));
+        const { definition, totals } = await current('p1');
+        const after = { ...definition, title: 'Renamed', questions: { 0: { ...definition.questions[0], prompt: 'Pick two classes' } } };
+        await assertFails(update(ref(db('alice')), edit('p1', definition, after, totals, 'e1')), 'drivers cannot edit');
+        const noAudit = edit('p1', definition, after, totals, 'e1');
+        delete noAudit[`${V1}/polls/p1/audit/e1`];
+        await assertFails(update(ref(db('admin')), noAudit), 'an edit needs its audit entry');
+        await assertSucceeds(update(ref(db('admin')), edit('p1', definition, after, totals, 'e1')));
+        const saved = await current('p1');
+        assert.equal(saved.definition.revision, 2);
+        assert.equal(saved.definition.title, 'Renamed');
+    });
+
+    it('an edit is refused if a vote arrived after the admin loaded the poll', async () => {
+        await assertSucceeds(update(ref(db('admin')), publishAll('p1', draft())));
+        const { definition, totals } = await current('p1');
+        const ids = Object.keys(definition.questions[0].options);
+        await assertSucceeds(update(ref(db('alice')), vote('alice', 'p1', definition, ids.slice(0, 2))));
+        const after = { ...definition, title: 'Renamed' };
+        await assertFails(update(ref(db('admin')), edit('p1', definition, after, totals, 'e1')), 'based on an out-of-date count');
+        const fresh = await current('p1');
+        await assertSucceeds(update(ref(db('admin')), edit('p1', fresh.definition, after, fresh.totals, 'e2')));
+        // A vote still works against the edited poll.
+        await assertSucceeds(update(ref(db('bob')), vote('bob', 'p1', (await current('p1')).definition, ids.slice(1, 3))));
+    });
+
+    it('only archived polls can be deleted, and only by an admin', async () => {
+        await assertSucceeds(update(ref(db('admin')), publishAll('p1', draft())));
+        await assertFails(remove(ref(db('admin'), `${V1}/polls/p1`)), 'a published poll cannot be deleted');
+        const archive = SB.controlUpdates({ pollId: 'p1', before: { state: 'published' }, changes: { state: 'archived' }, auditId: 'a1', adminUid: 'admin', reason: 'Made by mistake', action: 'archive', timestamp: serverTimestamp() });
+        await assertSucceeds(update(ref(db('admin')), archive));
+        await assertFails(remove(ref(db('alice'), `${V1}/polls/p1`)), 'drivers cannot delete');
+        await assertFails(remove(ref(db('admin'), `${V1}/polls/p1/ballots`)), 'parts of a poll cannot be deleted on their own');
+        await assertSucceeds(update(ref(db('admin')), { [`${V1}/polls/p1`]: null, [`${V1}/index/p1`]: null }));
+        assert.equal((await current('p1')).definition, null);
     });
 });
