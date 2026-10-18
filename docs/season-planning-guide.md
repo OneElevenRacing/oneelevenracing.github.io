@@ -12,26 +12,81 @@ Nothing, until you switch it on. After the website is published, drivers still s
 
 The existing pages (home, championship, availability, weather, admin) work as before.
 
-## Going live (do these once, in this order)
+## Going live: step by step
 
-### 1. Make a backup of the database
+Do these once, **in this order**. Allow about an hour, at a quiet time (not on a race night).
+The order matters: the new database rules must be live *before* the new pages are, because
+the rules are what keep ballots private and votes tamper-proof.
 
-In the [Firebase console](https://console.firebase.google.com/), open the project, then
-**Realtime Database → Data**. Choose the **⋮** menu → **Export JSON** and keep the file.
+### Quick checklist
 
-### 2. Publish the new database rules
+- [ ] 1. Save the `polling` branch to GitHub
+- [ ] 2. Back up the database
+- [ ] 3. Publish the new database rules
+- [ ] 4. Check the existing site still works
+- [ ] 5. Merge `polling` into `main` (publishes the website)
+- [ ] 6. Set up Racing Setup
+- [ ] 7. Try a test poll
+- [ ] 8. Switch it on for drivers
+
+### Before you start
+
+You need:
+
+- Access to the [Firebase console](https://console.firebase.google.com/) for the project
+  **one-eleven-app-7f282**, as an owner or editor.
+- Access to the [GitHub repository](https://github.com/OneElevenRacing/oneelevenracing.github.io)
+  with permission to push and merge.
+- Your admin account on the website, and if possible one ordinary (non-admin) driver
+  account for testing.
+
+### 1. Save the `polling` branch to GitHub
+
+All the new work is on a branch called `polling` on this computer. GitHub doesn't have it yet.
+
+**With GitHub Desktop:** open the repository, choose **Current branch → polling**, then press
+**Publish branch** (or **Push origin** if it says that).
+
+**Or from the terminal**, in the repository folder:
+
+```bash
+git push -u origin polling
+```
+
+This doesn't change the live website. GitHub Pages only publishes `main`.
+
+### 2. Back up the database
+
+1. Open the [Firebase console](https://console.firebase.google.com/) and choose the project.
+2. In the left menu, choose **Build → Realtime Database**, then the **Data** tab.
+3. Press the **⋮** menu (top right of the data panel) → **Export JSON**.
+4. Save the file somewhere safe and name it with today's date, for example
+   `one-eleven-backup-2026-10-18.json`.
+
+### 3. Publish the new database rules
 
 The new rules keep each driver's ballot private and make vote counting tamper-proof.
-**They must be live before the new pages are used.** Editing `database.rules.json` in the
-repository does not change the live rules; you have to publish them.
+Editing `database.rules.json` in the repository does **not** change the live rules; you have
+to publish them.
+
+> **Use the new version of the file.** It's the one in this folder while the `polling` branch
+> is checked out (or on GitHub under the `polling` branch). The copy on `main` is the *old*
+> rules until step 5.
 
 **Option A: paste them into the console (simplest)**
 
-1. Open `database.rules.json` from this repository and copy all of it.
-2. In the Firebase console, go to **Realtime Database → Rules**.
-3. Replace everything in the editor with the copied text and press **Publish**.
+1. On this computer, make sure the `polling` branch is checked out (GitHub Desktop:
+   **Current branch → polling**).
+2. Open `database.rules.json` from the repository folder in a text editor. Select all of it
+   (**Cmd+A**) and copy it (**Cmd+C**). It starts with `{` and ends with `}`.
+3. In the Firebase console, go to **Realtime Database → Rules**.
+4. Optional but sensible: copy what's already in the editor into a text file called
+   `old-rules.json`, as a second backup.
+5. Click in the editor, select everything (**Cmd+A**) and paste (**Cmd+V**) to replace it.
+6. Press **Publish**. If the console reports an error, nothing has changed: check you
+   copied the whole file and try again.
 
-**Option B: from the terminal**
+**Option B: from the terminal**, in the repository folder with `polling` checked out:
 
 ```bash
 npx firebase login
@@ -46,45 +101,92 @@ The Firestore rules (`firestore.rules`) haven't changed and don't need publishin
 **What the new rules change for existing data:** active drivers can still read race info,
 weather, season data and driver profiles. They can no longer read the whole database at
 once. Admins can still read everything. Signed-out and inactive users get nothing, as before.
+The current live website only reads branches the new rules still allow, so it keeps working.
 
-### 3. Check the existing site
+### 4. Check the existing site still works
 
-Signed in as an ordinary driver, open the home page, championship standings, availability
-poll and weather generator. Signed in as an admin, check the Admin page saves race info. If
-anything says "permission denied", see [Undoing the rules change](#undoing-the-rules-change).
+On the **live** website (it's still the old version at this point):
 
-### 4. Publish the website
+1. **Signed in as an ordinary driver** (or ask a driver to try): open the home page (race
+   info and weather show), the championship standings, the availability poll and the
+   weather generator.
+2. **Signed in as yourself (admin):** open the Admin page, change something small in the
+   race info, save it, and check it shows on the home page. Change it back.
 
-Merge the `polling` branch into `main` and push it. GitHub Pages publishes it within a few
-minutes. Drivers still see "Coming Soon!" at this point.
+If anything says "permission denied" or stays empty, see
+[Undoing the rules change](#undoing-the-rules-change). Usually a one-line rule addition fixes it.
 
-### 5. Set up Racing Setup (Admin → Open Racing Setup)
+### 5. Merge `polling` into `main` (publishes the website)
+
+**On the GitHub website (recommended):**
+
+1. Open the [repository](https://github.com/OneElevenRacing/oneelevenracing.github.io) and
+   choose **Pull requests → New pull request**.
+2. Set **base: main** and **compare: polling**. GitHub should say "Able to merge".
+3. Press **Create pull request**, give it a title such as "Season planning", and create it.
+4. Press **Merge pull request → Confirm merge**.
+
+**Or with GitHub Desktop:** switch to **Current branch → main**, press **Fetch origin**, then
+**Branch → Merge into current branch… → polling → Merge**, then **Push origin**.
+
+GitHub Pages publishes within a few minutes. To follow it, open the repository's
+**Actions** tab and wait for the "pages build and deployment" run to show a green tick.
+
+Then open the website and do a hard refresh (**Cmd+Shift+R** on a Mac, **Ctrl+F5** on
+Windows) so the browser fetches the new files. On a phone, close the tab and open it again.
+Check the home page still loads and that Admin now shows **Open Season Planning** and
+**Open Racing Setup**. Drivers still see "Coming Soon!" on Other Polls and Forms.
+
+### 6. Set up Racing Setup (Admin → Open Racing Setup)
 
 1. **Import & export → Built-in track list → Review built-in list.** Locations marked in red
    are groups that may be the same place (for example the three Spa years or the Virginia
-   layouts). Give layouts of one real-world track the same location name, tick the
-   confirmation and add them. This decides which layouts count as "the same location" for
-   exclusions, duplicates and the calendar, so it's worth getting right.
+   layouts). Give layouts of one real-world track the same location name, tick
+   **I've checked the locations marked in red** and add them. This decides which layouts
+   count as "the same location" for exclusions, duplicates and the calendar, so it's worth
+   getting right.
 2. **Checks → Check championships** lists saved track names the catalogue doesn't recognise.
-   Add each one as an alias of the right layout.
-3. **Car classes:** add the classes you might vote on, one at a time or pasted one per line.
+   For each, press **Add as alias** on the right layout.
+3. **Car classes:** add the classes you might vote on, one at a time with **Add class**, or
+   many at once under **Import & export → Import car classes** (paste one name per line,
+   press **Preview changes**, then confirm).
 4. **Templates & defaults:** set the usual poll length, results setting, how many previous
    seasons' tracks to exclude, and the number of calendar events.
 
-### 6. Try it with a test poll
+You can come back to any of this later; nothing here is visible to drivers.
 
-As an admin, open **Season Planning → Polls → New poll**. Choose a template, use **Preview as
-driver** (nothing is saved), publish it, vote on it from Polls & Forms, look at the results,
-then close and archive it. If you have a second test account, add it as an active driver in
-Edit Team and check it can vote but can't see the admin pages.
+### 7. Try a test poll
+
+1. Open **Admin → Open Season Planning → Polls → New poll**. Choose a template.
+2. Press **Preview as driver** to see exactly what drivers will see (nothing is saved).
+3. Publish it, then open **Polls & Forms** from the home page and vote. You'll see the
+   Submit button spin, turn into a tick, and the receipt appear.
+4. Open the poll's **Results** tab and check the chart.
+5. If you have a second test account, add it as an active driver in Edit Team, sign in as
+   that account, check it can vote, and check it **can't** open Season Planning or Racing Setup.
+6. Back in Season Planning, open the poll, **close** it and **archive** it.
 
 The automated tests already play a complete dummy season through the real rules (see
 [For developers](#for-developers)), so this step is about checking it works for you.
 
-### 7. Switch it on
+### 8. Switch it on for drivers
 
-**Season Planning → Settings → Drivers' access → Show to drivers.** You can hide it again at
-any time; nothing is deleted.
+**Season Planning → Settings → Drivers' access → Show to drivers.** The badge changes from
+*Hidden* to *Visible*, and drivers can open Polls & Forms straight away. You can hide it again
+at any time; nothing is deleted.
+
+When you're ready, start your first season from **Season Planning → Season** (see below) and
+let drivers know on WhatsApp.
+
+### If something goes wrong
+
+| What you see | What to do |
+|---|---|
+| "Permission denied" on an existing page after step 3 | See [Undoing the rules change](#undoing-the-rules-change). A missing `.read` rule for that branch usually fixes it. |
+| The website still looks old after step 5 | Wait a few minutes, check **Actions** shows a green tick, then hard refresh. |
+| GitHub says the branches can't be merged automatically | Stop and ask for help rather than resolving it on the website. |
+| A driver says their vote didn't save | It tells them clearly and keeps their answers; they can press Submit again. Nothing shows as submitted unless it was saved. |
+| You need to hide everything quickly | **Season Planning → Settings → Hide from drivers.** |
 
 ## Running a season
 
@@ -134,6 +236,10 @@ Any poll can also run on its own, outside a season (a suggestion box, a quick vo
 - If a poll's totals ever look wrong, use **Recount from ballots** on its page.
 - Firebase's free plan has daily limits. If a vote can't be saved, the driver is told it
   wasn't saved and can try again; nothing is shown as submitted unless it was.
+- Drivers' pages use short animations: live result bars stretch and re-order as votes arrive,
+  the Submit button spins and turns into a tick, and the hub's progress strip fills in.
+  Anyone who has switched on "reduce motion" on their phone or computer sees no movement.
+  The admin pages don't animate.
 
 ## Hiding it again
 

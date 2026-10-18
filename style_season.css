@@ -309,7 +309,7 @@
 .sp-option-list { display: grid; gap: 6px; }
 .sp-option { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 6px 12px; border: 1px solid #cfcfcf; border-radius: 10px; background: #fff; font-weight: 500 !important; cursor: pointer; }
 .sp-option:has(input:checked) { border-color: var(--sp-ink); box-shadow: inset 0 0 0 1px var(--sp-ink); }
-.sp-option:has(input:disabled) { opacity: 0.55; cursor: not-allowed; }
+.sp-option:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
 .sp-option:has(input:focus-visible) { outline: 3px solid var(--sp-red); outline-offset: 2px; }
 .sp-option-thumb { width: 48px; height: 36px; object-fit: contain; background: var(--sp-soft); border-radius: 4px; flex: none; }
 .sp-option-groups { display: grid; gap: 6px; }
@@ -340,14 +340,14 @@
     border-top: 1px solid var(--sp-line);
 }
 .sp-actionbar-count { margin: 0; font-size: 1rem; }
-.sp-actionbar-count strong { font-size: 1.3rem; }
+.sp-actionbar-count strong { font-size: 1.3rem; display: inline-block; }
 .sp-actionbar button { flex: 0 1 auto; }
 
 .sp-answers { margin: 8px 0; }
 .sp-answers dt { font-weight: 700; margin-top: 10px; }
 .sp-answers dd { margin: 4px 0 0; }
 .sp-answers ul { margin: 0; padding-left: 20px; }
-.sp-receipt { padding: 10px 14px; border-radius: var(--sp-radius); background: var(--sp-green-soft); color: var(--sp-green); }
+.sp-receipt { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border-radius: var(--sp-radius); background: var(--sp-green-soft); color: var(--sp-green); }
 .sp-receipt h2 { margin-bottom: 4px; }
 .sp-receipt p { margin: 4px 0 0; }
 
@@ -508,3 +508,54 @@
 .sp .sp-stephead:hover .sp-stepline { color: var(--sp-muted); }
 .sp-random-option { margin-bottom: 8px; background: var(--sp-soft); }
 .sp-random-option:has(input:checked) { background: #fff; }
+
+/* ---------- Motion (drivers' pages) ----------
+   Short and quiet; everything below is switched off for reduced motion. */
+.sp-option { transition: opacity 200ms ease, border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease; }
+
+/* Submit button: spinner while sending, tick once saved. */
+.sp button.sp-sending, .sp button.sp-sent { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.sp button.sp-sending:disabled { opacity: 1; cursor: progress; }
+.sp button.sp-sent:disabled { opacity: 1; cursor: default; background: var(--sp-green); border-color: var(--sp-green); color: #fff; }
+.sp-spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: sp-spin 700ms linear infinite; flex: none; }
+.sp-btn-tick svg, .sp-receipt-tick svg { display: block; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.sp-btn-tick path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: sp-draw 300ms ease-out forwards; }
+
+/* Receipt tick: a circle and tick that draw themselves after a new vote. */
+.sp-receipt-tick { flex: none; width: 28px; height: 28px; margin-top: 2px; }
+.sp-receipt-tick svg { width: 28px; height: 28px; }
+.sp-receipt-tick circle { stroke-dasharray: 66; }
+.sp-receipt-tick path { stroke-dasharray: 16; }
+.sp-receipt-tick.sp-draw circle { stroke-dashoffset: 66; animation: sp-draw 450ms ease-out forwards; }
+.sp-receipt-tick.sp-draw path { stroke-dashoffset: 16; animation: sp-draw 300ms ease-out 380ms forwards; }
+
+/* Hub progress strip: finished steps fill in from the left, the current one glows.
+   --elapsed lets a redrawn strip carry on where the animation had got to. */
+.sp-progress-animate .sp-step-done::before, .sp-progress-animate .sp-step-open::before {
+    transform-origin: left center;
+    animation: sp-grow 260ms ease-out both;
+    animation-delay: calc(var(--i) * 140ms - 90ms - var(--elapsed, 0ms));
+}
+.sp-progress-animate .sp-step-done .sp-step-dot {
+    animation: sp-pop 320ms cubic-bezier(.2, .7, .3, 1.3) both;
+    animation-delay: calc(var(--i) * 140ms - var(--elapsed, 0ms));
+}
+.sp-step-open .sp-step-dot { animation: sp-glow 2.4s ease-in-out infinite; animation-delay: calc(-1 * var(--elapsed, 0ms)); }
+
+@keyframes sp-spin { to { transform: rotate(360deg); } }
+@keyframes sp-draw { to { stroke-dashoffset: 0; } }
+@keyframes sp-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes sp-pop {
+    from { transform: scale(0.4); background: #fff; border-color: #bdbdbd; color: transparent; }
+    to { transform: scale(1); }
+}
+@keyframes sp-glow {
+    0%, 100% { box-shadow: 0 0 0 3px var(--sp-red-soft); }
+    50% { box-shadow: 0 0 0 7px rgba(196, 0, 0, 0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp *, .sp *::before, .sp *::after { animation: none !important; transition: none !important; }
+    .sp-spinner { border-right-color: currentColor; opacity: 0.6; }
+    .sp-receipt-tick circle, .sp-receipt-tick path, .sp-btn-tick path { stroke-dashoffset: 0 !important; }
+}

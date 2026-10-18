@@ -113,8 +113,16 @@
         return { svg: parts.join(''), height: lines.length || subtitle ? y + 18 : 8 };
     }
 
+    // Rounded-end bar path (also used to animate a bar's width on the page).
+    function barPath(x0, cy, bar, w) {
+        if (!(w > 0)) return '';
+        const r = Math.min(4, w / 2);
+        return `M${x0},${cy - bar / 2}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${bar - 2 * r}a${r},${r} 0 0 1 -${r},${r}h-${w - r}z`;
+    }
+
     // Horizontal bar chart: one series, so one colour and no legend; the value
     // sits at each bar's tip. Bars are at most 20px thick with a rounded end.
+    // data-* attributes let the page animate each row; they don't affect exports.
     function barChartSvg(list, { title = '', subtitle = '', width = 640 } = {}) {
         const labelWidth = Math.min(200, Math.round(width * 0.32));
         const valueWidth = 44;
@@ -131,18 +139,18 @@
             const cy = y + rowHeight / 2;
             const w = row.count ? Math.max(4, (row.count / max) * plot) : 0;
             const x0 = labelWidth;
-            const r = Math.min(4, w / 2);
-            parts.push(`<g><title>${esc(`${row.label}: ${row.count}`)}</title>`
+            parts.push(`<g data-row="${esc(String(row.id || row.label))}" data-y="${y}" data-w="${w}" data-count="${row.count}" data-x0="${x0}" data-cy="${cy}" data-bar="${bar}"><title>${esc(`${row.label}: ${row.count}`)}</title>`
                 + `<text x="${labelWidth - 10}" y="${cy + 4.5}" font-size="13" text-anchor="end" fill="${INK}">${esc(fit(row.label, labelWidth - 12))}</text>`
                 + `<rect x="${x0}" y="${cy - bar / 2}" width="${plot}" height="${bar}" fill="${TRACK}"/>`
-                + (w ? `<path d="M${x0},${cy - bar / 2}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${bar - 2 * r}a${r},${r} 0 0 1 -${r},${r}h-${w - r}z" fill="${BAR}"/>` : '')
-                + `<text x="${x0 + plot + 8}" y="${cy + 4.5}" font-size="13" font-weight="700" fill="${INK}">${row.count}</text></g>`);
+                + `<path class="sp-bar" d="${barPath(x0, cy, bar, w)}" fill="${BAR}"/>`
+                + `<text class="sp-bar-value" x="${x0 + plot + 8}" y="${cy + 4.5}" font-size="13" font-weight="700" fill="${INK}">${row.count}</text></g>`);
         });
         return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${FONT}" role="img">`
             + `<rect width="100%" height="100%" fill="#ffffff"/>${parts.join('')}</svg>`;
     }
 
     // Yes/No split bar: two segments with a 2px gap, direct labels and a legend line.
+    // Both segments are always drawn (an empty one has no width) so they can animate.
     function yesNoSvg(yes, no, { title = '', width = 640 } = {}) {
         const total = yes + no;
         const heading = titleBlock(title, '', width);
@@ -150,15 +158,12 @@
         const bar = 24;
         const height = top + bar + 40;
         const parts = [heading.svg];
-        if (!total) {
-            parts.push(`<rect x="0" y="${top}" width="${width}" height="${bar}" rx="4" fill="${TRACK}"/>`);
-        } else {
-            const gap = yes && no ? 2 : 0;
-            const yesW = ((width - gap) * yes) / total;
-            const noW = width - gap - yesW;
-            if (yes) parts.push(`<g><title>Yes: ${yes}</title><rect x="0" y="${top}" width="${yesW}" height="${bar}" rx="4" fill="${YES}"/></g>`);
-            if (no) parts.push(`<g><title>No: ${no}</title><rect x="${yesW + gap}" y="${top}" width="${noW}" height="${bar}" rx="4" fill="${NO}"/></g>`);
-        }
+        parts.push(`<rect x="0" y="${top}" width="${width}" height="${bar}" rx="4" fill="${TRACK}"/>`);
+        const gap = yes && no ? 2 : 0;
+        const yesW = total ? ((width - gap) * yes) / total : 0;
+        const noW = total ? width - gap - yesW : 0;
+        parts.push(`<g><title>Yes: ${yes}</title><rect data-seg="yes" x="0" y="${top}" width="${yesW}" height="${bar}" rx="4" fill="${YES}"/></g>`);
+        parts.push(`<g><title>No: ${no}</title><rect data-seg="no" data-end="${width}" x="${width - noW}" y="${top}" width="${noW}" height="${bar}" rx="4" fill="${NO}"/></g>`);
         const ly = top + bar + 24;
         parts.push(`<rect x="0" y="${ly - 10}" width="12" height="12" rx="2" fill="${YES}"/>`
             + `<text x="18" y="${ly}" font-size="13" fill="${INK}">Yes ${yes} (${percent(yes, total)}%)</text>`
@@ -180,5 +185,5 @@
         return C.toCsv(out);
     }
 
-    return { INK, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, percent, summaryText, barChartSvg, yesNoSvg, resultsCsv };
+    return { INK, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, percent, summaryText, barPath, barChartSvg, yesNoSvg, resultsCsv };
 });

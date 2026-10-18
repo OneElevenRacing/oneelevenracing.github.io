@@ -33,6 +33,47 @@
     const isMulti = q => !(q.minSelections === 1 && q.maxSelections === 1);
     const optionEntries = q => Object.entries(q.options || {});
 
+    // ---------- Motion ----------
+    // Short, quiet animations for drivers' pages. Anyone who has asked their device
+    // to reduce motion gets the end state straight away.
+    const reduceMotion = () => Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const easeOut = t => 1 - Math.pow(1 - t, 3);
+
+    // Runs frame(progress 0..1) over `duration` ms after `delay` ms; stops early if
+    // stillWanted() turns false (a newer drawing took over).
+    function tween({ duration = 450, delay = 0, frame, stillWanted = () => true }) {
+        if (reduceMotion()) { frame(1); return; }
+        frame(0);
+        const start = performance.now() + delay;
+        const step = time => {
+            if (!stillWanted()) return;
+            const t = Math.min(1, Math.max(0, (time - start) / duration));
+            frame(easeOut(t));
+            if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    // One-off effect on an element (Web Animations API); does nothing if unsupported
+    // or when motion is reduced.
+    function play(element, keyframes, options) {
+        if (!element || reduceMotion() || typeof element.animate !== 'function') return null;
+        return element.animate(keyframes, { easing: 'cubic-bezier(.2,.7,.3,1)', ...options });
+    }
+
+    // A screen arriving: fades and slides in slightly.
+    const enter = (element, from = 'below') => play(element, [
+        { opacity: 0, transform: from === 'left' ? 'translateX(-14px)' : from === 'right' ? 'translateX(14px)' : 'translateY(10px)' },
+        { opacity: 1, transform: 'none' }
+    ], { duration: 240 });
+
+    const pulse = element => play(element, [{ transform: 'scale(1)' }, { transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 280 });
+
+    const nudge = element => play(element, [
+        { transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(5px)' },
+        { transform: 'translateX(-3px)' }, { transform: 'translateX(0)' }
+    ], { duration: 380, easing: 'ease-in-out' });
+
     function blankAnswers(definition) {
         return questions(definition).map(() => ({ selections: [], writeIns: [], text: '', skipped: false }));
     }
@@ -56,6 +97,7 @@
         const counter = h('p', { class: 'sp-actionbar-count', 'aria-live': 'polite' });
         const reviewButton = h('button', { type: 'button', text: 'Review answers' });
         const bar = h('div', { class: 'sp-actionbar' }, counter, reviewButton);
+        let shown = null;
 
         function update() {
             const problems = errorsByQuestion(definition, answers);
@@ -68,6 +110,9 @@
             } else {
                 fill(counter, h('strong', { class: ready === list.length ? '' : 'sp-red-text', text: String(ready) }), ` of ${list.length} questions ready`);
             }
+            const now = counter.firstChild.textContent;
+            if (shown !== null && now !== shown) pulse(counter.firstChild);
+            shown = now;
         }
 
         reviewButton.addEventListener('click', () => {
@@ -117,7 +162,12 @@
             fieldset.append(...choiceControls(question, index, answer, onChange));
         }
         fieldset.append(errorBox);
-        return { element: fieldset, index, showErrors, focus: () => { fieldset.scrollIntoView({ block: 'center' }); (fieldset.querySelector('input, textarea') || fieldset).focus(); } };
+        return { element: fieldset, index, showErrors, focus: () => {
+            fieldset.scrollIntoView({ block: 'center', behavior: reduceMotion() ? 'auto' : 'smooth' });
+            (fieldset.querySelector('input:not(:disabled), textarea') || fieldset).focus({ preventScroll: true });
+            nudge(fieldset);
+            if (!errorBox.hidden) play(errorBox, [{ opacity: 0, transform: 'translateY(-4px)' }, { opacity: 1, transform: 'none' }], { duration: 220 });
+        } };
     }
 
     function choiceControls(question, index, answer, onChange) {
@@ -168,6 +218,8 @@
             answer.skipped = false;
             syncLimit();
             onChange();
+            const row = inputs.get(id) && inputs.get(id).closest('.sp-option');
+            if (checked && row) play(row, [{ transform: 'scale(0.98)' }, { transform: 'scale(1)' }], { duration: 180 });
         }
 
         const optionRow = ([id, option]) => {
@@ -311,15 +363,24 @@
         container.querySelector('h2').focus();
     }
 
-    function renderReceipt(container, { definition, ballot, preview }) {
+    // `justSubmitted` adds the drawn tick and slide-in; revisits show it still.
+    function renderReceipt(container, { definition, ballot, preview, justSubmitted = false }) {
         const updated = ballot.revision > 1;
-        fill(container,
-            h('div', { class: 'sp-receipt', role: 'status' },
+        const tick = h('span', { class: `sp-receipt-tick${justSubmitted ? ' sp-draw' : ''}`, 'aria-hidden': 'true',
+            html: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10.5"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>' });
+        const receipt = h('div', { class: 'sp-receipt', role: 'status' },
+            tick,
+            h('div', null,
                 h('h2', { text: preview ? 'Preview submitted (nothing saved)' : 'Your vote is saved' }),
                 h('p', { text: preview ? 'Drivers will see a receipt like this.' : `Submitted ${P.formatDateTime(ballot.submittedAt)}.` }),
-                updated ? h('p', { class: 'sp-muted', text: 'An admin has since updated these answers.' }) : null),
-            answerSummary(definition, answersFromBallot(definition, ballot)),
+                updated ? h('p', { class: 'sp-muted', text: 'An admin has since updated these answers.' }) : null));
+        const answersList = answerSummary(definition, answersFromBallot(definition, ballot));
+        fill(container, receipt, answersList,
             h('p', { class: 'sp-muted sp-small', text: 'Only an admin can change these answers. Ask an admin if something is wrong.' }));
+        if (justSubmitted) {
+            play(receipt, [{ opacity: 0, transform: 'translateY(12px) scale(0.98)' }, { opacity: 1, transform: 'none' }], { duration: 320 });
+            play(answersList, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 180, fill: 'backwards' });
+        }
     }
 
     // ---------- Results ----------
@@ -350,9 +411,68 @@
 
     const slug = text => C.slugify(text || 'results');
 
+    // What each animated chart currently shows, so the next drawing moves on from
+    // there (bars stretch, numbers count, rows slide) instead of jumping.
+    const drawn = new Map();
+
+    function animateFigure(figure, state, gen, q) {
+        const wanted = () => state.gen === gen;
+        const before = state.charts[q];
+        const now = { rows: {}, numbers: {} };
+        state.charts[q] = now;
+        const svg = figure.querySelector('svg');
+        figure.querySelectorAll('[data-number]').forEach(el => {
+            const name = el.dataset.number;
+            const to = Number(el.textContent) || 0;
+            const from = before && before.numbers[name] !== undefined ? before.numbers[name] : 0;
+            now.numbers[name] = to;
+            if (from === to) return;
+            tween({ duration: 500, stillWanted: wanted, frame: p => { el.textContent = String(Math.round(from + (to - from) * p)); } });
+        });
+        if (!svg) return;
+        svg.querySelectorAll('[data-row]').forEach((g, i) => {
+            const d = g.dataset;
+            const to = { w: Number(d.w), y: Number(d.y), count: Number(d.count) };
+            const known = before && before.rows[d.row];
+            const from = known || { w: 0, y: to.y, count: 0 };
+            now.rows[d.row] = { ...to };
+            if (known && known.w === to.w && known.y === to.y && known.count === to.count) return;
+            const path = g.querySelector('.sp-bar');
+            const value = g.querySelector('.sp-bar-value');
+            const x0 = Number(d.x0); const cy = Number(d.cy); const bar = Number(d.bar);
+            tween({ duration: before ? 450 : 600, delay: before ? 0 : i * 45, stillWanted: wanted, frame: p => {
+                const w = from.w + (to.w - from.w) * p;
+                const dy = (from.y - to.y) * (1 - p);
+                path.setAttribute('d', R.barPath(x0, cy, bar, w));
+                value.textContent = String(Math.round(from.count + (to.count - from.count) * p));
+                g.setAttribute('transform', dy ? `translate(0 ${dy})` : '');
+                if (!known && before) g.style.opacity = String(p);
+                now.rows[d.row] = { w, y: to.y + dy, count: Math.round(from.count + (to.count - from.count) * p) };
+            } });
+        });
+        const yes = svg.querySelector('[data-seg="yes"]');
+        const no = svg.querySelector('[data-seg="no"]');
+        if (yes && no) {
+            const end = Number(no.dataset.end);
+            const to = { yes: Number(yes.getAttribute('width')), no: Number(no.getAttribute('width')) };
+            const from = before && before.split ? before.split : { yes: 0, no: 0 };
+            now.split = { ...to };
+            if (from.yes === to.yes && from.no === to.no) return;
+            tween({ duration: before ? 450 : 650, stillWanted: wanted, frame: p => {
+                const y = from.yes + (to.yes - from.yes) * p;
+                const n = from.no + (to.no - from.no) * p;
+                yes.setAttribute('width', String(y));
+                no.setAttribute('width', String(n));
+                no.setAttribute('x', String(end - n));
+                now.split = { yes: y, no: n };
+            } });
+        }
+    }
+
     // Charts for every question that has totals. Respondents and total selections
     // are separate figures; names stay hidden everywhere when labels are hidden.
-    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0 }) {
+    // `animateKey` (drivers' pages) turns on animation and names the chart's memory.
+    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0, animateKey = '' }) {
         // Draw at the screen's width so text stays readable on phones; exports use the same drawing.
         const chartWidth = width || Math.max(300, Math.min(640, window.innerWidth - 72));
         const respondents = (totals && totals.respondents) || 0;
@@ -381,10 +501,10 @@
                 h('div', { class: 'sp-table-wrap' }, h('table', null,
                     h('thead', null, h('tr', null, h('th', { text: labelsHidden ? 'Option (name hidden)' : 'Option' }), h('th', { text: 'Selections' }))),
                     h('tbody', null, list.map(row => h('tr', null, h('td', { text: row.label }), h('td', { text: String(row.count) })))))));
-            return h('figure', { class: 'sp-figure' },
+            return h('figure', { class: 'sp-figure', 'data-question': String(i) },
                 h('div', { class: 'sp-stats' },
-                    h('span', null, 'Respondents ', h('strong', { text: String(respondents) })),
-                    yesNo ? null : h('span', null, 'Total selections ', h('strong', { text: String(R.totalSelections(list)) }))),
+                    h('span', null, 'Respondents ', h('strong', { 'data-number': 'respondents', text: String(respondents) })),
+                    yesNo ? null : h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
                 chart,
                 outcome,
                 labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,
@@ -398,6 +518,12 @@
             shown.length ? shown : h('p', { class: 'sp-muted', text: 'This poll has only written answers, so there are no charts.' }),
             downloads && shown.length ? h('button', { type: 'button', class: 'sp-secondary', text: 'Download totals (CSV)',
                 onclick: () => downloadBlob(`${slug(title)}${labelsHidden ? '-names-hidden' : ''}.csv`, new Blob([R.resultsCsv(definition, totals, { labelsHidden, pollId })], { type: 'text/csv' })) }) : null);
+        if (animateKey) {
+            if (!drawn.has(animateKey)) drawn.set(animateKey, { gen: 0, charts: {} });
+            const state = drawn.get(animateKey);
+            const gen = ++state.gen;
+            shown.forEach(figure => animateFigure(figure, state, gen, figure.dataset.question));
+        }
     }
 
     // ---------- Season summary (drivers' page and admin preview) ----------
@@ -427,5 +553,5 @@
     }
 
 
-    window.SeasonUI = { h, fill, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
+    window.SeasonUI = { h, fill, play, enter, reduceMotion, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
 })();

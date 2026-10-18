@@ -75,10 +75,16 @@
                 submitted ? 'View your answers' : 'Cast your vote'));
     }
 
+    // The strip fills in from the left when the hub first appears. The hub redraws
+    // often (new data), so later drawings carry on from where the animation got to.
+    let stripStart = null;
     function progressStrip(stages) {
-        return h('ol', { class: 'sp-progress', 'aria-label': 'Season planning stages' }, stages.map((stage, i) => {
+        if (stripStart === null) stripStart = performance.now();
+        const elapsed = Math.round(performance.now() - stripStart);
+        const animate = !UI.reduceMotion() && elapsed < 2500;
+        return h('ol', { class: `sp-progress${animate ? ' sp-progress-animate' : ''}`, 'aria-label': 'Season planning stages', style: `--elapsed:${elapsed}ms` }, stages.map((stage, i) => {
             const label = { done: 'finished', open: 'open now', scheduled: stage.opensAt ? `opens ${P.formatDate(stage.opensAt)}` : 'scheduled', upcoming: 'not started' }[stage.status];
-            return h('li', { class: `sp-step sp-step-${stage.status}`, 'aria-current': stage.status === 'open' ? 'step' : undefined },
+            return h('li', { class: `sp-step sp-step-${stage.status}`, style: `--i:${i}`, 'aria-current': stage.status === 'open' ? 'step' : undefined },
                 h('span', { class: 'sp-step-dot', 'aria-hidden': 'true', text: stage.status === 'done' ? '✓' : String(i + 1) }),
                 h('span', { class: 'sp-step-label', text: stage.label }),
                 h('span', { class: 'sp-visually-hidden', text: `, ${label}` }));
@@ -111,7 +117,7 @@
         const box = h('div');
         // On wider screens the card sits in a half-width column.
         const width = window.innerWidth >= 720 ? Math.max(300, Math.min(820, window.innerWidth - 48) / 2 - 64) : undefined;
-        UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true, minTurnout: hub.minTurnout[live.id] || 0 });
+        UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true, minTurnout: hub.minTurnout[live.id] || 0, animateKey: `hub:${live.id}` });
         return h('section', { class: 'sp-card', 'aria-labelledby': 'liveTitle' },
             h('div', { class: 'sp-card-head' }, h('h2', { id: 'liveTitle', text: 'Live results' }), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
             h('p', { class: 'sp-muted sp-small', text: live.title }), box);
@@ -212,7 +218,6 @@
                 poll.voteKey = ''; poll.resultsKey = ''; renderPoll();
             } }, label);
         return [
-            h('p', { class: 'sp-eyebrow' }, h('a', { href: 'season-polls.html', text: '← All polls' })),
             h('h1', { text: (poll.definition && poll.definition.title) || (poll.entry && poll.entry.title) || 'Poll' }),
             poll.definition && poll.definition.description ? h('p', { class: 'sp-lede', text: poll.definition.description }) : null,
             line ? h('p', { class: phase === 'open' ? 'sp-deadline' : 'sp-muted', text: line }) : null,
@@ -225,7 +230,7 @@
         const app = $('app');
         if (poll.entry === undefined && poll.control === undefined) return;
         if (poll.entry === null && poll.control === null) {
-            fill(app, h('p', { class: 'sp-eyebrow' }, h('a', { href: 'season-polls.html', text: '← All polls' })), h('p', { class: 'sp-status sp-warn', text: 'This poll could not be found.' }));
+            fill(app, h('p', { class: 'sp-status sp-warn', text: 'This poll could not be found.' }));
             return;
         }
         let panel = $('pollPanel');
@@ -250,15 +255,35 @@
         const key = `${phase}|${poll.ballot ? poll.ballot.revision : 'none'}|${poll.mode}`;
         if (key === poll.voteKey) return;
         poll.voteKey = key;
-        if (poll.ballot) { UI.renderReceipt(panel, { definition: poll.definition, ballot: poll.ballot }); return; }
+        if (poll.ballot) {
+            UI.renderReceipt(panel, { definition: poll.definition, ballot: poll.ballot, justSubmitted: poll.justSubmitted === true });
+            poll.justSubmitted = false;
+            poll.screen = 'receipt';
+            return;
+        }
         if (phase === 'scheduled') { fill(panel, h('p', { class: 'sp-status', text: `Voting opens ${P.formatDateTime(control.opensAt)}.` })); return; }
         if (phase !== 'open') { fill(panel, h('p', { class: 'sp-status', text: `This poll closed ${P.formatDateTime(control.closesAt)}. You didn't submit an answer.` })); return; }
         if (!poll.answers) restoreDraft();
+        // Moving between the questions and the review slides the new screen in.
+        const previous = poll.screen;
         if (poll.mode === 'review') {
             UI.renderReview(panel, { definition: poll.definition, answers: poll.answers, onBack: () => { poll.mode = 'form'; renderPoll(); }, onSubmit: submit });
         } else {
             UI.renderForm(panel, { definition: poll.definition, answers: poll.answers, onChange: saveDraft, onReview: () => { poll.mode = 'review'; renderPoll(); window.scrollTo(0, 0); } });
         }
+        poll.screen = poll.mode;
+        if (previous !== poll.screen) UI.enter(panel, previous === 'form' ? 'right' : previous === 'review' ? 'left' : 'below');
+    }
+
+    // The Submit button shows a spinner while sending and a tick once saved.
+    function buttonState(button, state) {
+        if (!button.dataset.label) button.dataset.label = button.textContent;
+        button.classList.toggle('sp-sending', state === 'sending');
+        button.classList.toggle('sp-sent', state === 'sent');
+        button.setAttribute('aria-busy', String(state === 'sending'));
+        const icon = state === 'sending' ? h('span', { class: 'sp-spinner', 'aria-hidden': 'true' })
+            : state === 'sent' ? h('span', { class: 'sp-btn-tick', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' }) : null;
+        fill(button, icon, state === 'sending' ? 'Sending…' : state === 'sent' ? 'Saved' : button.dataset.label);
     }
 
     function setStatus(element, text, kind) {
@@ -272,6 +297,7 @@
         const answers = SB.normaliseAnswers(poll.definition, poll.answers);
         if (SB.validateAnswers(poll.definition, answers).length) { poll.mode = 'form'; renderPoll(); return; }
         button.disabled = true;
+        buttonState(button, 'sending');
         if (!poll.submissionId) { poll.submissionId = db().ref().push().key; saveDraft(); }
         setStatus(status, connected ? 'Sending your vote…' : 'Waiting for a connection. Keep this page open and your vote will be sent.');
         const ballotPath = `${V1}/polls/${pollId}/ballots/${uid}`;
@@ -280,8 +306,13 @@
         poll.pendingBallot = null;
         try {
             await db().ref().update(SB.submissionUpdates({ pollId, uid, definition: poll.definition, answers, submissionId: poll.submissionId, increment: sv.increment, timestamp: sv.TIMESTAMP }));
-            poll.sending = false;
             clearDraft();
+            // The vote is saved; a brief tick on the button before the receipt.
+            buttonState(button, 'sent');
+            setStatus(status, '');
+            if (!UI.reduceMotion()) await new Promise(resolve => setTimeout(resolve, 550));
+            poll.sending = false;
+            poll.justSubmitted = true;
             poll.mode = 'form';
             poll.ballot = poll.pendingBallot || (await db().ref(ballotPath).once('value')).val();
             poll.voteKey = '';
@@ -292,6 +323,7 @@
             try { saved = (await db().ref(ballotPath).once('value')).val(); } catch (readError) { /* fall through */ }
             if (saved) {
                 clearDraft();
+                poll.justSubmitted = true;
                 poll.ballot = saved;
                 poll.voteKey = '';
                 renderPoll();
@@ -299,8 +331,10 @@
             }
             const control = poll.control || {};
             if (control.state !== 'published' || now() >= control.closesAt) {
+                buttonState(button, 'idle');
                 setStatus(status, 'This poll closed before your vote arrived, so it was not counted. Your answers are still shown above.', 'error');
             } else {
+                buttonState(button, 'idle');
                 setStatus(status, `Your vote was not saved (${error.message}). Check your connection and try again.`, 'error');
                 button.disabled = false;
             }
@@ -328,7 +362,7 @@
                 if (!value) { fill(panel, h('p', { class: 'sp-status', text: access.snapshot ? access.message : 'No results yet.' })); return; }
                 const totals = path === 'snapshot' ? value.totals : value;
                 const box = h('div');
-                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0 });
+                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0, animateKey: `tab:${pollId}:${path}` });
                 fill(panel, path === 'snapshot' ? h('p', { class: 'sp-muted sp-small', text: `Results published ${P.formatDateTime(value.at)}.` }) : null,
                     control.resultVisibility === 'live' && P.pollPhase(control, now()) === 'open' ? h('p', { class: 'sp-muted sp-small', text: 'Live: these totals update as votes arrive.' }) : null, box);
             }, () => fill(panel, h('p', { class: 'sp-status', text: access.message || 'Results are not available yet.' })));
@@ -365,11 +399,10 @@
         db().ref(`${V1}/plans/${summaryId}`).on('value', snapshot => {
             const plan = snapshot.val();
             const summary = plan && plan.summary;
-            const back = h('p', { class: 'sp-eyebrow' }, h('a', { href: 'season-polls.html', text: '← All polls' }));
-            if (!summary) { fill($('app'), back, h('p', { class: 'sp-status', text: 'This season summary hasn’t been published yet.' })); return; }
+            if (!summary) { fill($('app'), h('p', { class: 'sp-status', text: 'This season summary hasn’t been published yet.' })); return; }
             const body = h('div', { class: 'sp-summary' });
             UI.renderSummary(body, summary);
-            fill($('app'), back,
+            fill($('app'),
                 h('h1', { text: 'Season summary' }),
                 h('p', { class: 'sp-muted', text: `Published ${P.formatDateTime(summary.publishedAt)}.` }),
                 h('div', { class: 'sp-inline-actions', style: 'margin:6px 0 2px' },
@@ -397,8 +430,7 @@
         // Hidden from drivers until an admin switches Polls & Forms on.
         db().ref(`${V1}/visibility/drivers`).once('value').then(snapshot => snapshot.val() === true, () => false).then(visible => {
             if (!visible && !driver.isAdmin) {
-                fill($('app'), h('h1', { text: 'Polls & forms' }), h('p', { class: 'sp-status', text: 'Polls and forms aren’t open yet. Check back soon.' }),
-                    h('p', null, h('a', { href: 'main.html', text: '← Back to home' })));
+                fill($('app'), h('h1', { text: 'Polls & forms' }), h('p', { class: 'sp-status', text: 'Polls and forms aren’t open yet. Check back soon.' }));
                 return;
             }
             if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html?tab=settings', text: 'Season Planning → Settings' }), '.'));

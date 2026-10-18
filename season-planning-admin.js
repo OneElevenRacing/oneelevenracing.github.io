@@ -372,13 +372,13 @@
         if (draftId) {
             if (state.drafts === null || editor.id === draftId) return;
             const draft = state.drafts[draftId];
-            if (!draft) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'This draft no longer exists. It may have been published or deleted.' }), h('a', { href: '?tab=polls', text: '← All polls' })); return; }
+            if (!draft) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'This draft no longer exists. It may have been published or deleted.' })); $('backLink').href = 'season-planning-admin.html?tab=polls'; return; }
             Object.assign(editor, { mode: 'draft', id: draftId, data: JSON.parse(JSON.stringify(draft)), dirty: false });
         } else {
             if (editor.id === templateId) return;
             const builtIn = P.BUILT_IN_TEMPLATES.find(t => t.id === templateId);
             const saved = state.templates[templateId];
-            if (!builtIn && !saved) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Template not found.' }), h('a', { href: 'racing-setup.html', text: '← Racing Setup' })); return; }
+            if (!builtIn && !saved) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Template not found.' })); return; }
             const source = builtIn ? { name: `${builtIn.name} (copy)`, description: builtIn.description, kind: builtIn.kind, draft: builtIn.draft } : saved;
             Object.assign(editor, { mode: 'template', id: builtIn ? null : templateId, data: {
                 ...JSON.parse(JSON.stringify(source.draft || {})), name: source.name, templateDescription: source.description || '', kind: source.kind || 'custom' }, dirty: Boolean(builtIn) });
@@ -387,6 +387,7 @@
         }
         editor.data.questions = editor.data.questions || [];
         $('backLink').href = editor.mode === 'draft' ? 'season-planning-admin.html?tab=polls' : 'racing-setup.html';
+        $('backLink').setAttribute('aria-label', editor.mode === 'draft' ? 'Back to all polls' : 'Back to Racing Setup');
         renderEditor();
     }
 
@@ -458,7 +459,6 @@
             : [h('button', { type: 'button', class: 'sp-secondary', text: 'Preview as driver', onclick: previewDraft }),
                 h('button', { type: 'button', text: 'Save template', onclick: saveTemplate })];
         fill($('view'),
-            h('p', { class: 'sp-eyebrow' }, h('a', { href: isDraft ? '?tab=polls' : 'racing-setup.html', text: isDraft ? '← All polls' : '← Racing Setup' })),
             h('h2', { class: 'sp-section-title', style: 'margin-top:4px !important' }, isDraft ? 'Edit draft poll' : 'Edit template', ' ',
                 h('span', { id: 'dirtyFlag', class: 'sp-badge sp-amber', hidden: !editor.dirty, text: 'Unsaved changes' })),
             d.replaces ? h('p', { class: 'sp-status sp-warn', text: 'This draft replaces a published poll. Publishing it closes the original and links the two.' }) : null,
@@ -682,6 +682,7 @@
     function startDetail() {
         const id = params.get('poll');
         $('backLink').href = 'season-planning-admin.html?tab=polls';
+        $('backLink').setAttribute('aria-label', 'Back to all polls');
         const base = `${V1}/polls/${id}`;
         db().ref(`${base}/control`).on('value', s => { detail.control = s.val(); renderDetail(); });
         db().ref(`${base}/definition`).once('value').then(s => { detail.definition = s.val(); renderDetail(); });
@@ -695,7 +696,7 @@
         const control = detail.control;
         const definition = detail.definition;
         if (control === undefined || definition === undefined || state.index === null) return;
-        if (!control || !definition) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Poll not found.' }), h('a', { href: '?tab=polls', text: '← All polls' })); return; }
+        if (!control || !definition) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Poll not found.' })); return; }
         const entry = state.index[id] || {};
         const phase = P.pollPhase(control, now());
         const lifecycle = [];
@@ -708,7 +709,6 @@
         const eligible = control.allDrivers === false ? Object.keys(control.eligible || {}).map(driverName).join(', ') : 'Every active driver';
 
         fill($('view'),
-            h('p', { class: 'sp-eyebrow' }, h('a', { href: '?tab=polls', text: '← All polls' })),
             h('h2', { class: 'sp-section-title', style: 'margin-top:4px !important' }, definition.title, ' ', phaseBadge(phase)),
             entry.replacedBy ? h('p', { class: 'sp-status sp-warn' }, 'Replaced by ', h('a', { href: `?poll=${encodeURIComponent(entry.replacedBy)}`, text: (state.index[entry.replacedBy] || {}).title || 'a newer poll' }), '.') : null,
             entry.replaces ? h('p', { class: 'sp-muted' }, 'Replaces ', h('a', { href: `?poll=${encodeURIComponent(entry.replaces)}`, text: (state.index[entry.replaces] || {}).title || 'an earlier poll' }), '.') : null,
