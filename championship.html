@@ -16,6 +16,7 @@
     <script src="championship_calculator.js" defer></script>
 
 
+    <link rel="stylesheet" href="style_motion.css">
     <style>
         /* Fonts */
         @font-face {
@@ -221,6 +222,17 @@
         }
 
         /* Podium colours for top 3 championship rows */
+        /* Arrows for places gained or lost since the last visit. */
+        .standings-move {
+            display: inline-block;
+            margin-left: 4px;
+            font-size: 0.7em;
+            animation: standings-move-pop 0.35s cubic-bezier(.2, .7, .3, 1.35) 1.1s both;
+        }
+        .standings-up { color: #1d6b34; }
+        .standings-down { color: #c40000; }
+        @keyframes standings-move-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
         #current-standings table tr.podium-1 td {
         background-color: gold;
         font-weight: bold;
@@ -1538,6 +1550,7 @@
 
         sortedStandings.forEach(([uid, total], index) => {
             const row = document.createElement('tr');
+            row.dataset.uid = uid;
             if (index === 0) row.classList.add('podium-1');
             if (index === 1) row.classList.add('podium-2');
             if (index === 2) row.classList.add('podium-3');
@@ -1597,6 +1610,7 @@
         standingsScrollWrapper.className = 'scroll-container standings-scroll';
         standingsScrollWrapper.appendChild(standingsTable);
         standingsSection.appendChild(standingsScrollWrapper);
+        showStandingsChanges(standingsTable, sortedStandings, seasonData.seasonName);
 
         // === Calculator Button (opens modal, uses the data package above) ===
         let tools = document.getElementById('standings-tools');
@@ -1621,6 +1635,55 @@
         });
     }
 
+
+    // Since this driver last looked: rows slide from their old places, points count
+    // up and arrows show positions gained or lost. The first visit just remembers.
+    function showStandingsChanges(table, sortedStandings, seasonName) {
+        const storageKey = 'oneElevenStandingsSeen';
+        const now = { season: seasonName, drivers: {} };
+        sortedStandings.forEach(([uid, total], index) => { now.drivers[uid] = { pos: index, pts: total }; });
+        let seen = null;
+        try { seen = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch (error) { seen = null; }
+        try { localStorage.setItem(storageKey, JSON.stringify(now)); } catch (error) { /* private browsing */ }
+        if (!seen || seen.season !== seasonName || !seen.drivers) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const rows = Array.from(table.querySelectorAll('tr[data-uid]'));
+        const rowHeight = rows.length > 1 ? rows[1].getBoundingClientRect().top - rows[0].getBoundingClientRect().top : 0;
+        rows.forEach((row, index) => {
+            const before = seen.drivers[row.dataset.uid];
+            if (!before) return;
+            const moved = before.pos - index;
+            if (moved && rowHeight) {
+                // The old position shows until the row starts to move.
+                const position = row.querySelector('.standings-pos-col');
+                position.textContent = before.pos + 1;
+                setTimeout(() => { position.textContent = index + 1; }, 500);
+                Array.from(row.cells).forEach(cell => cell.animate(
+                    [{ transform: `translateY(${moved * rowHeight}px)` }, { transform: 'none' }],
+                    { duration: 650, delay: 500, easing: 'cubic-bezier(.3,.8,.3,1)', fill: 'backwards' }));
+            }
+            const points = row.querySelector('.standings-points-col');
+            const to = Number(points.textContent);
+            if (before.pts !== to) {
+                const start = performance.now();
+                const step = time => {
+                    const t = Math.min(1, (time - start) / 800);
+                    points.textContent = Math.round(before.pts + (to - before.pts) * (1 - Math.pow(1 - t, 3)));
+                    if (t < 1) requestAnimationFrame(step);
+                };
+                points.textContent = before.pts;
+                requestAnimationFrame(step);
+            }
+            if (moved) {
+                const arrow = document.createElement('span');
+                arrow.className = `standings-move ${moved > 0 ? 'standings-up' : 'standings-down'}`;
+                arrow.textContent = moved > 0 ? `▲${moved}` : `▼${-moved}`;
+                arrow.title = moved > 0 ? `Up ${moved} since your last visit` : `Down ${-moved} since your last visit`;
+                row.querySelector('.standings-driver-col').appendChild(arrow);
+            }
+        });
+    }
 
     function openLink(url) {
         window.open(url, '_blank');

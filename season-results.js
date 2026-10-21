@@ -185,5 +185,5 @@
         return C.toCsv(out);
     }
 
-    return { INK, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, percent, summaryText, barPath, barChartSvg, yesNoSvg, resultsCsv };
+    return { INK, BAR, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, percent, summaryText, barPath, barChartSvg, yesNoSvg, resultsCsv };
 });

@@ -1,0 +1,78 @@
+/* Site-wide motion. Load after each page's own stylesheets.
+   Sections in this CSS:
+   Buttons
+   Moving between pages
+   Main menu entrance
+   Loading placeholders
+   Reduced motion
+*/
+
+/* Buttons: colours fade instead of jumping, and a tap presses the button in. */
+button {
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+}
+
+button:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+/* Moving between pages: supporting browsers crossfade while the header stays put. */
+@view-transition { navigation: auto; }
+header { view-transition-name: oe-header; }
+::view-transition-old(root) { animation: 140ms ease-in both oe-fade-out; }
+::view-transition-new(root) { animation: 220ms ease-out both oe-fade-in; }
+
+/* Main menu entrance: the top box, race info and buttons rise in one after another. */
+.main .top-box,
+.main .middle-box,
+.button-container button {
+    animation: oe-rise 0.4s ease-out both;
+}
+.main .middle-box { animation-delay: 60ms; }
+.button-container button:nth-child(1) { animation-delay: 120ms; }
+.button-container button:nth-child(2) { animation-delay: 170ms; }
+.button-container button:nth-child(3) { animation-delay: 220ms; }
+.button-container button:nth-child(4) { animation-delay: 270ms; }
+.button-container button:nth-child(5) { animation-delay: 320ms; }
+.button-container button:nth-child(6) { animation-delay: 370ms; }
+.button-container button:nth-child(7) { animation-delay: 420ms; }
+.button-container button:nth-child(n+8) { animation-delay: 470ms; }
+
+/* Loading placeholders: grey shapes in the content's place while data loads. */
+.oe-skeleton {
+    display: grid;
+    gap: 10px;
+    width: min(100%, 600px);
+    margin: 12px auto;
+}
+.oe-bone {
+    height: 14px;
+    border-radius: 7px;
+    background: linear-gradient(90deg, #ececec 30%, #f7f7f7 50%, #ececec 70%) 0 0 / 200% 100%;
+    animation: oe-shimmer 1.2s linear infinite;
+}
+.oe-bone-tall { height: 40px; border-radius: 10px; }
+.oe-bone-short { width: 55%; }
+.oe-skeleton-arrive { animation: oe-rise 0.3s ease-out both; }
+
+.oe-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@keyframes oe-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes oe-fade-out { to { opacity: 0; } }
+@keyframes oe-fade-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes oe-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes oe-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* Reduced motion: everything above shows its end state at once. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+    button:not(:disabled):active { transform: none; }
+}

@@ -1,6 +1,9 @@
 // Loaded only by tools/preview.py, replacing all Firebase SDK scripts.
 (function () {
     const storageKey = 'oneElevenSamplePreview';
+    // "Slow loading" in the preview controls delays every first read, to show loading states.
+    const slow = sessionStorage.getItem('oneElevenSlowPreview') === 'true';
+    const later = callback => setTimeout(callback, slow ? 1500 : 0);
     function sampleSeasonPlanning() {
         const hour = 3600000;
         const t = Date.now();
@@ -17,7 +20,8 @@
         const round1 = control(t - 6 * 24 * hour, t - 3 * 24 * hour, { state: 'closed' });
         const tracks = control(t - 5 * 24 * hour, t - 1 * 24 * hour, { resultVisibility: 'hidden', labelsHidden: false });
         const rules = control(t - 4 * 24 * hour, t - 2 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
-        const feedback = control(t - 24 * hour, t + 6 * 24 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
+        // Closes within six hours, so its countdown ring shows the red "closing soon" state.
+        const feedback = control(t - 24 * hour, t + 4 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
         const carCounts = { 'gt3-gen2': 8, gt4: 7, 'group-a': 5, 'formula-junior': 4, 'porsche-cup': 2, p2: 1 };
         return {
             plans: { 'sample-plan': { title: 'Next season', intro: 'Help shape the next season. Take part in each stage below.', status: 'active', stageCount: 5, createdAt: t,
@@ -100,7 +104,7 @@
     // Sample season planning: a plan with polls in each state, for the Polls & Forms pages.
     data.realtime.seasonPlanning ||= {};
     data.realtime.seasonPlanning.v1 ||= {};
-    if (data.realtime.seasonPlanning.v1.sampleVersion !== 4) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 4, visibility: { drivers: true } });
+    if (data.realtime.seasonPlanning.v1.sampleVersion !== 5) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 5, visibility: { drivers: true } });
     const realtimeListeners = new Map();
     const seasonListeners = new Set();
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }
@@ -120,13 +124,12 @@
             child: name => ref([path, name].filter(Boolean).join('/')),
             once: (_event, callback) => {
                 const result = snapshot(path);
-                if (callback) setTimeout(() => callback(result), 0);
-                return Promise.resolve(result);
+                return new Promise(resolve => later(() => { if (callback) callback(result); resolve(result); }));
             },
             on: (_event, callback) => {
                 if (!realtimeListeners.has(path)) realtimeListeners.set(path, new Set());
                 realtimeListeners.get(path).add(callback);
-                setTimeout(() => callback(snapshot(path)), 0);
+                later(() => callback(snapshot(path)));
                 return callback;
             },
             off: () => { realtimeListeners.delete(path); },
@@ -165,10 +168,10 @@
     const seasonSnapshot = () => ({ empty: false, docs: [seasonDoc()] });
     const query = {
         where() { return this; }, limit() { return this; },
-        get: () => Promise.resolve(seasonSnapshot()),
+        get: () => new Promise(resolve => later(() => resolve(seasonSnapshot()))),
         onSnapshot: callback => {
             seasonListeners.add(callback);
-            setTimeout(() => callback(seasonSnapshot()), 0);
+            later(() => callback(seasonSnapshot()));
             return () => seasonListeners.delete(callback);
         }
     };
@@ -179,21 +182,56 @@
         return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day.getUTCDay()]} ${day.getUTCDate()}/${day.getUTCMonth()+1}`;
     });
     const samplePoll = { title: 'Sample availability', weekStart: monday.toISOString().slice(0,10), options };
-    data.pollResponses ||= Object.fromEntries(Object.keys(drivers).map((uid,i) => [uid,
+    data.pollResponses ||= Object.fromEntries(Object.keys(drivers).slice(0, 7).map((uid,i) => [uid,
         {dayResponses:Object.fromEntries(options.map((day,j)=>[day,['yes','maybe','no'][(i+j)%3]]))}]));
     const responseListeners = new Set();
     const responseSnapshot = () => ({docs:Object.entries(data.pollResponses).map(([id,value])=>({id,data:()=>copy(value)}))});
     const responses = {
-        onSnapshot(callback) { responseListeners.add(callback); setTimeout(()=>callback(responseSnapshot()),0); return ()=>responseListeners.delete(callback); },
+        onSnapshot(callback) { responseListeners.add(callback); later(()=>callback(responseSnapshot())); return ()=>responseListeners.delete(callback); },
         doc(uid) { return {
-            get: async()=>({exists:!!data.pollResponses[uid],data:()=>copy(data.pollResponses[uid])}),
+            get: ()=>new Promise(resolve=>later(()=>resolve({exists:!!data.pollResponses[uid],data:()=>copy(data.pollResponses[uid])}))),
             set: async value=>{data.pollResponses[uid]=copy(value);persist();responseListeners.forEach(callback=>callback(responseSnapshot()));}
         }; }
     };
     const polls = {
-        onSnapshot(callback) { setTimeout(()=>callback({empty:false,docs:[{id:'sample-poll',data:()=>samplePoll}]}),0);return ()=>{}; },
+        onSnapshot(callback) { later(()=>callback({empty:false,docs:[{id:'sample-poll',data:()=>samplePoll}]}));return ()=>{}; },
         doc() { return {collection:()=>responses}; }
     };
+    // Events the preview controls can trigger, to show live updates arriving.
+    const pick = list => list[Math.floor(Math.random() * list.length)];
+    window.oneElevenSample = {
+        // The next driver without an answer replies; once everyone has, someone changes theirs.
+        availabilityReply() {
+            const missing = Object.keys(drivers).find(uid => !data.pollResponses[uid]);
+            const uid = missing || pick(Object.keys(drivers).filter(id => id !== 'demo1'));
+            data.pollResponses[uid] = { dayResponses: Object.fromEntries(options.map(day => [day, pick(['yes', 'yes', 'maybe', 'no'])])) };
+            persist();
+            responseListeners.forEach(callback => callback(responseSnapshot()));
+        },
+        // One more ballot on the open "Car class · Round 2" poll (three classes each).
+        seasonVote() {
+            const path = 'seasonPlanning/v1/polls/sample-cars/totals';
+            const totals = read(path);
+            const counts = totals.questions[0].options;
+            const ids = Object.keys(counts).sort(() => Math.random() - 0.5).slice(0, 3);
+            ids.forEach(id => { counts[id] += 1; });
+            ref(path).set({ ...totals, respondents: totals.respondents + 1 });
+        },
+        // Results for the next race without any, so the standings change.
+        async enterRace() {
+            const key = Object.keys(data.season.races).find(k => !data.season.races[k].resultsRace1);
+            if (!key) return false;
+            const order = Object.keys(drivers).sort(() => Math.random() - 0.5);
+            data.season.races[key] = { ...data.season.races[key],
+                resultsRace1: Object.fromEntries(order.map((uid, i) => [uid, i + 1])),
+                resultsRace2: Object.fromEntries([...order].reverse().map((uid, i) => [uid, i + 1])),
+                polePositionDriver: order[0], fastestLapDriverR1: order[1], fastestLapDriverR2: order[2] };
+            persist();
+            seasonListeners.forEach(listener => listener(seasonSnapshot()));
+            return true;
+        }
+    };
+
     const user = { uid: 'demo1' };
     window.firebase = {
         initializeApp() {},

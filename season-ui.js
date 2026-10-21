@@ -102,6 +102,23 @@
         { transform: 'translateX(-3px)' }, { transform: 'translateX(0)' }
     ], { duration: 380, easing: 'ease-in-out' });
 
+    // A ring that drains as a poll's voting window runs down; red and breathing in
+    // the last six hours. It drains in from full the first time each poll's ring shows;
+    // pages redraw often, so a redrawn ring carries on where the drain had got to.
+    const ringsShown = new Map();
+    function countdownRing(opensAt, closesAt, now) {
+        const length = 2 * Math.PI * 8;
+        const left = Math.max(0, Math.min(1, (closesAt - now) / Math.max(1, closesAt - opensAt)));
+        const late = closesAt - now <= 6 * 3600000;
+        const ring = h('span', { class: `sp-ring${late ? ' sp-ring-late' : ''}`, 'aria-hidden': 'true',
+            html: `<svg viewBox="0 0 20 20" width="18" height="18"><circle class="sp-ring-track" cx="10" cy="10" r="8"/><circle class="sp-ring-arc" cx="10" cy="10" r="8" stroke-dasharray="${length}" stroke-dashoffset="${length * (1 - left)}"/></svg>` });
+        const key = `${opensAt}-${closesAt}`;
+        if (!ringsShown.has(key)) ringsShown.set(key, performance.now());
+        const elapsed = performance.now() - ringsShown.get(key);
+        if (elapsed < 1050) play(ring.querySelector('.sp-ring-arc'), [{ strokeDashoffset: 0 }, { strokeDashoffset: length * (1 - left) }], { duration: 900, delay: 150 - elapsed, fill: 'backwards' });
+        return ring;
+    }
+
     function blankAnswers(definition) {
         return questions(definition).map(() => ({ selections: [], writeIns: [], text: '', skipped: false }));
     }
@@ -397,6 +414,7 @@
         const tick = h('span', { class: `sp-receipt-tick${justSubmitted ? ' sp-draw' : ''}`, 'aria-hidden': 'true',
             html: '<svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="10.5"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>' });
         const receipt = h('div', { class: 'sp-receipt', role: 'status' },
+            h('span', { class: `sp-receipt-flag${justSubmitted ? ' sp-draw' : ''}`, 'aria-hidden': 'true' }),
             tick,
             h('div', null,
                 h('h2', { text: preview ? 'Preview submitted (nothing saved)' : 'Your vote is saved' }),
@@ -446,7 +464,9 @@
     function animateFigure(figure, state, gen, q) {
         const wanted = () => state.gen === gen;
         const before = state.charts[q];
-        const now = { rows: {}, numbers: {} };
+        // `targets` are the counts each drawing was heading for, so new votes compare
+        // against real totals rather than a count caught mid-animation.
+        const now = { rows: {}, numbers: {}, targets: {} };
         state.charts[q] = now;
         const svg = figure.querySelector('svg');
         figure.querySelectorAll('[data-number]').forEach(el => {
@@ -464,6 +484,9 @@
             const known = before && before.rows[d.row];
             const from = known || { w: 0, y: to.y, count: 0 };
             now.rows[d.row] = { ...to };
+            now.targets[d.row] = to.count;
+            const target = before && before.targets[d.row];
+            if (target !== undefined && to.count > target) floatGain(g, g.querySelector('.sp-bar-value'), to.count - target);
             if (known && known.w === to.w && known.y === to.y && known.count === to.count) return;
             const path = g.querySelector('.sp-bar');
             const value = g.querySelector('.sp-bar-value');
@@ -495,6 +518,57 @@
                 now.split = { yes: y, no: n };
             } });
         }
+    }
+
+    // A small "+1" that rises from a count when new votes arrive.
+    function floatGain(g, value, gain) {
+        if (reduceMotion()) return;
+        const plus = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        plus.setAttribute('x', String(Number(value.getAttribute('x')) + 22));
+        plus.setAttribute('y', value.getAttribute('y'));
+        plus.setAttribute('font-size', '12');
+        plus.setAttribute('font-weight', '700');
+        plus.setAttribute('fill', R.BAR);
+        plus.textContent = `+${gain}`;
+        g.append(plus);
+        const motion = play(plus, [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-16px)' }], { duration: 900, easing: 'ease-out', fill: 'forwards' });
+        if (motion) motion.onfinish = () => plus.remove(); else plus.remove();
+    }
+
+    // A finished poll: once the bars have grown, the others fade back and the
+    // leading bar (or tied bars) get a chequered flag and a "Most votes" label.
+    let chequerId = 0;
+    function revealWinner(figure, delay) {
+        const svg = figure.querySelector('svg');
+        const rows = svg ? [...svg.querySelectorAll('[data-row]')] : [];
+        const top = Math.max(0, ...rows.map(g => Number(g.dataset.count)));
+        if (!top) return;
+        const NS = 'http://www.w3.org/2000/svg';
+        const make = (tag, attrs) => { const el = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, String(v))); return el; };
+        const id = `sp-chequer-${++chequerId}`;
+        const pattern = make('pattern', { id, width: 8, height: 8, patternUnits: 'userSpaceOnUse' });
+        pattern.append(make('rect', { width: 4, height: 4, fill: '#fff' }), make('rect', { x: 4, y: 4, width: 4, height: 4, fill: '#fff' }));
+        const defs = make('defs', {}); defs.append(pattern); svg.prepend(defs);
+        setTimeout(() => {
+            if (!svg.isConnected) return;
+            rows.forEach(g => {
+                if (Number(g.dataset.count) !== top) {
+                    g.style.transition = 'opacity 400ms ease';
+                    g.style.opacity = '0.4';
+                    return;
+                }
+                const d = g.dataset;
+                const x0 = Number(d.x0); const cy = Number(d.cy); const bar = Number(d.bar);
+                const flag = make('path', { d: R.barPath(x0, cy, bar, Number(d.w)), fill: `url(#${id})`, opacity: 0.35 });
+                const chip = make('g', { class: 'sp-win-chip' });
+                chip.append(make('rect', { x: x0 + 4, y: cy - 7, width: 70, height: 14, rx: 7, fill: R.INK }),
+                    make('text', { x: x0 + 39, y: cy + 3.5, 'font-size': 9.5, 'font-weight': 700, 'text-anchor': 'middle', fill: '#fff' }));
+                chip.lastChild.textContent = 'MOST VOTES';
+                g.append(flag, chip);
+                play(flag, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }], { duration: 700, easing: 'ease-out' });
+                play(chip, [{ opacity: 0, transform: 'scale(0.4)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: 250, fill: 'backwards', easing: 'cubic-bezier(.2,.7,.3,1.35)' });
+            });
+        }, reduceMotion() ? 0 : delay);
     }
 
     // Charts for every question that has totals. Respondents and total selections
@@ -550,7 +624,12 @@
             if (!drawn.has(animateKey)) drawn.set(animateKey, { gen: 0, charts: {} });
             const state = drawn.get(animateKey);
             const gen = ++state.gen;
-            shown.forEach(figure => animateFigure(figure, state, gen, figure.dataset.question));
+            shown.forEach(figure => {
+                const first = !state.charts[figure.dataset.question];
+                animateFigure(figure, state, gen, figure.dataset.question);
+                // Only on a finished poll's first drawing; yes/no questions have their own outcome line.
+                if (first && !provisional && figure.querySelector('[data-row]')) revealWinner(figure, 600 + figure.querySelectorAll('[data-row]').length * 45 + 150);
+            });
         }
     }
 
@@ -581,5 +660,5 @@
     }
 
 
-    window.SeasonUI = { h, fill, play, enter, reduceMotion, saveFeedback, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
+    window.SeasonUI = { h, fill, play, enter, reduceMotion, saveFeedback, countdownRing, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
 })();

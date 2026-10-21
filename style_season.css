@@ -529,8 +529,6 @@
 
 /* ---------- Motion (drivers' pages) ----------
    Short and quiet; everything below is switched off for reduced motion. */
-.sp-option { transition: opacity 200ms ease, border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease; }
-
 /* Submit button: spinner while sending, tick once saved. */
 .sp button.sp-sending, .sp button.sp-sent { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .sp button.sp-sending:disabled { opacity: 1; cursor: progress; }
@@ -560,7 +558,34 @@
 }
 .sp-step-open .sp-step-dot { animation: sp-glow 2.4s ease-in-out infinite; animation-delay: calc(-1 * var(--elapsed, 0ms)); }
 
+/* Ballot options: the box pops when ticked and a tap presses the option in. */
+.sp-option { transition: opacity 200ms ease, border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease, transform 100ms ease; }
+.sp-option:active { transform: scale(0.985); }
+.sp-option input:checked { animation: sp-check-pop 280ms cubic-bezier(.2, .7, .3, 1.4); }
+
+/* Receipt: a chequered strip sweeps across the top after a new vote. */
+.sp-receipt { position: relative; overflow: hidden; padding-top: 18px; }
+.sp-receipt-flag { position: absolute; top: 0; left: 0; right: 0; height: 8px; background: repeating-conic-gradient(var(--sp-ink) 0 25%, #fff 0 50%) 0 0 / 8px 8px; }
+.sp-receipt-flag.sp-draw { animation: sp-sweep 700ms ease-out 150ms both; }
+
+/* Live results: a pulsing red dot. */
+.sp-live { display: inline-flex; align-items: center; gap: 6px; color: var(--sp-red); font-family: 'KeepCalm', Arial, sans-serif; font-size: 0.72rem; letter-spacing: 0.5px; text-transform: uppercase; vertical-align: middle; }
+.sp-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sp-red); animation: sp-live 1.6s ease-out infinite; }
+
+/* Closing countdown ring beside "Closes …". */
+.sp-ring { display: inline-block; width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; }
+.sp-ring svg { display: block; transform: rotate(-90deg); }
+.sp-ring circle { fill: none; stroke-width: 3; }
+.sp-ring-track { stroke: var(--sp-line); }
+.sp-ring-arc { stroke: var(--sp-ink); stroke-linecap: round; }
+.sp-ring-late .sp-ring-arc { stroke: var(--sp-red); }
+.sp-ring-late { animation: sp-breathe 1.4s ease-in-out infinite; }
+
 @keyframes sp-spin { to { transform: rotate(360deg); } }
+@keyframes sp-check-pop { 50% { transform: scale(1.25); } }
+@keyframes sp-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes sp-live { 0% { box-shadow: 0 0 0 0 rgba(196, 0, 0, 0.55); } 70% { box-shadow: 0 0 0 8px rgba(196, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(196, 0, 0, 0); } }
+@keyframes sp-breathe { 50% { transform: scale(1.15); } }
 @keyframes sp-draw { to { stroke-dashoffset: 0; } }
 @keyframes sp-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes sp-pop {

@@ -49,9 +49,16 @@
         db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
     }
 
+    // A pulsing dot that says the numbers beside it are updating live.
+    const liveDot = () => h('span', { class: 'sp-live' }, h('span', { class: 'sp-live-dot', 'aria-hidden': 'true' }), 'Live');
+
+    // Grey shapes in place of content that is still loading.
+    const skeleton = label => h('div', { class: 'oe-skeleton', role: 'status' }, h('span', { class: 'oe-visually-hidden', text: label }),
+        h('div', { class: 'oe-bone oe-bone-tall' }), h('div', { class: 'oe-bone' }), h('div', { class: 'oe-bone' }), h('div', { class: 'oe-bone oe-bone-short' }));
+
     function deadline(entry) {
         const phase = P.pollPhase(entry, now());
-        if (phase === 'open') return h('span', { class: 'sp-deadline', title: P.formatDateTime(entry.closesAt) }, `Closes ${P.relative(entry.closesAt, now())}`);
+        if (phase === 'open') return h('span', { class: 'sp-deadline', title: P.formatDateTime(entry.closesAt) }, UI.countdownRing(entry.opensAt, entry.closesAt, now()), `Closes ${P.relative(entry.closesAt, now())}`);
         if (phase === 'scheduled') return h('span', { class: 'sp-muted', title: P.formatDateTime(entry.opensAt) }, `Opens ${P.formatDate(entry.opensAt)}`);
         return h('span', { class: 'sp-muted' }, `Closed ${P.formatDate(entry.closesAt)}`);
     }
@@ -122,7 +129,7 @@
         const width = window.innerWidth >= 720 ? Math.max(300, Math.min(820, window.innerWidth - 48) / 2 - 64) : undefined;
         UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true, minTurnout: hub.minTurnout[live.id] || 0, animateKey: `hub:${live.id}` });
         return h('section', { class: 'sp-card', 'aria-labelledby': 'liveTitle' },
-            h('div', { class: 'sp-card-head' }, h('h2', { id: 'liveTitle', text: 'Live results' }), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
+            h('div', { class: 'sp-card-head' }, h('h2', { id: 'liveTitle' }, 'Live results ', liveDot()), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
             h('p', { class: 'sp-muted sp-small', text: live.title }), box);
     }
 
@@ -241,7 +248,7 @@
         return [
             h('h1', { text: (poll.definition && poll.definition.title) || (poll.entry && poll.entry.title) || 'Poll' }),
             poll.definition && poll.definition.description ? h('p', { class: 'sp-lede', text: poll.definition.description }) : null,
-            line ? h('p', { class: phase === 'open' ? 'sp-deadline' : 'sp-muted', text: line }) : null,
+            line ? h('p', { class: phase === 'open' ? 'sp-deadline' : 'sp-muted' }, phase === 'open' ? UI.countdownRing(control.opensAt, control.closesAt, now()) : null, line) : null,
             h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Poll sections' }, tab('vote', 'Vote'), tab('results', 'Results'),
                 h('a', { role: 'tab', class: 'sp-tab-link', href: 'season-polls.html', text: 'Season' }))
         ];
@@ -376,7 +383,7 @@
             poll.resultsKey = key;
             if (poll.resultsRef) { poll.resultsRef.off(); poll.resultsRef = null; }
             if (!path) { fill(panel, h('p', { class: 'sp-status', text: access.message })); return; }
-            fill(panel, h('p', { class: 'sp-muted', text: 'Loading results…' }));
+            fill(panel, skeleton('Loading results…'));
             poll.resultsRef = db().ref(`${V1}/polls/${pollId}/${path}`);
             poll.resultsRef.on('value', snapshot => {
                 if (poll.tab !== 'results') return;
@@ -386,7 +393,7 @@
                 const box = h('div');
                 UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0, animateKey: `tab:${pollId}:${path}` });
                 fill(panel, path === 'snapshot' ? h('p', { class: 'sp-muted sp-small', text: `Results published ${P.formatDateTime(value.at)}.` }) : null,
-                    control.resultVisibility === 'live' && P.pollPhase(control, now()) === 'open' ? h('p', { class: 'sp-muted sp-small', text: 'Live: these totals update as votes arrive.' }) : null, box);
+                    control.resultVisibility === 'live' && P.pollPhase(control, now()) === 'open' ? h('p', { class: 'sp-muted sp-small' }, liveDot(), ' These totals update as votes arrive.') : null, box);
             }, () => fill(panel, h('p', { class: 'sp-status', text: access.message || 'Results are not available yet.' })));
         }
     }

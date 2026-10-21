@@ -8,6 +8,7 @@
     <title>One Eleven - Polls and Forms</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="style_season.css">
+    <link rel="stylesheet" href="style_motion.css">
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -35,7 +36,12 @@
     </header>
     <main class="sp sp-driver">
         <p id="connection" class="sp-status sp-warn" role="status" hidden>You're offline. Your answers are kept on this device until you reconnect.</p>
-        <div id="app"><p class="sp-muted">Loading…</p></div>
+        <div id="app">
+            <div class="oe-skeleton" role="status"><span class="oe-visually-hidden">Loading…</span>
+                <div class="oe-bone oe-bone-tall"></div><div class="oe-bone"></div><div class="oe-bone oe-bone-short"></div>
+                <div class="oe-bone oe-bone-tall"></div><div class="oe-bone"></div><div class="oe-bone oe-bone-short"></div>
+            </div>
+        </div>
     </main>
 </body>
 </html>
