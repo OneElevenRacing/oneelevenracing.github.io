@@ -171,22 +171,13 @@
           cell.classList.toggle('scheduled-race-column', selected);
           cell.classList.toggle('scheduled-race-top', selected && rowIndex === 0);
           cell.classList.toggle('scheduled-race-bottom', selected && rowIndex === rows.length - 1);
-          // Until a race day is set, the outline marks the best date instead.
-          const best = index < 0 && bestDateIndex >= 0 && column === bestDateIndex + 1;
-          cell.classList.toggle('best-date-column', best);
-          cell.classList.toggle('best-date-top', best && rowIndex === 0);
-          cell.classList.toggle('best-date-bottom', best && rowIndex === rows.length - 1);
-          cell.classList.toggle('best-date-new', best && bestDateIsNew);
           if (rowIndex === 0) {
-            if (best) cell.title = 'Most drivers available';
-            else if (cell.title === 'Most drivers available') cell.removeAttribute('title');
             if (selected) cell.setAttribute('aria-current', 'date');
             else cell.removeAttribute('aria-current');
           }
         });
       });
     });
-    bestDateIsNew = false;
   }
 
   function configureRaceDateHeading(heading, index) {
@@ -235,10 +226,6 @@
   let pollSlideFrom = "";
   // What the responses table last showed, so the next update can point out what changed.
   let shownResponses = null;
-  // The best date's column and whether its outline should draw in (see markBestDate).
-  let bestDateShown = "";
-  let bestDateIndex = -1;
-  let bestDateIsNew = false;
 
   function slideInPoll(from) {
     ["pollTitleHeader", "responsesTable", "latestPollContainer"].forEach(id => {
@@ -704,23 +691,7 @@
       totalCell.appendChild(total);
       totalsRow.appendChild(totalCell);
     });
-    markBestDate(totals, pollOptions);
     refreshRaceDateColumns();
-  }
-
-  // The date with the most yeses (maybes break ties) is outlined; the outline
-  // draws in when it first appears or moves to another date.
-  function markBestDate(totals, pollOptions) {
-    let best = -1;
-    pollOptions.forEach((option, index) => {
-      const day = totals[option];
-      const leader = best >= 0 ? totals[pollOptions[best]] : null;
-      if (day.yes > 0 && (!leader || day.yes > leader.yes || (day.yes === leader.yes && day.maybe > leader.maybe))) best = index;
-    });
-    bestDateIndex = best;
-    const key = best < 0 ? "" : `${pollOptions.join("|")}#${best}`;
-    bestDateIsNew = key !== "" && key !== bestDateShown;
-    bestDateShown = key;
   }
 </script>
 
