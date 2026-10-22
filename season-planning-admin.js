@@ -74,7 +74,9 @@
             const alt = altLabel ? h('button', { type: 'button', class: 'sp-link', text: altLabel }) : null;
             fill($('dialogFoot'), alt, cancel, ok);
             let done = false;
-            const finish = value => { if (done) return; done = true; dialog.close(); resolve(value); };
+            // The close event fires later, as its own task; detach first so it can't
+            // cancel a dialog opened straight after this one (e.g. Confirm → Ready to publish).
+            const finish = value => { if (done) return; done = true; dialog.onclose = null; dialog.close(); resolve(value); };
             cancel.onclick = () => finish(null);
             if (alt) alt.onclick = () => finish({ alt: true, reason: reasonInput ? reasonInput.value.trim() : '' });
             dialog.onclose = () => finish(null);
