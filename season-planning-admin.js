@@ -74,12 +74,12 @@
             const alt = altLabel ? h('button', { type: 'button', class: 'sp-link', text: altLabel }) : null;
             fill($('dialogFoot'), alt, cancel, ok);
             let done = false;
-            // The close event fires later, as its own task; detach first so it can't
-            // cancel a dialog opened straight after this one (e.g. Confirm → Ready to publish).
-            const finish = value => { if (done) return; done = true; dialog.onclose = null; dialog.close(); resolve(value); };
+            const finish = value => { if (done) return; done = true; dialog.close(); resolve(value); };
             cancel.onclick = () => finish(null);
             if (alt) alt.onclick = () => finish({ alt: true, reason: reasonInput ? reasonInput.value.trim() : '' });
-            dialog.onclose = () => finish(null);
+            // The close event fires later, as its own task. If the dialog is open again by
+            // then (Confirm → Ready to publish), it's the previous dialog's close: ignore it.
+            dialog.onclose = () => { if (!dialog.open) finish(null); };
             $('dialogForm').onsubmit = event => {
                 event.preventDefault();
                 if (reasonInput && !reasonInput.value.trim()) { error.hidden = false; error.textContent = 'Please give a reason.'; reasonInput.focus(); return; }
