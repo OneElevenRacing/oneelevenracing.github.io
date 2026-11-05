@@ -44,7 +44,7 @@
         url.searchParams.delete('tab');
         if (openStep) url.searchParams.set('step', openStep); else url.searchParams.delete('step');
         history.replaceState(null, '', url);
-        A.rerender();
+        A.renderNow();
         const card = document.getElementById(`step-${id}`);
         if (card && openStep) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
     }

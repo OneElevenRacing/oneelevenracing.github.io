@@ -34,13 +34,12 @@
     // ---------- Timing ----------
 
     // What a poll is doing right now. Opening and closing follow the timestamps,
-    // so no scheduled job is needed.
+    // so no scheduled job is needed. A poll is scheduled, open or closed; older polls
+    // stored as 'finalised' or 'archived' count as closed.
     function pollPhase(control, now) {
         if (!control) return 'unknown';
         if (control.state === 'draft') return 'draft';
-        if (control.state === 'archived') return 'archived';
-        if (control.state === 'finalised') return 'finalised';
-        if (control.state === 'closed' || now >= control.closesAt) return 'closed';
+        if (control.state === 'closed' || control.state === 'finalised' || control.state === 'archived' || now >= control.closesAt) return 'closed';
         if (now < control.opensAt) return 'scheduled';
         return 'open';
     }
@@ -383,20 +382,20 @@
 
     // ---------- Hub ----------
 
+    // Open, scheduled and closed polls for the drivers' hub. A poll that was replaced
+    // by a corrected one is left out: drivers only need the replacement.
     function groupPolls(index, now) {
-        const groups = { open: [], scheduled: [], results: [], archived: [] };
+        const groups = { open: [], scheduled: [], results: [] };
         Object.entries(index || {}).forEach(([id, entry]) => {
+            if (entry.replacedBy) return;
             const item = { id, ...entry, phase: pollPhase(entry, now) };
-            if (entry.replacedBy) item.replaced = true;
             if (item.phase === 'open') groups.open.push(item);
             else if (item.phase === 'scheduled') groups.scheduled.push(item);
-            else if (item.phase === 'archived' || item.replaced) groups.archived.push(item);
             else groups.results.push(item);
         });
         groups.open.sort((a, b) => a.closesAt - b.closesAt);
         groups.scheduled.sort((a, b) => a.opensAt - b.opensAt);
         groups.results.sort((a, b) => b.closesAt - a.closesAt);
-        groups.archived.sort((a, b) => b.closesAt - a.closesAt);
         return groups;
     }
 
@@ -413,7 +412,7 @@
             // Stages without polls (such as the calendar) are finished once the summary is out.
             if (!linked.length && plan.summary) status = 'done';
             else if (phases.includes('open')) status = 'open';
-            else if (linked.length && phases.every(p => p === 'closed' || p === 'finalised' || p === 'archived')) status = 'done';
+            else if (linked.length && phases.every(p => p === 'closed')) status = 'done';
             else if (phases.includes('scheduled')) status = 'scheduled';
             const next = linked.filter(p => p.phase === 'scheduled').sort((a, b) => a.opensAt - b.opensAt)[0];
             return { ...stage, status, polls: linked, opensAt: next ? next.opensAt : null };

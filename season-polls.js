@@ -41,12 +41,13 @@
 
     // Live chart on the hub for the first open poll with live results.
     function watchLiveResults(groups) {
-        const live = groups.open.find(poll => poll.resultVisibility === 'live');
-        if (!live || hub.liveTotals[live.id] !== undefined) return;
-        hub.liveTotals[live.id] = null;
-        db().ref(`${V1}/polls/${live.id}/control/minTurnout`).once('value').then(snapshot => { hub.minTurnout[live.id] = snapshot.val() || 0; }, () => {});
-        db().ref(`${V1}/polls/${live.id}/definition`).on('value', snapshot => { hub.definitions[live.id] = snapshot.val(); renderHub(); }, () => {});
-        db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
+        groups.open.filter(poll => poll.resultVisibility === 'live').forEach(live => {
+            if (hub.liveTotals[live.id] !== undefined) return;
+            hub.liveTotals[live.id] = null;
+            db().ref(`${V1}/polls/${live.id}/control/minTurnout`).once('value').then(snapshot => { hub.minTurnout[live.id] = snapshot.val() || 0; }, () => {});
+            db().ref(`${V1}/polls/${live.id}/definition`).on('value', snapshot => { hub.definitions[live.id] = snapshot.val(); renderHub(); }, () => {});
+            db().ref(`${V1}/polls/${live.id}/totals`).on('value', totals => { hub.liveTotals[live.id] = totals.val(); renderHub(); }, () => {});
+        });
     }
 
     // A pulsing dot that says the numbers beside it are updating live.
@@ -121,16 +122,19 @@
             h('ul', { class: 'sp-mine-list' }, items));
     }
 
+    // One card per open poll whose results drivers can watch live.
     function liveResultsCard(groups) {
-        const live = groups.open.find(poll => poll.resultVisibility === 'live');
-        if (!live || !hub.liveTotals[live.id] || !hub.definitions[live.id]) return null;
-        const box = h('div');
-        // On wider screens the card sits in a half-width column.
-        const width = window.innerWidth >= 720 ? Math.max(300, Math.min(820, window.innerWidth - 48) / 2 - 64) : undefined;
-        UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true, minTurnout: hub.minTurnout[live.id] || 0, animateKey: `hub:${live.id}` });
-        return h('section', { class: 'sp-card', 'aria-labelledby': 'liveTitle' },
-            h('div', { class: 'sp-card-head' }, h('h2', { id: 'liveTitle' }, 'Live results ', liveDot()), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
-            h('p', { class: 'sp-muted sp-small', text: live.title }), box);
+        return groups.open.filter(live => live.resultVisibility === 'live' && hub.liveTotals[live.id] && hub.definitions[live.id]).map(live => {
+            const box = h('div');
+            // On wider screens the card sits in a half-width column.
+            const width = window.innerWidth >= 720 ? Math.max(300, Math.min(820, window.innerWidth - 48) / 2 - 64) : undefined;
+            UI.renderResults(box, { definition: hub.definitions[live.id], totals: hub.liveTotals[live.id], pollId: live.id, labelsHidden: live.labelsHidden, provisional: true, title: live.title, downloads: false, width, compact: true,
+                minTurnout: hub.minTurnout[live.id] || 0, animateKey: `hub:${live.id}`, pie: live.kind === 'rules' });
+            const titleId = `liveTitle-${live.id}`;
+            return h('section', { class: 'sp-card', 'aria-labelledby': titleId },
+                h('div', { class: 'sp-card-head' }, h('h2', { id: titleId }, 'Live results ', liveDot()), h('a', { href: `season-polls.html?poll=${encodeURIComponent(live.id)}&tab=results`, class: 'sp-small', text: 'Full results' })),
+                h('p', { class: 'sp-muted sp-small', text: live.title }), box);
+        });
     }
 
     // Published summaries of plans other than the active one, newest first.
@@ -167,16 +171,12 @@
                         poll.summary ? h('div', { class: 'sp-item-meta', text: poll.summary }) : null))))) : null,
             groups.results.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Closed polls and results' }),
                 h('ul', { class: 'sp-list' }, groups.results.map(poll => h('li', { class: 'sp-item' },
-                    h('div', null, h('div', { class: 'sp-item-title' }, poll.title, poll.phase === 'finalised' ? h('span', { class: 'sp-badge', text: 'Final' }) : null), h('div', { class: 'sp-item-meta' }, deadline(poll), ' ', submittedBadge(poll.id))),
+                    h('div', null, h('div', { class: 'sp-item-title', text: poll.title }), h('div', { class: 'sp-item-meta' }, deadline(poll), ' ', submittedBadge(poll.id))),
                     h('a', { class: 'sp-small', href: `season-polls.html?poll=${encodeURIComponent(poll.id)}&tab=results`, text: poll.resultVisibility === 'hidden' ? 'Your answers' : 'Results' }))))) : null,
             pastSummaries(plan).length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Season summaries' }),
                 h('ul', { class: 'sp-list' }, pastSummaries(plan).map(([id, p]) => h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title', text: p.summary.title }), h('div', { class: 'sp-item-meta', text: `Published ${P.formatDate(p.summary.publishedAt)}` })),
                     h('a', { class: 'sp-small', href: `season-polls.html?summary=${encodeURIComponent(id)}`, text: 'Open' }))))) : null,
-            groups.archived.length ? h('details', { class: 'sp-archive' }, h('summary', { text: `Archive (${groups.archived.length})` }),
-                h('ul', { class: 'sp-list' }, groups.archived.map(poll => h('li', { class: 'sp-item' },
-                    h('div', null, h('div', { class: 'sp-item-title' }, poll.title, poll.replaced ? h('span', { class: 'sp-badge', text: 'Replaced' }) : null), h('div', { class: 'sp-item-meta' }, deadline(poll))),
-                    h('a', { class: 'sp-small', href: `season-polls.html?poll=${encodeURIComponent(poll.id)}&tab=results`, text: 'View' }))))) : null,
             driver && driver.isAdmin ? h('p', { class: 'sp-admin-link' }, h('a', { class: 'sp-btn sp-btn-secondary', href: 'season-planning-admin.html', text: 'Manage season planning' })) : null);
     }
 
@@ -378,7 +378,7 @@
         }
         const access = P.resultsAccess(control, now());
         const path = access.totals ? 'totals' : access.snapshot ? 'snapshot' : null;
-        const key = `${path}|${control.labelsHidden}|${control.state}`;
+        const key = `${path}|${control.labelsHidden}|${P.pollPhase(control, now())}`;
         if (key !== poll.resultsKey) {
             poll.resultsKey = key;
             if (poll.resultsRef) { poll.resultsRef.off(); poll.resultsRef = null; }
@@ -391,7 +391,7 @@
                 if (!value) { fill(panel, h('p', { class: 'sp-status', text: access.snapshot ? access.message : 'No results yet.' })); return; }
                 const totals = path === 'snapshot' ? value.totals : value;
                 const box = h('div');
-                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: control.state !== 'finalised', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0, animateKey: `tab:${pollId}:${path}` });
+                UI.renderResults(box, { definition: poll.definition, totals, pollId, labelsHidden: control.labelsHidden === true, provisional: P.pollPhase(control, now()) !== 'closed', title: poll.definition.title, downloads: false, minTurnout: control.minTurnout || 0, animateKey: `tab:${pollId}:${path}`, pie: (poll.entry && poll.entry.kind) === 'rules' });
                 fill(panel, path === 'snapshot' ? h('p', { class: 'sp-muted sp-small', text: `Results published ${P.formatDateTime(value.at)}.` }) : null,
                     control.resultVisibility === 'live' && P.pollPhase(control, now()) === 'open' ? h('p', { class: 'sp-muted sp-small' }, liveDot(), ' These totals update as votes arrive.') : null, box);
             }, () => fill(panel, h('p', { class: 'sp-status', text: access.message || 'Results are not available yet.' })));

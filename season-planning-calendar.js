@@ -27,7 +27,7 @@
         if (!polls.length) return { ready: true, drivers: [], note: 'No track poll in this plan, so every event is drawn at random.' };
         const poll = polls[polls.length - 1];
         const data = T.pollData(poll.id, { ballots: true });
-        if (!data.definition || !data.ballots) return { ready: false };
+        if (!data.definition || !data.ballots) return { ready: false, pollId: poll.id };
         const config = ((tools.planAdmin.trackResolution || {})[poll.id]) || {};
         const resolution = AC.trackResolution(data.definition, data.ballots, config);
         const options = data.definition.questions[0].options;
@@ -79,7 +79,8 @@
         }
         const info = driverInfo();
         const excluded = excludedLocations();
-        if (!info.ready || excluded === null) return T.loading();
+        if (!info.ready) return T.pollLoading(info.pollId);
+        if (excluded === null) return T.seasonsLoading();
         const version = current();
         const events = eventsOf(version);
         const locked = Boolean(finalised() && finalised().versionId === calendar().currentVersion);
@@ -180,8 +181,8 @@
             const f = finalised();
             T.put(card, h('p', { class: 'sp-status sp-ok', text: `Final since ${P.formatDateTime(f.at)} (${A.driverName(f.by)}). Publish it in the summary step.` }),
                 h('button', { type: 'button', class: 'sp-link', text: 'Reopen for changes…', onclick: async () => {
-                    const r = await A.confirmDialog({ title: 'Reopen the calendar?', body: h('p', { text: 'You’ll need to finalise again afterwards. A published summary keeps the old calendar until you republish.' }), reason: true, confirmLabel: 'Reopen' });
-                    if (r) T.decide({ [`${T.planPath()}/calendar/finalised`]: null }, 'calendar-reopen', `Calendar reopened: ${r.reason}`, 'Calendar reopened.');
+                    const r = await A.confirmDialog({ title: 'Reopen the calendar?', body: h('p', { text: 'You’ll need to finalise again afterwards. A published summary keeps the old calendar until you republish.' }), confirmLabel: 'Reopen' });
+                    if (r) T.decide({ [`${T.planPath()}/calendar/finalised`]: null }, 'calendar-reopen', 'Calendar reopened', 'Calendar reopened.');
                 } }));
             return card;
         }

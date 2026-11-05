@@ -149,6 +149,73 @@
             + `<rect width="100%" height="100%" fill="#ffffff"/>${parts.join('')}</svg>`;
     }
 
+    // Slice colours for pie charts: Yes/No use their own pair; other options take these in turn.
+    const PIE_COLOURS = ['#2a78d6', '#eb6834', '#1f9e6e', '#8b5cf6', '#d4a20b', '#c2417a', '#0e9aa7', '#6b7280'];
+
+    // Outcome of a question with the admin's own options: the option with most votes
+    // wins; a shared top spot is a tie. `voters` is what the minimum turnout counts.
+    function choiceOutcome(list, { minTurnout = 0, voters = null } = {}) {
+        const total = totalSelections(list);
+        const counted = voters === null ? total : voters;
+        if (!total) return { outcome: 'none', label: 'No decision — nobody voted' };
+        if (minTurnout && counted < minTurnout) return { outcome: 'none', label: `No decision — fewer than ${minTurnout} votes` };
+        const top = Math.max(...list.map(r => r.count));
+        const leaders = list.filter(r => r.count === top);
+        if (leaders.length > 1) return { outcome: 'tie', label: `Tie between ${leaders.map(r => `“${r.label}”`).join(' and ')} (${top} each)`, leaders: leaders.map(r => r.id) };
+        return { outcome: 'chosen', label: `“${leaders[0].label}” (${top} of ${total} ${total === 1 ? 'vote' : 'votes'})`, winner: leaders[0].id };
+    }
+
+    // Pie (doughnut) chart with a legend of every option, its count and share. The
+    // legend sits beside the pie on wide charts and underneath on narrow ones.
+    function pieChartSvg(list, { title = '', width = 640, yesNo = false } = {}) {
+        const heading = titleBlock(title, '', width);
+        const top = heading.height;
+        const total = totalSelections(list);
+        const side = width >= 420;
+        const size = Math.min(side ? Math.round(width * 0.4) : width, 200);
+        const r = size / 2;
+        const inner = r * 0.55;
+        const cx = r;
+        const cy = top + r;
+        const colour = (row, i) => (yesNo ? (row.id === 'yes' ? YES : row.id === 'no' ? NO : PIE_COLOURS[i % PIE_COLOURS.length]) : PIE_COLOURS[i % PIE_COLOURS.length]);
+        const parts = [heading.svg];
+        if (!total) {
+            parts.push(`<circle cx="${cx}" cy="${cy}" r="${(r + inner) / 2}" fill="none" stroke="${TRACK}" stroke-width="${r - inner}"/>`
+                + `<text x="${cx}" y="${cy + 5}" font-size="13" text-anchor="middle" fill="${MUTED}">No votes yet</text>`);
+        } else {
+            let angle = -Math.PI / 2;
+            const point = (radius, a) => `${(cx + radius * Math.cos(a)).toFixed(2)},${(cy + radius * Math.sin(a)).toFixed(2)}`;
+            list.forEach((row, i) => {
+                if (!row.count) return;
+                const sweep = (row.count / total) * Math.PI * 2;
+                const label = `${row.label}: ${row.count} (${percent(row.count, total)}%)`;
+                if (row.count === total) {
+                    parts.push(`<g data-slice="${esc(String(row.id))}"><title>${esc(label)}</title><circle cx="${cx}" cy="${cy}" r="${(r + inner) / 2}" fill="none" stroke="${colour(row, i)}" stroke-width="${r - inner}"/></g>`);
+                } else {
+                    const end = angle + sweep;
+                    const large = sweep > Math.PI ? 1 : 0;
+                    parts.push(`<g data-slice="${esc(String(row.id))}"><title>${esc(label)}</title><path d="M${point(r, angle)} A${r},${r} 0 ${large} 1 ${point(r, end)} L${point(inner, end)} A${inner},${inner} 0 ${large} 0 ${point(inner, angle)} Z" fill="${colour(row, i)}" stroke="#ffffff" stroke-width="2"/></g>`);
+                    angle = end;
+                }
+            });
+            parts.push(`<text x="${cx}" y="${cy + 2}" font-size="20" font-weight="700" text-anchor="middle" fill="${INK}">${total}</text>`
+                + `<text x="${cx}" y="${cy + 18}" font-size="11" text-anchor="middle" fill="${MUTED}">${total === 1 ? 'vote' : 'votes'}</text>`);
+        }
+        const legendX = side ? size + 24 : 0;
+        const legendTop = side ? top + Math.max(4, r - (list.length * 24) / 2) : top + size + 16;
+        const legendWidth = width - legendX;
+        list.forEach((row, i) => {
+            const y = legendTop + i * 24;
+            const value = `${row.count} (${percent(row.count, total)}%)`;
+            parts.push(`<rect x="${legendX}" y="${y}" width="12" height="12" rx="2" fill="${colour(row, i)}"/>`
+                + `<text x="${legendX + 18}" y="${y + 10.5}" font-size="13" fill="${INK}">${esc(fit(row.label, legendWidth - 110))}</text>`
+                + `<text x="${width}" y="${y + 10.5}" font-size="13" font-weight="700" text-anchor="end" fill="${INK}">${value}</text>`);
+        });
+        const height = Math.max(top + size, legendTop + list.length * 24) + 8;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" font-family="${FONT}" role="img">`
+            + `<rect width="100%" height="100%" fill="#ffffff"/>${parts.join('')}</svg>`;
+    }
+
     // Yes/No split bar: two segments with a 2px gap, direct labels and a legend line.
     // Both segments are always drawn (an empty one has no width) so they can animate.
     function yesNoSvg(yes, no, { title = '', width = 640 } = {}) {
@@ -185,5 +252,5 @@
         return C.toCsv(out);
     }
 
-    return { INK, BAR, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, percent, summaryText, barPath, barChartSvg, yesNoSvg, resultsCsv };
+    return { INK, BAR, YES, NO, hiddenLabels, rows, totalSelections, yesNoOutcome, choiceOutcome, percent, summaryText, barPath, barChartSvg, yesNoSvg, pieChartSvg, resultsCsv };
 });

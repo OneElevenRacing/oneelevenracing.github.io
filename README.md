@@ -34,7 +34,7 @@ how to hide the feature again. Drivers see "Coming Soon!" until an admin chooses
 
 **Other Polls and Forms** on the home page opens the drivers' hub (`season-polls.html`). It
 shows the active season plan's stages, open polls ordered by deadline (with each driver's
-Submitted / Not submitted status), upcoming polls, results and an archive. The existing
+Submitted / Not submitted status), upcoming polls, live results and closed polls. The existing
 availability poll is separate and unchanged.
 
 Each poll has a Vote and a Results tab. Drivers search and tick options, then review their
@@ -58,18 +58,18 @@ pages:
     the admin's decision.
   - Locations used in the chosen previous seasons are excluded from track picks.
   - When drivers pick the same location, the one who submitted last keeps it.
-  - A rule passes only when Yes beats No.
+  - A Yes/No rule passes only when Yes beats No; rules with custom options go to the most votes.
   - The calendar draws locations equally likely, never repeats one, saves every change as
     a version, and only finalises once track clashes are settled.
   - The summary can be printed and downloaded (CSV, Markdown, JSON) by admins.
   - Nothing creates or changes a championship.
 - **Polls:** every poll, plus **New poll** for standalone polls. Each poll's page has Preview as
-  driver, dates and results settings, close/finalise/archive, duplicate/replace, result
+  driver, dates and results settings, close, delete, duplicate/replace, result
   snapshots, recount, individual answers (with corrections) and its history.
 - **Settings:** the drivers' access switch and links to Racing Setup, templates and defaults,
   and the activity log.
 
-Every change to a published poll needs a reason, which is kept in the history, and drivers'
+Every change to a published poll is recorded in its history (notes are optional), and drivers'
 original answers are never changed. Questions, options and quotas are frozen once published.
 
 Default poll settings and saved templates live in **Racing Setup → Templates & defaults**.

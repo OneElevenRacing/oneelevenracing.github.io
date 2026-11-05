@@ -501,6 +501,8 @@
                 now.rows[d.row] = { w, y: to.y + dy, count: Math.round(from.count + (to.count - from.count) * p) };
             } });
         });
+        // Pie charts fade in on their first drawing; later votes just redraw them.
+        if (!before && svg.querySelector('[data-slice]')) play(svg, [{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 420 });
         const yes = svg.querySelector('[data-seg="yes"]');
         const no = svg.querySelector('[data-seg="no"]');
         if (yes && no) {
@@ -574,7 +576,8 @@
     // Charts for every question that has totals. Respondents and total selections
     // are separate figures; names stay hidden everywhere when labels are hidden.
     // `animateKey` (drivers' pages) turns on animation and names the chart's memory.
-    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0, animateKey = '' }) {
+    // `pie`: draw choice questions as pie charts with an outcome line (rule votes).
+    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0, animateKey = '', pie = false }) {
         // Draw at the screen's width so text stays readable on phones; exports use the same drawing.
         const chartWidth = width || Math.max(300, Math.min(640, window.innerWidth - 72));
         const respondents = (totals && totals.respondents) || 0;
@@ -586,14 +589,26 @@
             const name = `${slug(title)}-q${i + 1}${labelsHidden ? '-names-hidden' : ''}`;
             let svg;
             let outcome = null;
-            if (yesNo) {
+            const outcomeLine = result => h('p', { class: `sp-outcome sp-outcome-${result.outcome}` },
+                h('span', { 'aria-hidden': 'true', text: result.outcome === 'pass' || result.outcome === 'chosen' ? '✓ ' : result.outcome === 'fail' ? '✕ ' : '– ' }),
+                result.outcome === 'chosen' ? `Most votes: ${result.label}` : result.label, provisional ? h('span', { class: 'sp-muted', text: ' · voting still open' }) : null);
+            if (pie) {
+                // Options keep the poll's order, so each keeps its colour as votes come in.
+                const order = Object.keys(question.options || {});
+                const ordered = [...list].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+                svg = R.pieChartSvg(ordered, { title: question.prompt, width: Math.min(chartWidth, 520), yesNo });
+                if (yesNo) {
+                    const count = id => (list.find(r => r.id === id) || {}).count || 0;
+                    outcome = outcomeLine(R.yesNoOutcome(count('yes'), count('no'), { minTurnout }));
+                } else if (!labelsHidden && question.maxSelections === 1) {
+                    outcome = outcomeLine(R.choiceOutcome(list, { minTurnout }));
+                }
+            } else if (yesNo) {
                 const yes = (list.find(r => r.id === 'yes') || {}).count || 0;
                 const no = (list.find(r => r.id === 'no') || {}).count || 0;
                 svg = R.yesNoSvg(yes, no, { title: question.prompt, width: chartWidth });
                 const result = R.yesNoOutcome(yes, no, { minTurnout });
-                outcome = h('p', { class: `sp-outcome sp-outcome-${result.outcome}` },
-                    h('span', { 'aria-hidden': 'true', text: result.outcome === 'pass' ? '✓ ' : result.outcome === 'fail' ? '✕ ' : '– ' }),
-                    result.label, provisional ? h('span', { class: 'sp-muted', text: ' · provisional until an admin confirms' }) : null);
+                outcome = outcomeLine(result);
             } else {
                 svg = R.barChartSvg(list, { title: question.prompt, width: chartWidth });
             }
@@ -606,7 +621,7 @@
             return h('figure', { class: 'sp-figure', 'data-question': String(i) },
                 h('div', { class: 'sp-stats' },
                     h('span', null, 'Respondents ', h('strong', { 'data-number': 'respondents', text: String(respondents) })),
-                    yesNo ? null : h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
+                    yesNo || pie ? null : h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
                 chart,
                 outcome,
                 labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,
@@ -652,8 +667,8 @@
             h('h3', { text: 'Rule changes' }),
             rules.length ? h('ul', { class: 'sp-list' }, rules.map(r => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
                 h('div', null, h('div', { class: 'sp-item-title', text: r.prompt }), h('div', { class: `sp-outcome sp-outcome-${r.outcome}` },
-                    h('span', { 'aria-hidden': 'true', text: r.outcome === 'pass' ? '✓ ' : r.outcome === 'fail' ? '✕ ' : '– ' }),
-                    `${r.outcome === 'pass' ? 'Accepted' : r.outcome === 'fail' ? 'Rejected' : 'No decision'} · ${r.label}`)))))
+                    h('span', { 'aria-hidden': 'true', text: r.outcome === 'pass' || r.outcome === 'chosen' ? '✓ ' : r.outcome === 'fail' ? '✕ ' : '– ' }),
+                    `${{ pass: 'Accepted', fail: 'Rejected', chosen: 'Decided' }[r.outcome] || 'No decision'} · ${r.label}`)))))
                 : h('p', { class: 'sp-muted', text: 'No rule votes.' }),
             (summary.rounds || []).length ? [h('h3', { text: 'Voting rounds' }), h('ul', null, summary.rounds.map(r => h('li', null,
                 h('a', { href: admin ? `season-planning-admin.html?poll=${encodeURIComponent(r.pollId)}` : `season-polls.html?poll=${encodeURIComponent(r.pollId)}&tab=results`, text: r.title }))))] : null);

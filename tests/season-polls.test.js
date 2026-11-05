@@ -12,7 +12,9 @@ test('poll phase follows the timestamps and admin states', () => {
     assert.equal(P.pollPhase({ ...control, opensAt: now + 1 }, now), 'scheduled');
     assert.equal(P.pollPhase({ ...control, closesAt: now }, now), 'closed');
     assert.equal(P.pollPhase({ ...control, state: 'closed' }, now), 'closed');
-    assert.equal(P.pollPhase({ ...control, state: 'finalised' }, now), 'finalised');
+    // Older polls stored as finalised or archived are simply closed.
+    assert.equal(P.pollPhase({ ...control, state: 'finalised' }, now), 'closed');
+    assert.equal(P.pollPhase({ ...control, state: 'archived' }, now), 'closed');
 });
 
 test('result access follows the visibility setting', () => {
@@ -125,7 +127,7 @@ test('hub groups polls and plan progress follows configured stages', () => {
     assert.deepEqual(groups.open.map(p => p.id), ['b', 'a']);
     assert.deepEqual(groups.scheduled.map(p => p.id), ['c']);
     assert.deepEqual(groups.results.map(p => p.id), ['d']);
-    assert.deepEqual(groups.archived.map(p => p.id), ['e']);
+    assert.equal(groups.archived, undefined, 'there is no archive: replaced polls are left out');
     const plan = { id: 'p', stageCount: 4, stages: [{ id: 'ideas', label: 'Ideas' }, { id: 'cars', label: 'Car votes' }, { id: 'tracks', label: 'Tracks' }, { id: 'rules', label: 'Rules' }] };
     assert.deepEqual(P.planProgress(plan, index, now).map(s => `${s.label}:${s.status}`), ['Ideas:done', 'Car votes:open', 'Tracks:scheduled', 'Rules:upcoming']);
 });
@@ -217,4 +219,16 @@ test('a suggestions poll can cap how many listed classes each driver picks', () 
     assert.equal(uncapped.maxSelections, 6);
     assert.equal(P.draftQuestions({ questionCount: 1, questions: { 0: uncapped } })[0].maxPicks, undefined);
     assert.match(P.validateDraft({ ...draft, questions: [{ ...draft.questions[0], maxPicks: 0 }] }, cat).join(' '), /most classes per driver/);
+});
+
+test('pie charts show every option with its share, and cope with no votes', () => {
+    const list = [{ id: 'yes', label: 'Yes', count: 3 }, { id: 'no', label: 'No', count: 1 }];
+    const svg = R.pieChartSvg(list, { title: 'Allow ghosting?', yesNo: true });
+    assert.equal((svg.match(/data-slice=/g) || []).length, 2);
+    assert.match(svg, /3 \(75%\)/);
+    assert.match(svg, /1 \(25%\)/);
+    assert.match(R.pieChartSvg([{ id: 'a', label: 'A', count: 2 }, { id: 'b', label: 'B', count: 0 }]), /<circle/, 'one option with every vote is a full ring');
+    assert.match(R.pieChartSvg([{ id: 'a', label: 'A', count: 0 }]), /No votes yet/);
+    assert.match(R.pieChartSvg([{ id: 'a', label: '<b>', count: 1 }, { id: 'c', label: 'C', count: 1 }], { width: 300 }), /&lt;b&gt;/);
+    assert.deepEqual(R.choiceOutcome([{ id: 'a', label: 'A', count: 0 }]).outcome, 'none');
 });

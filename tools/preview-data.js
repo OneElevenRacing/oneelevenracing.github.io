@@ -22,6 +22,13 @@
         const rules = control(t - 4 * 24 * hour, t - 2 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
         // Closes within six hours, so its countdown ring shows the red "closing soon" state.
         const feedback = control(t - 24 * hour, t + 4 * hour, { resultVisibility: 'afterClose', labelsHidden: false });
+        // Track catalogue: [layout id, location id, location name, layout name, image].
+        const trackLayouts = [['brands-hatch', 'brands', 'Brands Hatch', 'Brands Hatch', 'Brands_Hatch'], ['brands-hatch-indy', 'brands', 'Brands Hatch', 'Brands Hatch Indy', 'Brands_Hatch_Indy'],
+            ['monza', 'monza', 'Monza', 'Monza', 'Monza'], ['imola', 'imola', 'Imola', 'Imola', 'Imola'], ['donington-gp', 'donington', 'Donington', 'Donington GP', 'Donington_GP'],
+            ['silverstone', 'silverstone', 'Silverstone', 'Silverstone', 'Silverstone'], ['spielberg', 'spielberg', 'Spielberg', 'Spielberg', 'Spielberg'],
+            ['bathurst-2020', 'bathurst', 'Bathurst', 'Bathurst 2020', 'Bathurst_2020'], ['interlagos-gp', 'interlagos', 'Interlagos', 'Interlagos GP', 'Interlagos_GP'],
+            ['oulton-park', 'oulton', 'Oulton Park', 'Oulton Park International', 'Oulton_Park_International'], ['jerez-moto', 'jerez', 'Jerez', 'Jerez Moto', 'Jerez_Moto'],
+            ['adelaide', 'adelaide', 'Adelaide', 'Adelaide', 'Adelaide'], ['barcelona-gp', 'barcelona', 'Barcelona', 'Barcelona GP', 'Barcelona_GP'], ['azure', 'azure', 'Azure Circuit', 'Azure Circuit', 'Azure_Circuit']];
         const carCounts = { 'gt3-gen2': 8, gt4: 7, 'group-a': 5, 'formula-junior': 4, 'porsche-cup': 2, p2: 1 };
         return {
             plans: { 'sample-plan': { title: 'Next season', intro: 'Help shape the next season. Take part in each stage below.', status: 'active', stageCount: 5, createdAt: t,
@@ -72,7 +79,9 @@
                         1: { id: 'q2', index: 1, type: 'text', kind: 'text', required: false, prompt: 'Anything else about race nights?', maxLength: 2000 } } },
                     totals: { respondents: 10, questions: { 0: { options: { yes: 6, no: 4 } } } } }
             },
-            catalogue: { classes: Object.fromEntries(classes.map(([id, name]) => [id, { name, active: true }])) }
+            catalogue: { classes: Object.fromEntries(classes.map(([id, name]) => [id, { name, active: true }])),
+                locations: Object.fromEntries(trackLayouts.map(([, locationId, locationName]) => [locationId, { name: locationName, active: true }])),
+                layouts: Object.fromEntries(trackLayouts.map(([id, locationId, , name, image]) => [id, { name, locationId, active: true, imagePath: `Logos_and_icons/racetracks/${image}.png` }])) }
         };
     }
     const copy = value => JSON.parse(JSON.stringify(value));
@@ -104,7 +113,7 @@
     // Sample season planning: a plan with polls in each state, for the Polls & Forms pages.
     data.realtime.seasonPlanning ||= {};
     data.realtime.seasonPlanning.v1 ||= {};
-    if (data.realtime.seasonPlanning.v1.sampleVersion !== 5) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 5, visibility: { drivers: true } });
+    if (data.realtime.seasonPlanning.v1.sampleVersion !== 6) Object.assign(data.realtime.seasonPlanning.v1, sampleSeasonPlanning(), { sampleVersion: 6, visibility: { drivers: true } });
     const realtimeListeners = new Map();
     const seasonListeners = new Set();
     function persist() { sessionStorage.setItem(storageKey, JSON.stringify(data)); }

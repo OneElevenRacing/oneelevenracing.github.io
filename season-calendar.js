@@ -238,7 +238,7 @@
         } else lines.push('Not published.');
         lines.push('', '## Rule changes', '');
         const rules = summary.rules || [];
-        if (rules.length) rules.forEach(r => lines.push(`- ${r.outcome === 'pass' ? 'Accepted' : r.outcome === 'fail' ? 'Rejected' : 'No decision'}: ${md(r.prompt)} (${md(r.label)})`));
+        if (rules.length) rules.forEach(r => lines.push(`- ${{ pass: 'Accepted', fail: 'Rejected', chosen: 'Decided' }[r.outcome] || 'No decision'}: ${md(r.prompt)} (${md(r.label)})`));
         else lines.push('None.');
         if ((summary.rounds || []).length) {
             lines.push('', '## Voting rounds', '');

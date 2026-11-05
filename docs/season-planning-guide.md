@@ -164,7 +164,7 @@ You can come back to any of this later; nothing here is visible to drivers.
 4. Open the poll's **Results** tab and check the chart.
 5. If you have a second test account, add it as an active driver in Edit Team, sign in as
    that account, check it can vote, and check it **can't** open Season Planning or Racing Setup.
-6. Back in Season Planning, open the poll, **close** it and **archive** it.
+6. Back in Season Planning, open the poll and press **Close now**. Polls are either open or closed.
 
 The automated tests already play a complete dummy season through the real rules (see
 [For developers](#for-developers)), so this step is about checking it works for you.
@@ -202,9 +202,9 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
 
 1. **Start a season.** Name it and untick any steps you don't need this time. Drivers see the
    ticked steps as the progress strip on Polls & Forms. **Edit season** changes this later.
-2. **Car-class suggestions:** create the suggestions poll. By default each driver can pick up
-   to 5 listed classes (change **Most classes each driver can pick** in the editor, or leave
-   it blank for no limit). When it closes, review the written
+2. **Car-class suggestions:** create the suggestions poll. The publish window has **Most
+   classes each driver can pick** (5 by default; leave it blank for no limit). Voting rounds
+   have **At least / At most** in the same place. When it closes, review the written
    suggestions (match, merge, add as a new class or exclude), tick the shortlist and press
    **Start round 1**.
 3. **Car-class voting rounds:** when a round closes, check the result. If there's a tie at the
@@ -217,8 +217,12 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
    suggestions from drivers** in the Rule changes step. After it closes, contact drivers who lost a
    shared location, record their new choice (only free locations are offered), and settle
    any identical submission times.
-5. **Rule changes:** turn suggestions into Yes/No proposals, flag related ones, open the vote
-   and confirm each outcome after it closes. Outcomes don't change the rules document or
+5. **Rule changes:** add proposals (or turn drivers' suggestions into them). Each proposal is
+   one question: Yes/No, or your own answer options (pick one, or pick any). Flag related ones
+   and open the vote; tick **Drivers see live results while voting** to show pie charts as
+   votes arrive. While the vote is open the step shows live pie charts and a **Show drivers
+   live results / Hide live results** switch. Confirm each outcome after it closes (Yes/No
+   passes when Yes beats No; your own options go to the most votes). Outcomes don't change the rules document or
    scoring; update those yourself.
 6. **Calendar:** set the number of events and press **Generate calendar**. Use Keep, Pin,
    ↑ ↓, Replace, Remove, Redraw, Shuffle and dates until you're happy. Every change is a saved
@@ -236,16 +240,17 @@ Any poll can also run on its own, outside a season (a suggestion box, a quick vo
 ### Good to know
 
 - Drivers can't change an answer after submitting; an admin can, from the poll's page
-  (**Individual answers → Correct these answers**), with a reason that's kept in the history.
-- Changing a published poll's dates or results setting, or closing it, always asks for a
-  reason.
+  (**Individual answers → Correct these answers**), with an optional note for the history.
+- Closing a poll, changing its dates or results setting, and editing it never ask for a
+  reason: the history records what changed automatically. Messages about what happened
+  appear at the bottom of the screen.
 - **Editing a live poll:** open the poll and press **Edit poll**. Until someone votes you can
   change anything. Once votes are in you can reword the title, questions and options, add
   options and remove options nobody has picked; the editor tells you if a change isn't
   allowed (for example the number of choices). For those, use **Replace with a corrected
-  poll**. Every edit asks what changed and is kept in the poll's history. Drivers see the
+  poll**. Every edit is recorded in the poll's history. Drivers see the
   change straight away; anyone part-way through is asked to check their answers.
-- **Deleting a poll:** archive it first, then press **Delete…** on its page and tick the
+- **Deleting a poll:** close it first, then press **Delete…** on its page and tick the
   confirmation. This removes its questions, answers, results and history for good.
 - "Hide class names" only changes what's shown. It isn't secret: someone determined could
   still work the names out.

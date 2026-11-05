@@ -169,6 +169,27 @@ test('rule outcomes: Yes must beat No; ties fail; no votes is no decision', () =
     assert.equal(draft.questions.length, 2);
 });
 
+test('rule proposals can have their own answer options; the most votes decides', () => {
+    const proposals = [{ text: 'Allow ghosting?' }, { text: 'Race length?', answers: { type: 'single', options: ['20 minutes', '30 minutes', '45 minutes'] } },
+        { text: 'Which assists?', answers: { type: 'multi', options: { 0: 'ABS', 1: 'TC' } } }, { text: 'Too few options', answers: { type: 'single', options: ['Only one'] } }];
+    const draft = A.rulesDraft({ plan: null, proposals, settings: {}, now: 0 });
+    assert.deepEqual(P.validateDraft(draft, {}), []);
+    assert.deepEqual(draft.questions.map(q => q.type), ['yesno', 'single', 'multi', 'yesno'], 'fewer than two options falls back to Yes/No');
+    assert.equal(draft.summary, 'Vote on 4 proposals.');
+    const def = P.buildDefinition(draft, {});
+    assert.deepEqual(Object.values(def.questions[1].options).map(o => o.label), ['20 minutes', '30 minutes', '45 minutes']);
+    assert.equal(def.questions[2].maxSelections, 2);
+    const ids = Object.keys(def.questions[1].options);
+    const totals = { respondents: 5, questions: { 0: { options: { yes: 3, no: 2 } }, 1: { options: { [ids[0]]: 1, [ids[1]]: 3, [ids[2]]: 1 } } } };
+    const outcomes = A.ruleOutcomes(def, totals);
+    assert.deepEqual(outcomes.map(o => o.outcome), ['pass', 'chosen', 'none', 'none']);
+    assert.match(outcomes[1].label, /30 minutes/);
+    const tied = A.ruleOutcomes(def, { questions: { 1: { options: { [ids[0]]: 2, [ids[1]]: 2 } } } })[1];
+    assert.equal(tied.outcome, 'tie');
+    assert.equal(A.ruleOutcomes(def, totals, { minTurnout: 6 })[1].outcome, 'none');
+    assert.equal(A.rulesDraft({ plan: null, proposals: [{ text: 'x' }], settings: {}, now: 0 }).summary, 'Vote Yes or No on one proposal.');
+});
+
 test('track drafts freeze the eligible layouts with their locations', () => {
     const plan = A.exclusionPlan(catalogue, [seasons[0]], { unknown: { 'Old Ring': 'ignore' } });
     const draft = A.trackDraft({ plan: null, eligible: plan.eligible, catalogue, settings: {}, now: 0 });

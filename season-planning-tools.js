@@ -70,9 +70,26 @@
         }
         if (ballots && !entry.ballotsSubscribed) {
             entry.ballotsSubscribed = true;
-            db().ref(`${base}/ballots`).on('value', s => { entry.ballots = s.val() || {}; A.rerender(); }, error => { entry.ballots = entry.ballots || {}; failed(error); });
+            db().ref(`${base}/ballots`).on('value', s => { entry.ballots = s.val() || {}; A.rerender(); }, failed);
         }
         return entry;
+    }
+
+    // Stops following a poll and starts again from scratch (the "Try again" button).
+    function reloadPoll(id) {
+        const base = `${V1}/polls/${id}`;
+        ['definition', 'totals', 'control', 'ballots'].forEach(part => db().ref(`${base}/${part}`).off());
+        delete tools.cache[id];
+        A.setStatus('');
+        A.rerender();
+    }
+
+    // "Loading…", or what went wrong with a way to try again, for a poll from pollData().
+    function pollLoading(id) {
+        const entry = tools.cache[id] || {};
+        if (!entry.error) return loading();
+        return h('p', { class: 'sp-status sp-error' }, `Couldn’t load this poll: ${entry.error} `,
+            h('button', { type: 'button', class: 'sp-link', text: 'Try again', onclick: () => reloadPoll(id) }));
     }
 
     const loading = () => h('p', { class: 'sp-muted', text: 'Loading…' });
@@ -107,18 +124,67 @@
     }
 
     async function createDraft(draft, action, summary, extraUpdates = () => ({}), stillCurrent = () => true) {
-        const definition = P.buildDefinition({ ...draft, title: draft.title || 'Poll' }, A.state.catalogue);
+        draft = JSON.parse(JSON.stringify(draft));
         const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(draft.closesAt) });
         const message = h('textarea', { rows: 2, maxLength: 4000, style: 'min-height:0;font-family:inherit;font-size:16px' });
         message.value = draft.description || '';
-        const first = definition.questions[0];
+        const preview = h('p', { class: 'sp-small sp-muted', 'aria-live': 'polite' });
+        // Car-class questions: how many classes each driver may choose.
+        const classIndex = draft.questions.findIndex(q => q.type === 'nomination' || q.type === 'class');
+        const classQuestion = classIndex === -1 ? null : draft.questions[classIndex];
+        const optionCount = classQuestion ? P.resolveOptions(classQuestion, A.state.catalogue).length : 0;
+        const numberInput = (value, label) => h('input', { type: 'number', inputMode: 'numeric', min: 1, max: Math.max(1, optionCount), value: value ? String(value) : '', 'aria-label': label, style: 'max-width:110px' });
+        let limits = null;
+        let readLimits = () => '';
+        if (classQuestion && classQuestion.type === 'nomination') {
+            const most = numberInput(classQuestion.maxPicks, 'Most classes each driver can pick');
+            limits = A.field('Most classes each driver can pick', most, `Out of ${A.plural(optionCount, 'class', 'classes')}. Leave blank for no limit.`);
+            readLimits = () => {
+                const n = most.value === '' ? null : Number(most.value);
+                if (n !== null && !(Number.isInteger(n) && n >= 1)) return 'The most classes per driver must be a whole number of 1 or more, or blank.';
+                classQuestion.maxPicks = n === null ? undefined : n;
+                // Keep the built-in hint in step with the limit.
+                if (!classQuestion.help || /^Choose (up to \d+|any)/.test(classQuestion.help)) {
+                    classQuestion.help = `${n === null ? 'Choose any' : `Choose up to ${n}`}${classQuestion.allowWriteIns ? ' and add any that are missing' : ''}.`;
+                }
+                return '';
+            };
+            most.addEventListener('input', () => { readLimits(); showPreview(); });
+        } else if (classQuestion) {
+            const least = numberInput(classQuestion.minSelections, 'Fewest classes each driver picks');
+            const most = numberInput(classQuestion.maxSelections, 'Most classes each driver picks');
+            limits = h('div', null, h('p', { style: 'font-weight:600;margin:8px 0 2px', text: 'Classes each driver picks' }),
+                h('div', { class: 'sp-row' }, A.field('At least', least), A.field('At most', most)),
+                h('p', { class: 'sp-small sp-muted', style: 'margin-top:-6px', text: `Out of ${optionCount}. The same number in both means “choose exactly”.` }));
+            readLimits = () => {
+                const min = Number(least.value);
+                const max = Number(most.value);
+                if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max < min || max > optionCount) return `Choose between 1 and ${optionCount} classes, with “at least” no more than “at most”.`;
+                classQuestion.minSelections = min;
+                classQuestion.maxSelections = max;
+                return '';
+            };
+            [least, most].forEach(input => input.addEventListener('input', () => { readLimits(); showPreview(); }));
+        }
+        const live = h('input', { type: 'checkbox', checked: draft.resultVisibility === 'live' });
+        const fallbackVisibility = draft.resultVisibility === 'live' ? 'afterClose' : draft.resultVisibility;
+        live.addEventListener('change', showPreview);
+        function showPreview() {
+            const definition = P.buildDefinition({ ...draft, title: draft.title || 'Poll' }, A.state.catalogue);
+            const first = definition.questions[classIndex === -1 ? 0 : classIndex];
+            const visibility = live.checked ? 'live' : fallbackVisibility;
+            preview.textContent = `${first ? `Drivers see: “${first.prompt}” — ${P.describeQuota(first).replace(/\.$/, '')}. ` : ''}Opens as soon as you publish. Results: ${P.VISIBILITY[visibility] || 'after closing'}${draft.labelsHidden ? ', class names hidden' : ''}.`;
+        }
+        showPreview();
         const body = h('div', null,
-            h('p', { style: 'margin-top:0' }, h('strong', { text: draft.title }), ` · ${A.plural(definition.questionCount, 'question')}`),
-            first ? h('p', { class: 'sp-small sp-muted', text: `Drivers see: “${first.prompt}” — ${P.describeQuota(first)}` }) : null,
+            h('p', { style: 'margin-top:0' }, h('strong', { text: draft.title }), ` · ${A.plural(draft.questions.length, 'question')}`),
             A.field('Voting closes (UK time)', closes),
+            limits,
+            h('label', { class: 'sp-check' }, live, 'Drivers see live results while voting'),
             A.field('Message for drivers (optional)', message),
-            h('p', { class: 'sp-small sp-muted', text: `Opens as soon as you publish. Results: ${P.VISIBILITY[draft.resultVisibility] || 'after closing'}${draft.labelsHidden ? ', class names hidden' : ''}.` }));
-        const choice = await A.confirmDialog({ title: 'Ready to publish', body, confirmLabel: 'Publish now', altLabel: 'Edit questions first' });
+            preview);
+        const choice = await A.confirmDialog({ title: 'Ready to publish', body, confirmLabel: 'Publish now', altLabel: 'Edit questions first', validate: readLimits });
+        if (choice) draft.resultVisibility = live.checked ? 'live' : fallbackVisibility;
         if (!choice || !stillCurrent()) return;
         const id = A.newId();
         const closesAt = P.londonInputToUtc(closes.value);
@@ -163,8 +229,7 @@
             h('p', { class: 'sp-muted', text: 'Create one from the “Car-class suggestions” template on the Polls tab and link it to this plan.' }));
         if (!polls.some(p => p.id === nomination.pollId)) nomination.pollId = polls[polls.length - 1].id;
         const data = pollData(nomination.pollId, { ballots: true });
-        if (data.error) return h('p', { class: 'sp-status sp-error', text: data.error });
-        if (!data.definition || !data.ballots) return loading();
+        if (!data.definition || !data.ballots) return pollLoading(nomination.pollId);
         const reviewRaw = ((tools.planAdmin.nominations || {})[nomination.pollId]) || {};
         // Stored under safe codes with the text in `key`; older entries used encoded text keys.
         const review = Object.fromEntries(Object.entries(reviewRaw).map(([k, v]) => [v && typeof v.key === 'string' ? v.key : decodeKey(k), v]));
@@ -240,7 +305,7 @@
             }, 'review-suggestion', `Added “${name.value.trim()}” to the catalogue from a written suggestion`, `Added ${name.value.trim()} to the catalogue.`);
         } }));
         actions.push(h('button', { type: 'button', class: 'sp-link', text: 'Exclude…', onclick: async () => {
-            const result = await A.confirmDialog({ title: `Exclude “${group.label}”`, body: h('p', { text: 'It won’t be offered in voting. Drivers don’t see this note.' }), reason: true, reasonLabel: 'Internal note', confirmLabel: 'Exclude' });
+            const result = await A.confirmDialog({ title: `Exclude “${group.label}”`, body: h('p', { text: 'It won’t be offered in voting. Drivers don’t see this note.' }), reason: true, reasonLabel: 'Internal note (optional)', reasonFallback: 'Excluded by an admin', confirmLabel: 'Exclude' });
             if (result) record({ action: 'exclude', note: result.reason }, `Excluded “${group.label}”: ${result.reason}`);
         } }));
         return actions;
@@ -304,11 +369,11 @@
         const winner = tools.planAdmin.winner;
         const record = async preset => {
             const picker = select(classPairs(), preset || (winner && winner.classId) || '', 'Winning class');
-            const result = await A.confirmDialog({ title: 'Record the winning class', body: h('div', null, A.field('Class', picker)), reason: true,
+            const result = await A.confirmDialog({ title: 'Record the winning class', body: h('div', null, A.field('Class', picker)), reason: true, reasonFallback: '',
                 reasonLabel: 'Explanation (for example, a compromise decision)', reasonValue: preset ? 'Won the final round' : '', confirmLabel: 'Record winner' });
             if (!result || !picker.value) return;
             decide({ [`${planPath()}/winner`]: { classId: picker.value, label: className(picker.value), explanation: result.reason, ...stamp() } },
-                'winner', `Winning class: ${className(picker.value)} — ${result.reason}`, 'Winner recorded.');
+                'winner', `Winning class: ${className(picker.value)}${result.reason ? ` — ${result.reason}` : ''}`, 'Winner recorded.');
         };
         tools.recordWinner = record;
         return h('section', { class: 'sp-card' }, h('h2', { text: 'Winning class' }),
@@ -327,7 +392,7 @@
             return card;
         }
         const data = pollData(poll.id);
-        if (!data.definition) { put(card, loading()); return card; }
+        if (!data.definition) { put(card, pollLoading(poll.id)); return card; }
         const qIndex = 0;
         const rows = R.rows(data.definition, qIndex, data.totals || {}, {});
         const n = rows.length;
@@ -399,13 +464,13 @@
                     }), unchanged);
                 } }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Put all tied classes through', onclick: async () => {
-                    const r = await A.confirmDialog({ title: 'Put all tied classes through?', body: h('p', { text: `${A.plural(result.safe.length + result.tied.length, 'class', 'classes')} go through instead of ${target}.` }), reason: true, reasonValue: 'All tied classes advance', confirmLabel: 'Confirm' });
+                    const r = await A.confirmDialog({ title: 'Put all tied classes through?', body: h('p', { text: `${A.plural(result.safe.length + result.tied.length, 'class', 'classes')} go through instead of ${target}.` }), reason: true, reasonValue: 'All tied classes advance', reasonFallback: 'All tied classes advance', confirmLabel: 'Confirm' });
                     if (r) finish('all tied', [...result.safe, ...result.tied], r.reason);
                 } }),
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Choose manually', onclick: async () => {
                     const boxes = result.tied.map(id => ({ id, input: h('input', { type: 'checkbox' }) }));
                     const r = await A.confirmDialog({ title: `Choose ${result.needed} of the tied classes`,
-                        body: h('div', null, boxes.map(b => h('label', { class: 'sp-check' }, b.input, label(b.id)))), reason: true, reasonLabel: 'Explanation (kept in the history)', confirmLabel: 'Confirm' });
+                        body: h('div', null, boxes.map(b => h('label', { class: 'sp-check' }, b.input, label(b.id)))), reason: true, reasonLabel: 'Explanation (optional, kept in the history)', reasonFallback: 'Chosen by an admin', confirmLabel: 'Confirm' });
                     if (!r) return;
                     const chosen = boxes.filter(b => b.input.checked).map(b => b.id);
                     if (chosen.length !== result.needed) { A.setStatus(`Choose exactly ${result.needed}.`, 'error'); return; }
@@ -429,11 +494,29 @@
     function loadSeasons() {
         if (tools.seasons !== null || tools.seasonsLoading) return;
         tools.seasonsLoading = true;
-        firebase.firestore().collection('championships').get().then(snapshot => {
+        tools.seasonsError = null;
+        const attempt = (tools.seasonsAttempt || 0) + 1;
+        tools.seasonsAttempt = attempt;
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('the championships took too long to load')), 20000));
+        Promise.race([firebase.firestore().collection('championships').get(), timeout]).then(snapshot => {
+            if (attempt !== tools.seasonsAttempt) return;
             tools.seasons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), name: doc.data().seasonName || doc.id }))
                 .sort((a, b) => b.id.localeCompare(a.id, 'en', { numeric: true }));
+            tools.seasonsLoading = false;
             A.rerender();
-        }).catch(error => { tools.seasons = []; tools.seasonsError = error.message; A.rerender(); });
+        }).catch(error => {
+            if (attempt !== tools.seasonsAttempt) return;
+            tools.seasonsLoading = false;
+            tools.seasonsError = error.message;
+            A.rerender();
+        });
+    }
+
+    // Shown while previous championships load (needed for exclusions), or when that failed.
+    function seasonsLoading() {
+        if (!tools.seasonsError) return loading();
+        return h('p', { class: 'sp-status sp-error' }, `Couldn’t read previous championships: ${tools.seasonsError}. `,
+            h('button', { type: 'button', class: 'sp-link', text: 'Try again', onclick: () => { tools.seasonsError = null; loadSeasons(); A.rerender(); } }));
     }
 
     function tracksTab() {
@@ -447,8 +530,7 @@
     function exclusionsCard() {
         loadSeasons();
         const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Track poll: excluded locations' }));
-        if (tools.seasons === null) { put(card, loading()); return card; }
-        if (tools.seasonsError) put(card, h('p', { class: 'sp-status sp-error', text: `Could not read championships: ${tools.seasonsError}` }));
+        if (tools.seasons === null) { put(card, seasonsLoading()); return card; }
         const stored = tools.planAdmin.trackSetup || {};
         const setup = { ...stored, unknown: unknownNames(stored) };
         const seasonIds = setup.seasonIds ? Object.values(setup.seasonIds) : tools.seasons.slice(0, A.settings().exclusionSeasons).map(s => s.id);
@@ -481,7 +563,7 @@
             plan.excluded.length ? h('ul', { class: 'sp-list' }, plan.excluded.map(e => h('li', { class: 'sp-item' },
                 h('div', null, h('div', { class: 'sp-item-title', text: e.name }), h('div', { class: 'sp-item-meta', text: e.reasons.join(' · ') })),
                 h('button', { type: 'button', class: 'sp-link', text: 'Allow anyway', onclick: async () => {
-                    const r = await A.confirmDialog({ title: `Allow ${e.name}?`, body: h('p', { text: 'Drivers will be able to choose its layouts.' }), reason: true, confirmLabel: 'Allow' });
+                    const r = await A.confirmDialog({ title: `Allow ${e.name}?`, body: h('p', { text: 'Drivers will be able to choose its layouts.' }), reason: true, reasonFallback: 'Allowed by an admin', confirmLabel: 'Allow' });
                     if (r) saveSetup({ [`removed/${e.locationId}`]: r.reason, [`added/${e.locationId}`]: null }, `${e.name} allowed: ${r.reason}`);
                 } })))) : h('p', { class: 'sp-muted', text: 'Nothing excluded.' }),
             plan.kept.length ? h('div', null, h('h3', { style: 'margin:14px 0 4px', text: 'Allowed despite last season' }),
@@ -490,7 +572,7 @@
             h('div', { class: 'sp-inline-actions', style: 'margin-top:10px' },
                 h('button', { type: 'button', class: 'sp-link', text: 'Exclude another location…', onclick: async () => {
                     const picker = select(locationPairs, '', 'Location');
-                    const r = await A.confirmDialog({ title: 'Exclude a location', body: A.field('Location', picker), reason: true, confirmLabel: 'Exclude' });
+                    const r = await A.confirmDialog({ title: 'Exclude a location', body: A.field('Location', picker), reason: true, reasonFallback: 'Excluded by an admin', confirmLabel: 'Exclude' });
                     if (r && picker.value) saveSetup({ [`added/${picker.value}`]: r.reason, [`removed/${picker.value}`]: null }, `${locations[picker.value].name} excluded: ${r.reason}`);
                 } })),
             h('p', { class: 'sp-small', text: `${A.plural(plan.eligible.length, 'layout')} at ${A.plural(new Set(plan.eligible.map(t => t.locationId)).size, 'location')} will be offered. The list is frozen when the poll is published.` }),
@@ -510,7 +592,7 @@
         const poll = polls.find(p => p.id === track.pollId);
         const data = pollData(track.pollId, { ballots: true });
         put(card, pollPicker(polls, track.pollId, id => { track.pollId = id; A.rerender(); }, 'Track poll') || '');
-        if (!data.definition || !data.ballots) { put(card, loading()); return card; }
+        if (!data.definition || !data.ballots) { put(card, pollLoading(track.pollId)); return card; }
         const config = ((tools.planAdmin.trackResolution || {})[track.pollId]) || {};
         const result = AC.trackResolution(data.definition, data.ballots, config);
         const unchanged = snapshotOf(() => AC.trackResolution(data.definition, data.ballots, ((tools.planAdmin.trackResolution || {})[track.pollId]) || {})
@@ -537,7 +619,7 @@
                     h('div', { class: 'sp-item-actions' }, rowActions(row, conflict, result, base, layoutLabel, locationName, unchanged))))),
                 conflict.exception ? h('button', { type: 'button', class: 'sp-link', text: 'Remove the exception', onclick: () => decide({ [`${base}/exceptions/${conflict.locationId}`]: null }, 'track-exception', `${locationName(conflict.locationId)}: exception removed`) })
                     : h('button', { type: 'button', class: 'sp-link', text: 'Allow them to share this location…', onclick: async () => {
-                        const r = await A.confirmDialog({ title: `Let drivers share ${locationName(conflict.locationId)}?`, body: h('p', { text: 'Both layouts stay in the calendar. This is recorded as an exception.' }), reason: true, confirmLabel: 'Record exception' });
+                        const r = await A.confirmDialog({ title: `Let drivers share ${locationName(conflict.locationId)}?`, body: h('p', { text: 'Both layouts stay in the calendar. This is recorded as an exception.' }), reason: true, reasonFallback: 'Agreed by an admin', confirmLabel: 'Record exception' });
                         if (r && unchanged()) decide({ [`${base}/exceptions/${conflict.locationId}`]: r.reason }, 'track-exception', `${locationName(conflict.locationId)} shared: ${r.reason}`);
                     } })));
         });
@@ -564,8 +646,8 @@
         const actions = [];
         if (row.status === 'tie') {
             actions.push(h('button', { type: 'button', class: 'sp-secondary', text: `${A.driverName(row.uid)} keeps it`, onclick: async () => {
-                const r = await A.confirmDialog({ title: `${A.driverName(row.uid)} keeps ${locationName(conflict.locationId)}?`, body: h('p', { text: 'The others will need replacements.' }), reason: true, confirmLabel: 'Confirm' });
-                if (r && unchanged()) decide({ [`${base}/keeps/${conflict.locationId}`]: row.uid }, 'track-tie', `${locationName(conflict.locationId)}: ${A.driverName(row.uid)} keeps it (${r.reason})`);
+                const r = await A.confirmDialog({ title: `${A.driverName(row.uid)} keeps ${locationName(conflict.locationId)}?`, body: h('p', { text: 'The others will need replacements.' }), confirmLabel: 'Confirm' });
+                if (r && unchanged()) decide({ [`${base}/keeps/${conflict.locationId}`]: row.uid }, 'track-tie', `${locationName(conflict.locationId)}: ${A.driverName(row.uid)} keeps it`);
             } }));
         }
         if (row.status === 'replace' || row.status === 'replaced') {
@@ -574,7 +656,7 @@
                     result.freeLocations.map(loc => h('optgroup', { label: loc.name }, loc.layouts.map(l => h('option', { value: l.id, text: l.label })))));
                 const r = await A.confirmDialog({ title: `Replacement for ${A.driverName(row.uid)}`, body: h('div', null,
                     h('p', { text: `Originally chose ${layoutLabel(row.layoutId)}. Only locations nobody else has are listed.` }), A.field('New choice', picker)),
-                reason: true, reasonLabel: 'Note (e.g. how they told you)', confirmLabel: 'Save replacement' });
+                reason: true, reasonLabel: 'Note (optional, e.g. how they told you)', reasonFallback: 'Recorded by an admin', confirmLabel: 'Save replacement' });
                 if (!r || !picker.value || !unchanged()) return;
                 const audit = A.auditId();
                 decide({
@@ -604,12 +686,33 @@
         text.value = existing ? existing.text : preset || '';
         const detail = h('textarea', { rows: 3, maxLength: 2000, style: 'min-height:0;font-family:inherit;font-size:1rem' });
         detail.value = existing ? existing.detail || '' : '';
+        const current = AC.proposalAnswers(existing);
+        const type = select([['yesno', 'Yes / No'], ['single', 'Pick one of my options'], ['multi', 'Pick any of my options']], current.type, 'Answers');
+        const options = h('textarea', { rows: 4, maxLength: 2000, placeholder: 'One option per line', style: 'min-height:0;font-family:inherit;font-size:1rem' });
+        options.value = current.options.join('\n');
+        const optionsField = A.field('Answer options, one per line (2 to 10)', options);
+        const showOptions = () => { optionsField.hidden = type.value === 'yesno'; };
+        type.addEventListener('change', () => { showOptions(); if (type.value !== 'yesno') options.focus(); });
+        showOptions();
+        const optionList = () => [...new Set(options.value.split('\n').map(o => o.trim().slice(0, 200)).filter(Boolean))];
         const ok = await A.confirmDialog({ title: existing ? 'Edit proposal' : 'New rule proposal', body: h('div', null,
-            A.field('Proposal (the Yes/No question drivers will see)', text), A.field('Extra detail (optional)', detail)), confirmLabel: 'Save proposal' });
-        if (!ok || !text.value.trim()) return;
+            A.field('Question drivers will see', text), A.field('Extra detail (optional)', detail), A.field('How drivers answer', type), optionsField),
+        confirmLabel: 'Save proposal', validate: () => {
+            if (!text.value.trim()) return 'Write the question.';
+            if (type.value !== 'yesno' && (optionList().length < 2 || optionList().length > 10)) return 'Give between 2 and 10 different options.';
+            return '';
+        } });
+        if (!ok) return;
         const id = existing ? existing.id : A.newId();
-        decide({ [`${planPath()}/proposals/${id}`]: A.clean({ ...(existing || {}), id: undefined, text: text.value.trim(), detail: detail.value.trim(), status: existing ? existing.status : 'draft',
+        const answers = type.value === 'yesno' ? null : { type: type.value, options: optionList() };
+        decide({ [`${planPath()}/proposals/${id}`]: A.clean({ ...(existing || {}), id: undefined, answers: answers || undefined, text: text.value.trim(), detail: detail.value.trim(), status: existing ? existing.status : 'draft',
             createdAt: existing ? existing.createdAt : sv().TIMESTAMP, updatedAt: sv().TIMESTAMP }) }, 'proposal', `${existing ? 'Edited' : 'Added'} proposal: ${text.value.trim()}`);
+    }
+
+    // "Yes / No", or the proposal's own options.
+    function answersText(p) {
+        const answers = AC.proposalAnswers(p);
+        return answers.type === 'yesno' ? 'Yes / No' : `${answers.type === 'multi' ? 'Pick any' : 'Pick one'}: ${answers.options.join(' · ')}`;
     }
 
     function proposalsCard() {
@@ -623,6 +726,7 @@
             return h('li', { class: 'sp-item', style: 'grid-template-columns:auto 1fr' }, box,
                 h('div', null,
                     h('div', { class: 'sp-item-title' }, p.text, ' ', h('span', { class: `sp-badge ${p.status === 'in-vote' ? 'sp-green' : p.status === 'withdrawn' ? '' : 'sp-amber'}`, text: { draft: 'Not yet voted on', 'in-vote': 'In a vote', withdrawn: 'Withdrawn' }[p.status] || p.status })),
+                    h('div', { class: 'sp-item-meta', text: answersText(p) }),
                     p.detail ? h('div', { class: 'sp-item-meta', text: p.detail }) : null,
                     related.map(([otherId, link]) => h('div', { class: 'sp-small sp-red-text', text: `⚠ ${link.type === 'contradicts' ? 'Contradicts' : 'Related to'}: “${byId[otherId].text}”${link.note ? ` — ${link.note}` : ''}` })),
                     h('div', { class: 'sp-inline-actions' },
@@ -632,7 +736,7 @@
                         p.status === 'withdrawn' ? h('button', { type: 'button', class: 'sp-link', text: 'Restore', onclick: () => decide({ [`${planPath()}/proposals/${p.id}/status`]: 'draft' }, 'proposal', `Restored: ${p.text}`) }) : null)));
         };
         return h('section', { class: 'sp-card' }, h('h2', { text: 'Rule proposals' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Word each proposal as a clear Yes/No question. Flag proposals that are related or contradict each other so they can be reviewed together.' }),
+            h('p', { class: 'sp-muted sp-small', text: 'Each proposal is one question: Yes/No, or your own answer options. Flag proposals that are related or contradict each other so they can be reviewed together.' }),
             list.length ? h('ul', { class: 'sp-list' }, list.map(item)) : h('p', { class: 'sp-muted', text: 'No proposals yet.' }),
             h('div', { class: 'sp-inline-actions', style: 'margin-top:10px' },
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Add proposal', onclick: () => editProposal(null) }),
@@ -654,17 +758,28 @@
         if (!others.length) { A.setStatus('Add another proposal first.', 'error'); return; }
         const picker = select(others.map(o => [o.id, o.text.slice(0, 80)]), '', 'Other proposal');
         const type = select([['related', 'Related'], ['contradicts', 'Contradicts']], 'related', 'Type of link');
-        const r = await A.confirmDialog({ title: 'Flag related proposals', body: h('div', null, A.field('Other proposal', picker), A.field('How they relate', type)), reason: true, reasonLabel: 'Note', confirmLabel: 'Flag' });
+        const r = await A.confirmDialog({ title: 'Flag related proposals', body: h('div', null, A.field('Other proposal', picker), A.field('How they relate', type)), reason: true, reasonFallback: '', confirmLabel: 'Flag' });
         if (!r) return;
         const link = { type: type.value, note: r.reason };
         decide({ [`${planPath()}/proposals/${p.id}/related/${picker.value}`]: link, [`${planPath()}/proposals/${picker.value}/related/${p.id}`]: link },
             'proposal-link', `“${p.text}” ${type.value === 'contradicts' ? 'contradicts' : 'is related to'} “${others.find(o => o.id === picker.value).text}”`);
     }
 
+    // Switches drivers' view of a rule vote between live results and results after closing.
+    async function setLiveResults(poll, control, live) {
+        const ok = await A.confirmDialog({ title: live ? 'Show drivers live results?' : 'Hide live results?',
+            body: h('p', { text: live ? 'Drivers see the totals as pie charts while they vote, on the poll and on the Polls & Forms page.' : 'Drivers see the results once voting closes.' }),
+            confirmLabel: live ? 'Show live results' : 'Hide until closed' });
+        if (!ok) return;
+        A.save(SB.controlUpdates({ pollId: poll.id, before: control, changes: { resultVisibility: live ? 'live' : 'afterClose' }, auditId: A.auditId(), adminUid: A.state.uid,
+            reason: live ? 'Live results shown to drivers' : 'Live results hidden from drivers', action: 'update-settings', timestamp: sv().TIMESTAMP }),
+        live ? 'Drivers can now see live results.' : 'Live results hidden.');
+    }
+
     function outcomesCard() {
         const polls = planPolls('rules');
-        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Outcomes' }),
-            h('p', { class: 'sp-muted sp-small', text: 'A proposal passes only when Yes beats No. Drivers who don’t vote aren’t counted. Confirming an outcome doesn’t change the rules document or any scoring settings.' }));
+        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Results and outcomes' }),
+            h('p', { class: 'sp-muted sp-small', text: 'Yes/No proposals pass only when Yes beats No; questions with your own options go to the most votes. Drivers who don’t vote aren’t counted. Confirming an outcome doesn’t change the rules document or any scoring settings.' }));
         const minTurnout = tools.planAdmin.minTurnout || 0;
         const turnout = h('input', { type: 'number', min: 0, max: 100, value: String(minTurnout), style: 'max-width:100px' });
         turnout.addEventListener('change', () => decide({ [`${planPath()}/minTurnout`]: Math.max(0, Math.min(100, Number(turnout.value) || 0)) }, 'min-turnout', `Minimum turnout set to ${turnout.value || 0}`));
@@ -674,18 +789,32 @@
         const proposalFor = (pollId, index) => proposals().find(p => p.pollId === pollId && p.questionIndex === index);
         polls.forEach(poll => {
             put(card, h('h3', { style: 'margin:14px 0 4px' }, poll.title, ' ', A.phaseBadge(poll.phase), ' ', pollLinks(poll)));
-            if (poll.phase === 'open' || poll.phase === 'scheduled') { put(card, h('p', { class: 'sp-muted', text: `Outcomes appear when the vote closes (${P.formatDateTime(poll.closesAt)}).` })); return; }
+            if (poll.phase === 'scheduled') { put(card, h('p', { class: 'sp-muted', text: `Voting opens ${P.formatDateTime(poll.opensAt)}.` })); return; }
             const data = pollData(poll.id);
-            if (!data.definition) { put(card, loading()); return; }
-            const pollMinimum = data.control && data.control.minTurnout !== undefined ? data.control.minTurnout : 0;
+            if (!data.definition || !data.control) { put(card, pollLoading(poll.id)); return; }
+            const pollMinimum = data.control.minTurnout !== undefined ? data.control.minTurnout : 0;
+            if (poll.phase === 'open') {
+                const live = data.control.resultVisibility === 'live';
+                const charts = h('div');
+                UI.renderResults(charts, { definition: data.definition, totals: data.totals || {}, pollId: poll.id, labelsHidden: false, provisional: true, title: data.definition.title,
+                    downloads: false, compact: true, minTurnout: pollMinimum, pie: true });
+                put(card,
+                    h('div', { class: `sp-live-switch${live ? ' sp-on' : ''}` },
+                        h('span', null, h('strong', { text: live ? 'Drivers can see live results' : 'Drivers see results after closing' }),
+                            h('span', { class: 'sp-small sp-muted', text: ` · closes ${P.formatDateTime(poll.closesAt, { year: false })}` })),
+                        h('button', { type: 'button', class: live ? 'sp-secondary' : '', text: live ? 'Hide live results' : 'Show drivers live results', onclick: () => setLiveResults(poll, data.control, !live) })),
+                    h('p', { class: 'sp-small', text: `${A.plural((data.totals && data.totals.respondents) || 0, 'driver')} voted so far. Outcomes can be confirmed once voting closes.` }),
+                    charts);
+                return;
+            }
             put(card, h('ul', { class: 'sp-list' }, AC.ruleOutcomes(data.definition, data.totals, { minTurnout: pollMinimum }).map(o => {
                 const key = `${poll.id}_${o.index}`;
                 const done = confirmed[key];
                 const proposal = proposalFor(poll.id, o.index);
                 return h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title', text: o.prompt }),
-                        h('div', { class: `sp-outcome sp-outcome-${o.outcome}` }, h('span', { 'aria-hidden': 'true', text: o.outcome === 'pass' ? '✓ ' : o.outcome === 'fail' ? '✕ ' : '– ' }), o.label,
-                            done ? h('span', { class: 'sp-muted', text: ` · confirmed ${P.formatDate(done.at)}` }) : h('span', { class: 'sp-muted', text: ' · provisional' }))),
+                        h('div', { class: `sp-outcome sp-outcome-${o.outcome}` }, h('span', { 'aria-hidden': 'true', text: o.outcome === 'pass' || o.outcome === 'chosen' ? '✓ ' : o.outcome === 'fail' ? '✕ ' : '– ' }), o.label,
+                            done ? h('span', { class: 'sp-muted', text: ` · confirmed ${P.formatDate(done.at)}` }) : h('span', { class: 'sp-muted', text: ' · not confirmed yet' }))),
                     done ? h('button', { type: 'button', class: 'sp-link', text: 'Reopen', onclick: () => decide({ [`${planPath()}/outcomes/${key}`]: null }, 'rule-outcome', `Outcome reopened: ${o.prompt}`) })
                         : h('button', { type: 'button', class: 'sp-secondary', text: 'Confirm outcome', onclick: () => {
                             const fresh = AC.ruleOutcomes(data.definition, data.totals, { minTurnout: data.control && data.control.minTurnout ? data.control.minTurnout : 0 }).find(x => x.index === o.index);
@@ -695,8 +824,8 @@
                                 return;
                             }
                             decide({ [`${planPath()}/outcomes/${key}`]: A.clean({
-                            pollId: poll.id, questionIndex: o.index, prompt: o.prompt, outcome: o.outcome, label: o.label, yes: o.yes, no: o.no, proposalId: proposal ? proposal.id : undefined, ...stamp() }) },
-                        'rule-outcome', `${o.prompt}: ${o.label}`, 'Outcome confirmed.');
+                                pollId: poll.id, questionIndex: o.index, prompt: o.prompt, outcome: o.outcome, label: o.label, yes: o.yes, no: o.no, counts: o.counts, proposalId: proposal ? proposal.id : undefined, ...stamp() }) },
+                            'rule-outcome', `${o.prompt}: ${o.label}`, 'Outcome confirmed.');
                         } }));
             })));
         });
@@ -773,7 +902,7 @@
 
     // Shared with season-planning-calendar.js and season-planning-season.js.
     window.SeasonTools = {
-        tools, pollData, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf, planDrafts, draftNotice,
+        tools, pollData, pollLoading, seasonsLoading, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf, planDrafts, draftNotice,
         suggestionsTab, roundsTab, tracksTab, rulesTab, historyTab
     };
 

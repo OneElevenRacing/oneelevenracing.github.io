@@ -374,6 +374,7 @@
 .sp-outcome { margin: 8px 0 0; font-weight: 700; }
 .sp-outcome-pass { color: var(--sp-green); }
 .sp-outcome-fail { color: var(--sp-red); }
+.sp-outcome-chosen { color: var(--sp-green); }
 .sp-figure figcaption { margin-top: 6px; color: var(--sp-muted); font-size: 0.85rem; line-height: 1.35; }
 .sp-figure > p { margin: 4px 0; }
 .sp-figure-tools { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 12px; }
@@ -613,3 +614,22 @@ header { view-transition-name: sp-header; }
 @media (prefers-reduced-motion: reduce) {
     ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* Page messages float at the bottom of the screen, so the result of a click is
+   always visible, however far down the page it was. */
+.sp-status.sp-toast {
+    position: fixed; z-index: 60; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom));
+    transform: translateX(-50%); width: max-content; max-width: min(560px, calc(100vw - 32px));
+    margin: 0; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); border: 1px solid var(--sp-line);
+    background: #fff; color: var(--sp-ink);
+}
+.sp-status.sp-toast.sp-ok { background: var(--sp-green-soft); }
+.sp-status.sp-toast.sp-error { background: var(--sp-red-soft); }
+.sp-status.sp-toast.sp-warn { background: var(--sp-amber-soft); }
+/* Above the sticky save bar in the poll editor. */
+body:has(.sp-actionbar) .sp-status.sp-toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
+
+/* Rule vote: whether drivers can see live results, with the switch beside it. */
+.sp-live-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+    margin: 6px 0 8px; padding: 10px 12px; border-radius: 10px; background: var(--sp-soft); }
+.sp-live-switch.sp-on { background: var(--sp-green-soft); }

@@ -343,23 +343,47 @@
 
     // ---------- Rule changes ----------
 
-    function rulesDraft({ plan, proposals, settings, now, minTurnout = 0 }) {
+    // A proposal's answers: Yes/No (the default), or the admin's own options where
+    // drivers pick one ('single') or any number ('multi').
+    function proposalAnswers(proposal) {
+        const answers = (proposal && proposal.answers) || {};
+        const options = Object.values(answers.options || {}).map(o => String(o).trim()).filter(Boolean);
+        if ((answers.type === 'single' || answers.type === 'multi') && options.length >= 2) return { type: answers.type, options };
+        return { type: 'yesno', options: [] };
+    }
+
+    function rulesDraft({ plan, proposals, settings, now, minTurnout = 0, live = false }) {
         const stage = stageFor(plan, 'Rules');
+        const allYesNo = proposals.every(p => proposalAnswers(p).type === 'yesno');
         return baseDraft(settings, now, {
-            title: 'Rule changes', summary: `Vote Yes or No on ${proposals.length === 1 ? 'one proposal' : `${proposals.length} proposals`}.`,
-            kind: 'rules', resultVisibility: 'afterClose', labelsHidden: false, minTurnout: minTurnout > 0 ? minTurnout : undefined,
+            title: 'Rule changes',
+            summary: allYesNo ? `Vote Yes or No on ${proposals.length === 1 ? 'one proposal' : `${proposals.length} proposals`}.` : `Vote on ${proposals.length === 1 ? 'one proposal' : `${proposals.length} proposals`}.`,
+            kind: 'rules', resultVisibility: live ? 'live' : 'afterClose', labelsHidden: false, minTurnout: minTurnout > 0 ? minTurnout : undefined,
             planId: plan ? plan.id : undefined, stageId: stage ? stage.id : undefined,
-            questions: proposals.map(p => ({ type: 'yesno', prompt: p.text.slice(0, 1000), help: p.detail ? p.detail.slice(0, 2000) : '', required: false }))
+            questions: proposals.map(p => {
+                const base = { prompt: p.text.slice(0, 1000), help: p.detail ? p.detail.slice(0, 2000) : '', required: false };
+                const answers = proposalAnswers(p);
+                if (answers.type === 'yesno') return { ...base, type: 'yesno' };
+                return { ...base, type: answers.type, source: 'manual', options: answers.options.map(o => o.slice(0, 200)),
+                    minSelections: 1, maxSelections: answers.type === 'multi' ? answers.options.length : 1 };
+            })
         });
     }
 
-    // Provisional outcome of every Yes/No question: passes only if Yes beats No.
+    // Provisional outcome of every rule question. Yes/No passes only if Yes beats No;
+    // a question with the admin's own options is decided by the most votes.
     function ruleOutcomes(definition, totals, { minTurnout = 0 } = {}) {
-        return SB.questionList(definition).map((question, index) => ({ question, index })).filter(({ question }) => question.type === 'yesno').map(({ question, index }) => {
+        return SB.questionList(definition).map((question, index) => ({ question, index })).filter(({ question }) => question.type === 'yesno' || question.kind === 'choice').map(({ question, index }) => {
             const counts = (totals && totals.questions && totals.questions[index] && totals.questions[index].options) || {};
-            const yes = Number(counts.yes) || 0;
-            const no = Number(counts.no) || 0;
-            return { index, prompt: question.prompt, yes, no, votes: yes + no, ...R.yesNoOutcome(yes, no, { minTurnout }) };
+            if (question.type === 'yesno') {
+                const yes = Number(counts.yes) || 0;
+                const no = Number(counts.no) || 0;
+                return { index, prompt: question.prompt, yes, no, votes: yes + no, ...R.yesNoOutcome(yes, no, { minTurnout }) };
+            }
+            const list = R.rows(definition, index, totals);
+            const single = question.maxSelections === 1;
+            const result = R.choiceOutcome(list, { minTurnout, voters: single ? null : (totals && totals.respondents) || 0 });
+            return { index, prompt: question.prompt, votes: R.totalSelections(list), counts: Object.fromEntries(list.map(r => [r.id, r.count])), outcome: result.outcome, label: result.label };
         });
     }
 
@@ -432,7 +456,8 @@
         const trackPoll = latest(polls.tracks);
         if (!trackPoll) result.tracks = draftLine('tracks') || ['todo', 'Check the exclusions and open track picks'];
         else if (!closed(trackPoll)) result.tracks = ['waiting', `Track picks close ${when(trackPoll.closesAt)}`];
-        else if (trackUnresolved === null) result.tracks = ['decide', 'Check for drivers who picked the same location'];
+        // null: the drivers' picks are still loading, so nothing is known to need the admin yet.
+        else if (trackUnresolved === null) result.tracks = ['waiting', 'Checking the drivers’ track picks…'];
         else if (trackUnresolved > 0) result.tracks = ['decide', `${trackUnresolved} ${trackUnresolved === 1 ? 'driver needs' : 'drivers need'} a replacement track`];
         else result.tracks = ['done', 'Every driver has a track'];
 
@@ -469,5 +494,5 @@
         return steps.find(s => s.status === 'decide') || steps.find(s => s.status === 'todo') || null;
     }
 
-    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, runoffCarry, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, writtenAnswers };
+    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, runoffCarry, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, proposalAnswers, writtenAnswers };
 });

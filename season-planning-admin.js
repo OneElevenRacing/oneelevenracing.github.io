@@ -16,7 +16,7 @@
     const db = () => firebase.database();
     const sv = () => firebase.database.ServerValue;
     const KINDS = { nomination: 'Car-class suggestions', elimination: 'Car-class voting round', track: 'Track choice', rules: 'Rule changes', suggestions: 'Suggestion box', custom: 'Custom poll' };
-    const PHASE_LABEL = { draft: 'Draft', scheduled: 'Scheduled', open: 'Open', closed: 'Closed', finalised: 'Final', archived: 'Archived' };
+    const PHASE_LABEL = { draft: 'Draft', scheduled: 'Scheduled', open: 'Open', closed: 'Closed' };
     const DEFAULT_STAGES = ['Suggestions', 'Car votes', 'Tracks', 'Rules', 'Calendar'];
 
     const state = { uid: null, index: null, drafts: null, plans: {}, templates: {}, settings: {}, catalogue: {}, drivers: {} };
@@ -29,10 +29,15 @@
     const activeDrivers = () => Object.entries(state.drivers).filter(([, d]) => d.active === true).sort(([, a], [, b]) => a.name.localeCompare(b.name));
     const settings = () => ({ ...P.DEFAULT_SETTINGS, ...(state.settings || {}) });
 
+    // Messages show as a toast at the bottom of the screen, so the result of a click is
+    // visible however far down the page it was. Success messages fade after a while.
+    let statusTimer = null;
     function setStatus(message, kind) {
         const element = $('pageStatus');
         element.textContent = message || '';
-        element.className = `sp-status${kind ? ` sp-${kind}` : ''}`;
+        element.className = `sp-status sp-toast${kind ? ` sp-${kind}` : ''}`;
+        clearTimeout(statusTimer);
+        if (message && kind !== 'error') statusTimer = setTimeout(() => { if (element.textContent === message) element.textContent = ''; }, kind === 'warn' ? 9000 : 4000);
     }
 
     async function save(updates, message) {
@@ -53,14 +58,16 @@
     }
 
     function phaseBadge(phase) {
-        const tone = { open: 'sp-green', closed: 'sp-amber', scheduled: '', finalised: '', archived: '', draft: 'sp-amber' }[phase] || '';
+        const tone = { open: 'sp-green', closed: '', scheduled: '', draft: 'sp-amber' }[phase] || '';
         return h('span', { class: `sp-badge ${tone}`, text: PHASE_LABEL[phase] || phase });
     }
 
     // ---------- Dialogs ----------
 
-    // Resolves with { reason } when confirmed, or null when cancelled.
-    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Reason (kept in the history)', reasonValue = '', danger = false, wide = false, altLabel = null, validate = null }) {
+    // Resolves with { reason } when confirmed, or null when cancelled. `reason: true`
+    // adds an optional note; left empty, `reason` is `reasonFallback` (history entries
+    // always need some text).
+    function confirmDialog({ title, body, confirmLabel = 'Confirm', reason = false, reasonLabel = 'Note (optional)', reasonValue = '', reasonFallback = 'No note', danger = false, wide = false, altLabel = null, validate = null }) {
         return new Promise(resolve => {
             const dialog = $('dialog');
             dialog.classList.toggle('sp-dialog-wide', wide);
@@ -76,19 +83,19 @@
             let done = false;
             const finish = value => { if (done) return; done = true; dialog.close(); resolve(value); };
             cancel.onclick = () => finish(null);
-            if (alt) alt.onclick = () => finish({ alt: true, reason: reasonInput ? reasonInput.value.trim() : '' });
+            const note = () => (reasonInput && reasonInput.value.trim()) || reasonFallback;
+            if (alt) alt.onclick = () => finish({ alt: true, reason: note() });
             // The close event fires later, as its own task. If the dialog is open again by
             // then (Confirm → Ready to publish), it's the previous dialog's close: ignore it.
             dialog.onclose = () => { if (!dialog.open) finish(null); };
             $('dialogForm').onsubmit = event => {
                 event.preventDefault();
-                if (reasonInput && !reasonInput.value.trim()) { error.hidden = false; error.textContent = 'Please give a reason.'; reasonInput.focus(); return; }
                 const problem = validate ? validate() : '';
                 if (problem) { error.hidden = false; error.textContent = problem; return; }
-                finish({ reason: reasonInput ? reasonInput.value.trim() : '' });
+                finish({ reason: note() });
             };
             dialog.showModal();
-            (reasonInput || ok).focus();
+            ok.focus();
         });
     }
 
@@ -122,7 +129,7 @@
     function watchParticipation(id) {
         if (id in participation) return;
         participation[id] = null;
-        db().ref(`${V1}/polls/${id}/totals/respondents`).on('value', snapshot => { participation[id] = snapshot.val() || 0; renderMain(); }, () => {});
+        db().ref(`${V1}/polls/${id}/totals/respondents`).on('value', snapshot => { participation[id] = snapshot.val() || 0; requestRender(); }, () => {});
     }
 
     function eligibleCount(entry, control) {
@@ -144,18 +151,28 @@
                 h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === id), href: id === fallback ? 'season-planning-admin.html' : `season-planning-admin.html?tab=${id}`, text: label })));
         const extra = extraTabs.find(t => t.id === tab);
         const body = tab === 'polls' ? pollsTab() : tab === 'overview' ? overviewTab() : extra.render();
-        // Keep a tool's own panel (and what's typed in it) when only background data changed.
-        if (extra && $('view').dataset.tab === tab && extra.keep) { extra.refresh && extra.refresh(); return; }
-        $('view').dataset.tab = tab;
-        fill($('view'), tabs, body);
+        // Live data (a vote arriving, say) redraws the page. When the drawing comes out
+        // the same, keep the current one: a click that's under way, an open menu and
+        // anything typed all survive.
+        const next = h('div', null, tabs, body);
+        const view = $('view');
+        const drawn = signature(next);
+        if (view.dataset.tab === tab && lastDrawn === drawn && view.childElementCount) return;
+        lastDrawn = drawn;
+        view.dataset.tab = tab;
+        fill(view, ...next.childNodes);
+    }
+    let lastDrawn = '';
+    // The markup plus form states that aren't part of it (ticked boxes, chosen options, values).
+    function signature(root) {
+        return root.innerHTML + [...root.querySelectorAll('input, select, textarea, option')]
+            .map(e => `${e.checked ? 1 : 0}${e.selected ? 1 : 0}${e.disabled ? 1 : 0}${e.value}`).join('|');
     }
 
     function overviewTab() {
         const plan = activePlan();
         const groups = P.groupPolls(state.index, now());
         groups.open.forEach(poll => watchParticipation(poll.id));
-        const needsFinalising = Object.entries(state.index).map(([id, e]) => ({ id, ...e, phase: P.pollPhase(e, now()) }))
-            .filter(p => p.phase === 'closed' && !p.replacedBy);
         const drafts = Object.values(state.drafts || {}).filter(Boolean).length;
         const planCard = plan
             ? h('section', { class: 'sp-card' },
@@ -182,12 +199,9 @@
                     h('span', { class: 'sp-small', text: participation[poll.id] === null || participation[poll.id] === undefined ? '…' : `${participation[poll.id]} of ${eligibleCount(poll)} responded` })))) : h('p', { class: 'sp-muted', text: 'No polls are open.' })),
             h('section', { class: 'sp-card' },
                 h('h2', { text: 'To do' }),
-                needsFinalising.length || drafts ? h('ul', { class: 'sp-list' },
-                    needsFinalising.map(poll => h('li', { class: 'sp-item' },
-                        h('div', null, h('div', { class: 'sp-item-title', text: poll.title }), h('div', { class: 'sp-item-meta', text: 'Closed — review the results and finalise.' })),
-                        h('a', { class: 'sp-small', href: `?poll=${encodeURIComponent(poll.id)}`, text: 'Open' }))),
-                    drafts ? h('li', { class: 'sp-item' }, h('div', null, h('div', { class: 'sp-item-title', text: plural(drafts, 'draft poll') }), h('div', { class: 'sp-item-meta', text: 'Not visible to drivers until published.' })),
-                        h('a', { class: 'sp-small', href: '?tab=polls', text: 'View' })) : null)
+                drafts ? h('ul', { class: 'sp-list' },
+                    h('li', { class: 'sp-item' }, h('div', null, h('div', { class: 'sp-item-title', text: plural(drafts, 'draft poll') }), h('div', { class: 'sp-item-meta', text: 'Not visible to drivers until published.' })),
+                        h('a', { class: 'sp-small', href: '?tab=polls', text: 'View' })))
                     : h('p', { class: 'sp-muted', text: 'Nothing waiting.' })),
             h('p', null, h('button', { type: 'button', text: 'New poll', onclick: newPoll })));
     }
@@ -228,9 +242,7 @@
             section('Drafts', drafts, 'No drafts.'),
             section('Open', by(['open']), 'No polls are open.'),
             section('Scheduled', by(['scheduled']), 'Nothing scheduled.'),
-            section('Closed — waiting to be finalised', by(['closed']), 'Nothing waiting.'),
-            section('Finalised', by(['finalised']), 'None yet.'),
-            h('details', { class: 'sp-archive' }, h('summary', { text: `Archived (${by(['archived']).length})` }), h('ul', { class: 'sp-list' }, by(['archived']))));
+            section('Closed', by(['closed']), 'None yet.'));
     }
 
     async function newPoll() {
@@ -772,7 +784,7 @@
 
     const detail = { control: undefined, definition: undefined, totals: null, audit: {}, snapshot: null, reveal: false, ballots: null };
 
-    // Archived polls can be deleted for good (for example one made by mistake).
+    // Closed polls can be deleted for good (for example one made by mistake).
     async function deletePoll(id, entry) {
         const respondents = (detail.totals && detail.totals.respondents) || 0;
         const sure = h('input', { type: 'checkbox' });
@@ -807,7 +819,7 @@
             if (live.definition === undefined || live.control === undefined || live.totals === undefined) return;
             if (!live.definition || !live.control || live.control.state !== 'published') {
                 editor.mode = null;
-                fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Only published polls can be edited. This one has closed, been archived or no longer exists.' }));
+                fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Only open or scheduled polls can be edited. This one has closed or no longer exists.' }));
                 return;
             }
             if (editor.data) { renderEditor(); return; }
@@ -849,10 +861,10 @@
         if (problems.length) { showErrors(problems); return false; }
         showErrors([]);
         const result = await confirmDialog({ title: 'Save changes to the live poll?', body: h('p', { style: 'margin-top:0', text: 'Drivers see the changes straight away. Anyone part-way through will be asked to check their answers.' }),
-            reason: true, reasonLabel: 'What changed? (kept in the poll’s history)', confirmLabel: 'Save changes' });
+            confirmLabel: 'Save changes' });
         if (!result) return false;
         const index = { title: after.title, summary: (d.summary || '').trim().slice(0, 300) || null };
-        const updates = SB.liveEditUpdates({ pollId: id, before: live.definition, after, totals: live.totals, index, auditId: auditId(), adminUid: state.uid, reason: result.reason, timestamp: sv().TIMESTAMP });
+        const updates = SB.liveEditUpdates({ pollId: id, before: live.definition, after, totals: live.totals, index, auditId: auditId(), adminUid: state.uid, reason: 'Questions edited while live', timestamp: sv().TIMESTAMP });
         if (!(await save(updates))) {
             setStatus('Not saved. A driver may have voted while you were editing; check the changes and save again.', 'error');
             return false;
@@ -882,15 +894,14 @@
         if (!control || !definition) { fill($('view'), h('p', { class: 'sp-status sp-warn', text: 'Poll not found.' })); return; }
         const entry = state.index[id] || {};
         const phase = P.pollPhase(control, now());
+        const live = phase === 'open' || phase === 'scheduled';
         const lifecycle = [];
-        if (control.state === 'published') lifecycle.push(h('a', { class: 'sp-btn sp-btn-secondary', href: `?edit=${encodeURIComponent(id)}`, text: 'Edit poll' }));
-        if (phase === 'open' || phase === 'scheduled') lifecycle.push(h('button', { type: 'button', class: 'sp-secondary', text: 'Close now', onclick: () => changeState(['closed'], 'Close this poll now?', 'close') }));
-        if (phase === 'closed') lifecycle.push(h('button', { type: 'button', text: 'Finalise', onclick: () => changeState(control.state === 'published' ? ['closed', 'finalised'] : ['finalised'], 'Finalise this poll?', 'finalise') }));
-        if (phase !== 'archived') lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Archive', onclick: () => changeState(['archived'], 'Archive this poll?', 'archive') }));
+        if (live) lifecycle.push(h('button', { type: 'button', class: 'sp-secondary', text: 'Close now', onclick: closePoll }));
+        if (live && control.state === 'published') lifecycle.push(h('a', { class: 'sp-btn sp-btn-secondary', href: `?edit=${encodeURIComponent(id)}`, text: 'Edit poll' }));
         lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Preview', 'aria-label': 'Preview as driver', onclick: () => previewDialog(definition) }),
             h('button', { type: 'button', class: 'sp-link', text: 'Duplicate', 'aria-label': 'Duplicate as a new draft', onclick: () => duplicate(false) }));
-        if (phase === 'archived') lifecycle.push(h('button', { type: 'button', class: 'sp-link sp-red-text', text: 'Delete…', 'aria-label': 'Delete this poll permanently', onclick: () => deletePoll(id, entry) }));
-        if (phase !== 'finalised' && phase !== 'archived' && !entry.replacedBy) lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Replace…', 'aria-label': 'Replace with a corrected poll', onclick: () => duplicate(true) }));
+        if (live && !entry.replacedBy) lifecycle.push(h('button', { type: 'button', class: 'sp-link', text: 'Replace…', 'aria-label': 'Replace with a corrected poll', onclick: () => duplicate(true) }));
+        if (!live) lifecycle.push(h('button', { type: 'button', class: 'sp-link sp-red-text', text: 'Delete…', 'aria-label': 'Delete this poll permanently', onclick: () => deletePoll(id, entry) }));
         const eligible = control.allDrivers === false ? Object.keys(control.eligible || {}).map(driverName).join(', ') : 'Every active driver';
 
         fill($('view'),
@@ -904,7 +915,7 @@
                     h('dt', { text: 'Results' }), h('dd', { text: `${P.VISIBILITY[control.resultVisibility]}${control.labelsHidden ? ' · names hidden' : ''}` }),
                     h('dt', { text: 'Who can vote' }), h('dd', { text: eligible })),
                 h('div', { class: 'sp-inline-actions' }, lifecycle)),
-            phase === 'finalised' || phase === 'archived' ? null : settingsCard(control, phase),
+            settingsCard(control, phase),
             h('section', { class: 'sp-card' }, h('h2', { text: 'Results' }), h('div', { id: 'detailResults' })),
             h('section', { class: 'sp-card' }, h('h2', { text: 'Individual answers' }),
                 h('p', { class: 'sp-muted sp-small', text: 'Only admins can see who answered what.' }), h('div', { id: 'detailBallots' },
@@ -918,14 +929,15 @@
     function settingsCard(control, phase) {
         const changes = {};
         const opens = h('input', { type: 'datetime-local', value: P.utcToLondonInput(control.opensAt), disabled: phase !== 'scheduled' });
-        const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(control.closesAt) });
+        // A poll closed with "Close now" can't reopen; one that closed on its date can be extended.
+        const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(control.closesAt), disabled: control.state !== 'published' });
         opens.addEventListener('change', () => { changes.opensAt = P.londonInputToUtc(opens.value); });
         closes.addEventListener('change', () => { changes.closesAt = P.londonInputToUtc(closes.value); });
         const visibility = selectOf(Object.entries(P.VISIBILITY), control.resultVisibility, v => { changes.resultVisibility = v; });
         const labels = h('input', { type: 'checkbox', checked: control.labelsHidden === true });
         labels.addEventListener('change', () => { changes.labelsHidden = labels.checked; });
         return h('details', { class: 'sp-card sp-fold' }, h('summary', null, h('h2', { text: 'Change dates or results setting' })),
-            h('div', { class: 'sp-row' }, field('Opens (UK time)', opens, phase === 'scheduled' ? '' : 'Already open.'), field('Closes (UK time)', closes)),
+            h('div', { class: 'sp-row' }, field('Opens (UK time)', opens, phase === 'scheduled' ? '' : 'Already open.'), field('Closes (UK time)', closes, control.state === 'published' ? (phase === 'closed' ? 'A later date reopens voting.' : '') : 'Closed early, so it can’t reopen.')),
             field('Results', visibility),
             h('label', { class: 'sp-check' }, labels, 'Hide class names in results (untick to reveal them to drivers)'),
             h('button', { type: 'button', text: 'Save changes', onclick: async () => {
@@ -935,26 +947,15 @@
                 const closesAt = diff.closesAt !== undefined ? diff.closesAt : control.closesAt;
                 if (!(opensAt < closesAt) || Number.isNaN(opensAt) || Number.isNaN(closesAt)) { setStatus('The closing time must be after the opening time.', 'error'); return; }
                 const described = Object.entries(diff).map(([k, v]) => `${{ opensAt: 'Opens', closesAt: 'Closes', resultVisibility: 'Results', labelsHidden: 'Names hidden' }[k]}: ${k.endsWith('At') ? P.formatDateTime(v) : k === 'resultVisibility' ? P.VISIBILITY[v] : v ? 'yes' : 'no'}`);
-                const result = await confirmDialog({ title: 'Save these changes?', body: h('ul', null, described.map(t => h('li', { text: t }))), reason: true, confirmLabel: 'Save changes',
-                    reasonValue: diff.closesAt > control.closesAt ? 'Deadline extended' : diff.labelsHidden === false ? 'Class names revealed' : '' });
-                if (!result) return;
-                save(SB.controlUpdates({ pollId: params.get('poll'), before: control, changes: diff, auditId: auditId(), adminUid: state.uid, reason: result.reason, action: 'update-settings', timestamp: sv().TIMESTAMP }), 'Changes saved.');
+                save(SB.controlUpdates({ pollId: params.get('poll'), before: control, changes: diff, auditId: auditId(), adminUid: state.uid, reason: described.join('; ').slice(0, 1000), action: 'update-settings', timestamp: sv().TIMESTAMP }), 'Changes saved.');
             } }));
     }
 
-    async function changeState(steps, title, action) {
+    async function closePoll() {
         const control = detail.control;
-        const body = h('p', { text: { close: 'Drivers will no longer be able to vote. Closed polls can’t be reopened; publish a replacement if needed.',
-            finalise: 'This confirms the results. It doesn’t change any championship or rules settings.', archive: 'The poll moves to the archive for drivers and admins.' }[action] });
-        const result = await confirmDialog({ title, body, reason: true, confirmLabel: title.replace(/ this poll\??| now\?/g, '').replace('?', '') });
-        if (!result) return;
-        let before = control;
-        for (const next of steps) {
-            const ok = await save(SB.controlUpdates({ pollId: params.get('poll'), before, changes: { state: next }, auditId: auditId(), adminUid: state.uid, reason: result.reason, action, timestamp: sv().TIMESTAMP }));
-            if (!ok) return;
-            before = { ...before, state: next };
-        }
-        setStatus('Saved.', 'ok');
+        const ok = await confirmDialog({ title: 'Close this poll now?', body: h('p', { text: 'Voting stops straight away. The results stay available.' }), confirmLabel: 'Close poll' });
+        if (!ok || control.state !== 'published') return;
+        save(SB.controlUpdates({ pollId: params.get('poll'), before: control, changes: { state: 'closed' }, auditId: auditId(), adminUid: state.uid, reason: 'Closed early', action: 'close', timestamp: sv().TIMESTAMP }), 'Poll closed.');
     }
 
     async function duplicate(replace) {
@@ -981,7 +982,8 @@
         const eligible = eligibleCount(null, control);
         const charts = h('div');
         const hidden = control.labelsHidden === true && !detail.reveal;
-        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: control.state !== 'finalised', title: detail.definition.title, minTurnout: control.minTurnout || 0 });
+        const entry = (state.index && state.index[params.get('poll')]) || {};
+        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: P.pollPhase(control, now()) !== 'closed', title: detail.definition.title, minTurnout: control.minTurnout || 0, pie: entry.kind === 'rules' });
         fill(box,
             h('p', null, h('strong', { text: `${respondents} of ${eligible}` }), ' eligible drivers have responded.'),
             control.labelsHidden ? h('label', { class: 'sp-check' }, h('input', { type: 'checkbox', checked: detail.reveal, onchange: e => { detail.reveal = e.target.checked; renderDetailResults(); } }),
@@ -994,12 +996,12 @@
     }
 
     async function publishSnapshot() {
-        const result = await confirmDialog({ title: 'Publish a results snapshot?', body: h('p', { text: `Freezes the current totals (${(detail.totals && detail.totals.respondents) || 0} respondents) for drivers.` }), reason: true, reasonValue: 'Results published', confirmLabel: 'Publish snapshot' });
+        const result = await confirmDialog({ title: 'Publish a results snapshot?', body: h('p', { text: `Freezes the current totals (${(detail.totals && detail.totals.respondents) || 0} respondents) for drivers.` }), confirmLabel: 'Publish snapshot' });
         if (!result) return;
         const id = params.get('poll');
         const audit = auditId();
         save({ [`${V1}/polls/${id}/snapshot`]: { at: sv().TIMESTAMP, by: state.uid, totals: detail.totals || { respondents: 0 } },
-            [`${V1}/polls/${id}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'publish-snapshot', reason: result.reason } }, 'Snapshot published.');
+            [`${V1}/polls/${id}/audit/${audit}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'publish-snapshot', reason: 'Results published' } }, 'Snapshot published.');
     }
 
     async function recount() {
@@ -1014,7 +1016,7 @@
         if (!differences.length) { await confirmDialog({ title: 'Recount complete', body: h('p', { text: `The totals match all ${plural(Object.keys(ballots).length, 'ballot')}.` }), confirmLabel: 'OK' }); return; }
         const result = await confirmDialog({ title: 'Totals don’t match the ballots', body: h('div', null, h('p', { text: 'Recounting the ballots found these differences:' }),
             h('ul', null, differences.map(d => h('li', { text: `${d.path}: stored ${d.actual}, ballots say ${d.expected === null ? 'not an option' : d.expected}` })))),
-        reason: true, reasonValue: 'Recount repair', confirmLabel: 'Repair totals' });
+        confirmLabel: 'Repair totals' });
         if (!result) return;
         // One atomic change to the totals that also records which discrepancy it fixed,
         // so a second admin repairing the same thing at the same time changes nothing.
@@ -1024,7 +1026,7 @@
             outcome = await db().ref(`${V1}/polls/${id}/totals`).transaction(current => SB.applyRepair(current, differences, fingerprint, { at: now(), by: state.uid }));
         } catch (error) { setStatus(`Not repaired: ${error.message}`, 'error'); return; }
         if (!outcome.committed) { setStatus('These totals were already repaired, probably by another admin. Nothing changed.', 'warn'); return; }
-        save({ [`${V1}/polls/${id}/audit/${auditId()}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: result.reason, before: { differences } } }, 'Totals repaired.');
+        save({ [`${V1}/polls/${id}/audit/${auditId()}`]: { at: sv().TIMESTAMP, by: state.uid, action: 'recount', reason: 'Recount repair', before: { differences } } }, 'Totals repaired.');
     }
 
     async function loadBallots() {
@@ -1058,9 +1060,9 @@
         catch (error) { setStatus(`Could not read the ballot: ${error.message}`, 'error'); return; }
         const answers = UI.answersFromBallot(definition, oldBallot);
         const panel = h('div', { class: 'sp-preview' });
-        UI.renderForm(panel, { definition, answers, onChange: () => {}, onReview: () => $('dialogReason').focus() });
+        UI.renderForm(panel, { definition, answers, onChange: () => {}, onReview: () => {} });
         panel.querySelector('.sp-actionbar').hidden = true;
-        const result = await confirmDialog({ title: `Correct ${driverName(uid)}’s answers`, wide: true, body: panel, reason: true, reasonLabel: 'Reason for the correction (kept in the history)', confirmLabel: 'Save correction' });
+        const result = await confirmDialog({ title: `Correct ${driverName(uid)}’s answers`, wide: true, body: panel, reason: true, reasonLabel: 'Note (optional, kept in the history)', reasonFallback: 'Corrected by an admin', confirmLabel: 'Save correction' });
         if (!result) return;
         const tidy = SB.normaliseAnswers(definition, answers);
         const problems = SB.validateAnswers(definition, tidy);
@@ -1093,15 +1095,35 @@
     const loaded = new Set();
     const NEEDED = ['index', 'drafts', 'plans', 'templates', 'settings', 'catalogue', 'drivers', 'visibility'];
     function route() {
+        renderQueued = false;
         if (!NEEDED.every(key => loaded.has(key))) return;
-        if (params.get('poll')) renderDetail();
-        else if (params.get('edit')) startLiveEditor();
-        else if (params.get('draft') || params.get('template')) startEditor();
-        else renderMain();
+        try {
+            if (params.get('poll')) renderDetail();
+            else if (params.get('edit')) startLiveEditor();
+            else if (params.get('draft') || params.get('template')) startEditor();
+            else renderMain();
+        } catch (error) {
+            // Show the problem instead of leaving the old screen up (which looks like a dead button).
+            console.error('Could not draw this page:', error);
+            lastDrawn = '';
+            fill($('view'), h('div', { class: 'sp-status sp-error', role: 'alert' }, `Something went wrong showing this page (${error.message}). `,
+                h('button', { type: 'button', class: 'sp-link', text: 'Reload', onclick: () => location.reload() })));
+        }
     }
 
+    // Data arriving from several places at once is drawn once, on the next frame.
+    let renderQueued = false;
+    function requestRender() {
+        if (renderQueued) return;
+        renderQueued = true;
+        (document.hidden ? setTimeout : requestAnimationFrame)(() => { if (renderQueued) route(); });
+    }
+    // Opening and closing follow the clock, so redraw now and then even without new data.
+    setInterval(() => { if (isMain(location.search)) requestRender(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) requestRender(); });
+
     function listen(path, key, fallback) {
-        db().ref(path).on('value', snapshot => { state[key] = snapshot.val() || fallback; loaded.add(key); route(); }, error => {
+        db().ref(path).on('value', snapshot => { state[key] = snapshot.val() || fallback; loaded.add(key); requestRender(); }, error => {
             console.error(`Could not load ${path}:`, error);
             setStatus(`Could not load ${key}: ${error.message}`, 'error');
         });
@@ -1135,7 +1157,7 @@
     // Shared with season-planning-tools.js.
     window.SeasonAdmin = {
         V1, state, params, now, newId, auditId, save, setStatus, confirmDialog, previewDialog, activePlan, driverName, activeDrivers, settings,
-        clean, plural, phaseBadge, field, KINDS, rerender: () => route(), publishUpdatesFor, visibilityCard, pollsTab, newPoll, completePlan,
+        clean, plural, phaseBadge, field, KINDS, rerender: requestRender, renderNow: route, publishUpdatesFor, visibilityCard, pollsTab, newPoll, completePlan,
         addTab: tab => { extraTabs.push(tab); }
     };
 
@@ -1144,7 +1166,7 @@
         state.uid = event.detail.user.uid;
         setStatus('');
         db().ref('.info/serverTimeOffset').on('value', snapshot => { serverOffset = snapshot.val() || 0; });
-        db().ref('drivers').once('value').then(snapshot => { state.drivers = snapshot.val() || {}; loaded.add('drivers'); route(); },
+        db().ref('drivers').once('value').then(snapshot => { state.drivers = snapshot.val() || {}; loaded.add('drivers'); requestRender(); },
             error => setStatus(`Could not load drivers: ${error.message}`, 'error'));
         listen(`${V1}/index`, 'index', {});
         listen(`${V1}/drafts`, 'drafts', {});
