@@ -30,7 +30,7 @@
         if (!data.definition || !data.ballots) return { ready: false, pollId: poll.id };
         const config = ((tools.planAdmin.trackResolution || {})[poll.id]) || {};
         const resolution = AC.trackResolution(data.definition, data.ballots, config);
-        const options = data.definition.questions[0].options;
+        const options = AC.trackOptions(data.definition);
         return {
             ready: true, poll, open: poll.phase === 'open', unresolved: resolution.unresolved, exceptions: config.exceptions || {},
             drivers: K.driverEvents(resolution.assignments, options), randomCount: resolution.random.length

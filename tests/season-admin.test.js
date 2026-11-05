@@ -169,6 +169,17 @@ test('rule outcomes: Yes must beat No; ties fail; no votes is no decision', () =
     assert.equal(draft.questions.length, 2);
 });
 
+test('track questions are found wherever they are in the poll', () => {
+    const def = { questionCount: 2, questions: {
+        0: { index: 0, type: 'text', kind: 'text', prompt: 'Any rule ideas?' },
+        1: { index: 1, type: 'track', kind: 'choice', prompt: 'Track?', minSelections: 1, maxSelections: 1, options: { 'sebring-school': { label: 'Sebring School', locationId: 'sebring' } } } } };
+    assert.deepEqual(Object.keys(A.trackOptions(def)), ['sebring-school']);
+    assert.deepEqual(A.trackOptions({ questionCount: 1, questions: { 0: { type: 'text', kind: 'text' } } }), {});
+    const ballots = { alex: { submittedAt: 1, answers: { 0: { text: 'x' }, 1: { count: 1, slots: { 0: 'sebring-school' }, byOption: { 'sebring-school': 0 } } } } };
+    assert.deepEqual(A.trackResolution(def, ballots, {}).assignments.map(a => a.layoutId), ['sebring-school']);
+    assert.equal(A.trackResolution({ questionCount: 0, questions: {} }, ballots, {}).unresolved, 0, 'a poll without a track question has nothing to resolve');
+});
+
 test('rule proposals can have their own answer options; the most votes decides', () => {
     const proposals = [{ text: 'Allow ghosting?' }, { text: 'Race length?', answers: { type: 'single', options: ['20 minutes', '30 minutes', '45 minutes'] } },
         { text: 'Which assists?', answers: { type: 'multi', options: { 0: 'ABS', 1: 'TC' } } }, { text: 'Too few options', answers: { type: 'single', options: ['Only one'] } }];

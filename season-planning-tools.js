@@ -598,7 +598,7 @@
         const unchanged = snapshotOf(() => AC.trackResolution(data.definition, data.ballots, ((tools.planAdmin.trackResolution || {})[track.pollId]) || {})
             .rows.map(r => [r.uid, r.layoutId, r.status, r.finalLayoutId || null]),
         'Drivers’ track choices changed while this was open (perhaps another admin). Nothing was saved; check again.');
-        const options = data.definition.questions[0].options;
+        const options = AC.trackOptions(data.definition);
         const layoutLabel = id => (options[id] || { label: id }).label;
         const locationName = id => (Object.values(options).find(o => o.locationId === id) || {}).locationName || id;
         const base = `${planPath()}/trackResolution/${track.pollId}`;

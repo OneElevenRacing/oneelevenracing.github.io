@@ -272,10 +272,18 @@
     // submitted last keeps it and the earlier ones need a replacement. Identical
     // submission times need an admin decision. Replacements must use a location
     // nobody else has; exceptions let an admin accept a shared location.
+    // The layouts offered by a poll's track question, wherever it is in the poll
+    // ({} if the poll has none).
+    function trackOptions(definition) {
+        const question = SB.questionList(definition).find(q => q && q.type === 'track');
+        return (question && question.options) || {};
+    }
+
     function trackResolution(definition, ballots, resolution) {
         const config = resolution || {};
         const index = SB.questionList(definition).findIndex(q => q.type === 'track');
-        const options = (definition.questions[index] && definition.questions[index].options) || {};
+        if (index === -1) return { rows: [], random: [], conflicts: [], invalid: [], freeLocations: [], assignments: [], unresolved: 0 };
+        const options = trackOptions(definition);
         const locationOf = layoutId => (options[layoutId] || {}).locationId || null;
         const choices = [];
         const random = [];
@@ -494,5 +502,5 @@
         return steps.find(s => s.status === 'decide') || steps.find(s => s.status === 'todo') || null;
     }
 
-    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, runoffCarry, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, proposalAnswers, writtenAnswers };
+    return { STEPS, stagesForSteps, includedSteps, seasonSteps, nextStep, aggregateNominations, roundDefaults, advancement, runoffCarry, roundDraft, exclusionPlan, trackDraft, trackResolution, rulesDraft, ruleOutcomes, proposalAnswers, writtenAnswers, trackOptions };
 });
