@@ -212,47 +212,8 @@
         return pool.map(location => ({ locationId: location.locationId, layouts: location.layouts.map(l => l.id) }));
     }
 
-    // ---------- Summary exports ----------
-
-    function calendarRows(summary) {
-        return (summary.calendar || []).map((event, i) => ({ position: i + 1, ...event }));
-    }
-
-    function calendarCsv(summary) {
-        const rows = [['round', 'track', 'location', 'chosen by', 'date']];
-        calendarRows(summary).forEach(e => rows.push([e.position, e.label, e.locationName, e.source === 'driver' ? 'Driver choice' : 'Random draw', e.date || '']));
-        return C.toCsv(rows);
-    }
-
-    const md = text => String(text == null ? '' : text).replace(/([\\`*_[\]#|<>])/g, '\\$1');
-
-    function summaryMarkdown(summary) {
-        const lines = [`# ${md(summary.title)}`, ''];
-        if (summary.intro) lines.push(md(summary.intro), '');
-        lines.push('## Car class', '', summary.winner ? `**${md(summary.winner.label)}**${summary.winner.explanation ? ` — ${md(summary.winner.explanation)}` : ''}` : 'Not decided.', '');
-        lines.push('## Calendar', '');
-        const rows = calendarRows(summary);
-        if (rows.length) {
-            lines.push('| Round | Track | Location | Chosen by | Date |', '|---|---|---|---|---|');
-            rows.forEach(e => lines.push(`| ${e.position} | ${md(e.label)} | ${md(e.locationName)} | ${e.source === 'driver' ? 'Driver choice' : 'Random draw'} | ${md(e.date || '')} |`));
-        } else lines.push('Not published.');
-        lines.push('', '## Rule changes', '');
-        const rules = summary.rules || [];
-        if (rules.length) rules.forEach(r => lines.push(`- ${{ pass: 'Accepted', fail: 'Rejected', chosen: 'Decided' }[r.outcome] || 'No decision'}: ${md(r.prompt)} (${md(r.label)})`));
-        else lines.push('None.');
-        if ((summary.rounds || []).length) {
-            lines.push('', '## Voting rounds', '');
-            summary.rounds.forEach(r => lines.push(`- ${md(r.title)}`));
-        }
-        return `${lines.join('\n')}\n`;
-    }
-
-    function summaryJson(summary) {
-        return `${JSON.stringify({ schema: 1, ...summary }, null, 2)}\n`;
-    }
-
     return {
         GENERATION_VERSION, LIMITS, cryptoSource, randomInt, shuffle, randomPool, driverEvents, generate, fillRemaining, redraw, replaceOne,
-        shuffleOrder, move, describeOperations, syncDrivers, sameDrivers, finaliseProblems, shortfall, calendarCsv, summaryMarkdown, summaryJson
+        shuffleOrder, move, describeOperations, syncDrivers, sameDrivers, finaliseProblems, shortfall
     };
 });

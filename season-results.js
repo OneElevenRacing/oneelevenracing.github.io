@@ -167,12 +167,12 @@
 
     // Pie (doughnut) chart with a legend of every option, its count and share. The
     // legend sits beside the pie on wide charts and underneath on narrow ones.
-    function pieChartSvg(list, { title = '', width = 640, yesNo = false } = {}) {
+    function pieChartSvg(list, { title = '', width = 640, yesNo = false, size: maxSize = 200 } = {}) {
         const heading = titleBlock(title, '', width);
         const top = heading.height;
         const total = totalSelections(list);
-        const side = width >= 420;
-        const size = Math.min(side ? Math.round(width * 0.4) : width, 200);
+        const side = width >= 280;
+        const size = Math.min(side ? Math.round(width * 0.4) : width, maxSize);
         const r = size / 2;
         const inner = r * 0.55;
         const cx = r;

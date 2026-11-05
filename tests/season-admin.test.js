@@ -215,11 +215,11 @@ test('track drafts freeze the eligible layouts with their locations', () => {
 test('season steps: statuses follow polls and decisions, and skipped steps say so', () => {
     const now = Date.UTC(2026, 9, 17);
     const plan = { stages: A.stagesForSteps(['suggestions', 'rounds', 'tracks', 'calendar']) };
-    assert.deepEqual(A.includedSteps(plan), ['suggestions', 'rounds', 'tracks', 'calendar', 'summary']);
+    assert.deepEqual(A.includedSteps(plan), ['suggestions', 'rounds', 'tracks', 'calendar']);
     const poll = (id, phase, extra = {}) => ({ id, title: id, phase, opensAt: now - 1, closesAt: now + 1, ...extra });
     let steps = A.seasonSteps({ plan, polls: {}, now });
     const byId = list => Object.fromEntries(list.map(s => [s.id, s.status]));
-    assert.deepEqual(byId(steps), { suggestions: 'todo', rounds: 'waiting', tracks: 'todo', rules: 'skipped', calendar: 'waiting', summary: 'todo' });
+    assert.deepEqual(byId(steps), { suggestions: 'todo', rounds: 'waiting', tracks: 'todo', rules: 'skipped', calendar: 'waiting' });
     assert.equal(A.nextStep(steps).id, 'suggestions');
 
     steps = A.seasonSteps({ plan, polls: {}, stepDrafts: { suggestions: [{ id: 'd1', title: 'Car class suggestions' }] }, now });
@@ -238,12 +238,12 @@ test('season steps: statuses follow polls and decisions, and skipped steps say s
 
     steps = A.seasonSteps({ plan: { ...plan, summary: { publishedAt: now } }, polls: { tracks: [poll('t', 'closed')] },
         planAdmin: { winner: { label: 'GT4' }, calendar: { currentVersion: 'v1', finalised: { versionId: 'v1' }, versions: { v1: { events: [{}, {}] } } } }, trackUnresolved: 0, now });
-    assert.deepEqual([byId(steps).rounds, byId(steps).tracks, byId(steps).calendar, byId(steps).summary], ['done', 'done', 'done', 'done']);
-    assert.equal(steps.find(s => s.id === 'calendar').line, 'Final: 2 events');
+    assert.deepEqual([byId(steps).rounds, byId(steps).tracks, byId(steps).calendar], ['done', 'done', 'done']);
+    assert.equal(steps.find(s => s.id === 'calendar').line, 'Final: 2 events, shown to drivers');
 });
 
 test('stages for steps use fixed labels the drivers see', () => {
-    assert.deepEqual(A.stagesForSteps(['suggestions', 'rounds', 'rules', 'summary']).map(s => s.label), ['Suggestions', 'Car votes', 'Rules']);
+    assert.deepEqual(A.stagesForSteps(['suggestions', 'rounds', 'rules']).map(s => s.label), ['Suggestions', 'Car votes', 'Rules']);
 });
 
 test('a runoff that ties again keeps every class already through', () => {

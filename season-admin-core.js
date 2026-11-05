@@ -415,19 +415,18 @@
         { id: 'rounds', label: 'Car-class voting rounds', stage: 'Car votes', kind: 'elimination' },
         { id: 'tracks', label: 'Track picks', stage: 'Tracks', kind: 'track' },
         { id: 'rules', label: 'Rule changes', stage: 'Rules', kind: 'rules' },
-        { id: 'calendar', label: 'Calendar', stage: 'Calendar' },
-        { id: 'summary', label: 'Publish the summary' }
+        { id: 'calendar', label: 'Calendar', stage: 'Calendar' }
     ];
 
-    // Drivers' progress-strip stages for the chosen steps (the summary isn't a stage).
+    // Drivers' progress-strip stages for the chosen steps.
     function stagesForSteps(stepIds) {
-        return STEPS.filter(step => step.stage && stepIds.includes(step.id)).map(step => ({ id: C.slugify(step.stage), label: step.stage }));
+        return STEPS.filter(step => stepIds.includes(step.id)).map(step => ({ id: C.slugify(step.stage), label: step.stage }));
     }
 
     // Which steps a plan includes, from its stages (matched by label so older plans work).
     function includedSteps(plan) {
         const labels = new Set(Object.values((plan && plan.stages) || {}).filter(Boolean).map(s => s.label.toLowerCase()));
-        return STEPS.filter(step => !step.stage || labels.has(step.stage.toLowerCase())).map(step => step.id);
+        return STEPS.filter(step => labels.has(step.stage.toLowerCase())).map(step => step.id);
     }
 
     // Status of every step for the admin checklist: 'skipped', 'todo', 'waiting',
@@ -484,12 +483,12 @@
 
         const calendar = planAdmin.calendar || {};
         const finalVersion = calendar.finalised && calendar.versions && calendar.versions[calendar.finalised.versionId];
-        if (finalVersion) result.calendar = ['done', `Final: ${Object.values(finalVersion.events || {}).length} events`];
+        // A final calendar is shown to drivers straight away (no separate publishing).
+        if (finalVersion) result.calendar = ['done', `Final: ${Object.values(finalVersion.events || {}).length === 1 ? '1 event' : `${Object.values(finalVersion.events || {}).length} events`}, shown to drivers`];
         else if (calendar.currentVersion) result.calendar = ['decide', 'Adjust and finalise the calendar'];
         else if (included.has('tracks') && result.tracks[0] !== 'done') result.calendar = ['waiting', 'After track picks are settled'];
         else result.calendar = ['todo', 'Generate the calendar'];
 
-        result.summary = plan && plan.summary ? ['done', `Published ${P.formatDate(plan.summary.publishedAt)}`] : ['todo', 'Preview and publish the summary'];
 
         return STEPS.map(step => {
             const [status, line] = included.has(step.id) ? result[step.id] : ['skipped', 'Not this season'];

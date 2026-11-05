@@ -84,7 +84,7 @@
         const version = current();
         const events = eventsOf(version);
         const locked = Boolean(finalised() && finalised().versionId === calendar().currentVersion);
-        return h('div', null, setupCard(info, excluded, version, locked), version ? eventsCard(version, events, info, excluded, locked) : null, version ? finaliseCard(events, info, locked) : null, historyCard(version));
+        return h('div', null, setupCard(info, excluded, version, locked), version ? eventsCard(version, events, info, excluded, locked) : null, version ? finaliseCard(events, info, locked) : null);
     }
 
     function setupCard(info, excluded, version, locked) {
@@ -179,21 +179,21 @@
         const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Finalise' }));
         if (locked) {
             const f = finalised();
-            T.put(card, h('p', { class: 'sp-status sp-ok', text: `Final since ${P.formatDateTime(f.at)} (${A.driverName(f.by)}). Publish it in the summary step.` }),
-                h('button', { type: 'button', class: 'sp-link', text: 'Reopen for changes…', onclick: async () => {
-                    const r = await A.confirmDialog({ title: 'Reopen the calendar?', body: h('p', { text: 'You’ll need to finalise again afterwards. A published summary keeps the old calendar until you republish.' }), confirmLabel: 'Reopen' });
-                    if (r) T.decide({ [`${T.planPath()}/calendar/finalised`]: null }, 'calendar-reopen', 'Calendar reopened', 'Calendar reopened.');
-                } }));
+            T.put(card, h('p', { class: 'sp-status sp-ok' }, `Final since ${P.formatDateTime(f.at)} (${A.driverName(f.by)}) and shown on the drivers’ `, h('a', { href: 'season-polls.html', text: 'Polls & Forms page' }), '.'),
+            h('button', { type: 'button', class: 'sp-link', text: 'Reopen for changes…', onclick: async () => {
+                const r = await A.confirmDialog({ title: 'Reopen the calendar?', body: h('p', { text: 'Drivers stop seeing it until you finalise again.' }), confirmLabel: 'Reopen' });
+                if (r) T.decide({ [`${T.planPath()}/calendar/finalised`]: null, [`${V1}/plans/${tools.planId}/summary`]: null }, 'calendar-reopen', 'Calendar reopened', 'Calendar reopened.');
+            } }));
             return card;
         }
         const problems = K.finaliseProblems({ events, target: target(), unresolvedDuplicates: info.unresolved || 0, exceptions: info.exceptions || {},
             driversChanged: !K.sameDrivers(events, info.drivers) });
         if (info.open) problems.push('The track poll is still open.');
         T.put(card, problems.length ? h('div', { class: 'sp-status sp-warn' }, 'Before finalising:', h('ul', { class: 'sp-errors', style: 'color:inherit' }, problems.map(p => h('li', { text: p }))))
-            : h('p', { text: 'Everything checks out. Finalising fixes this version as the season calendar.' }),
+            : h('p', { text: 'Everything checks out. Finalising fixes this version as the season calendar and shows it on the drivers’ Polls & Forms page.' }),
         h('button', { type: 'button', text: 'Finalise calendar', disabled: problems.length > 0, onclick: async () => {
             const shown = calendar().currentVersion;
-            if (!await A.confirmDialog({ title: 'Finalise the calendar?', body: h('p', { text: 'This doesn’t create or change a championship.' }), confirmLabel: 'Finalise' })) return;
+            if (!await A.confirmDialog({ title: 'Finalise the calendar?', body: h('p', { text: 'Drivers will see it on Polls & Forms. This doesn’t create or change a championship.' }), confirmLabel: 'Finalise' })) return;
             const fresh = driverInfo();
             const freshEvents = eventsOf(current());
             const freshProblems = K.finaliseProblems({ events: freshEvents, target: target(), unresolvedDuplicates: fresh.unresolved || 0, exceptions: fresh.exceptions || {},
@@ -210,89 +210,38 @@
                 });
             } catch (error) { A.setStatus(`Not finalised: ${error.message}`, 'error'); return; }
             if (!outcome.committed) { A.setStatus(CHANGED, 'warn'); A.rerender(); return; }
-            T.decide({}, 'calendar-finalise', `Calendar finalised with ${freshEvents.length} events`, 'Calendar finalised.');
+            T.decide(driverCalendar(freshEvents), 'calendar-finalise', `Calendar finalised with ${freshEvents.length} events`, 'Calendar finalised and shown to drivers.');
         } }));
         return card;
     }
 
-    function historyCard(version) {
-        const list = versions().reverse();
-        if (!list.length) return null;
-        const locked = Boolean(finalised() && finalised().versionId === calendar().currentVersion);
-        return h('section', { class: 'sp-card' }, h('h2', { text: 'Saved versions' }),
-            h('ul', { class: 'sp-list' }, list.slice(0, 40).map(v => h('li', { class: 'sp-item' },
-                h('div', null, h('div', { class: 'sp-item-title' }, v.action, v.id === (version && version.id) ? h('span', { class: 'sp-badge sp-green', text: 'Current' }) : null),
-                    h('div', { class: 'sp-item-meta', text: `${P.formatDateTime(v.at)} · ${A.driverName(v.by)} · ${v.note || ''}` })),
-                v.id === (version && version.id) || locked ? null : h('div', { class: 'sp-item-actions' }, h('button', { type: 'button', class: 'sp-link', text: 'Restore', onclick: async () => {
-                    if (await A.confirmDialog({ title: 'Restore this version?', body: h('p', { text: `The calendar goes back to “${v.action}” from ${P.formatDateTime(v.at)}. The current version stays in this list.` }), confirmLabel: 'Restore' })) {
-                        saveVersion(eventsOf(v), 'restore', `Restored the version from ${P.formatDateTime(v.at)}`, {}, version ? version.id : null);
-                    }
-                } }))))),
-            list.length > 40 ? h('p', { class: 'sp-muted sp-small', text: `Showing the latest 40 of ${list.length} versions.` }) : null);
+    // The final calendar as drivers see it (stored as the plan's summary, which drivers
+    // can read). Who chose each track isn't included.
+    function driverCalendar(events) {
+        const plan = A.activePlan();
+        return { [`${V1}/plans/${tools.planId}/summary`]: A.clean({ title: plan.title, publishedAt: sv().TIMESTAMP, publishedBy: A.state.uid,
+            calendar: events.map(e => A.clean({ label: e.label, locationName: e.locationName, imagePath: e.imagePath, source: e.source, date: e.date || undefined })) }) };
     }
 
-    // ---------- Summary ----------
-
-    function buildSummary() {
+    // Keeps the drivers' copy in step with the final calendar: written when it's
+    // missing or out of date (a calendar finalised before this existed, say), without
+    // the admin having to do anything.
+    let syncing = '';
+    function syncDriverCalendar() {
         const plan = A.activePlan();
         const f = finalised();
-        const finalVersion = f ? versions().find(v => v.id === f.versionId) : null;
-        const winner = tools.planAdmin.winner;
-        const outcomes = Object.values(tools.planAdmin.outcomes || {}).filter(Boolean).sort((a, b) => (a.pollId + a.questionIndex).localeCompare(b.pollId + b.questionIndex));
-        return A.clean({
-            title: plan.title,
-            winner: winner ? { label: winner.label, explanation: winner.explanation || '' } : undefined,
-            calendar: eventsOf(finalVersion).map(e => A.clean({ label: e.label, locationName: e.locationName, imagePath: e.imagePath, source: e.source, date: e.date || undefined })),
-            rules: outcomes.map(o => ({ prompt: o.prompt, outcome: o.outcome, label: o.label })),
-            rounds: T.planPolls('elimination').map(p => ({ pollId: p.id, title: p.title }))
-        });
+        if (!plan || !tools.planId || !f || f.versionId !== calendar().currentVersion) return;
+        const version = versions().find(v => v.id === f.versionId);
+        if (!version) return;
+        const wanted = Object.values(driverCalendar(eventsOf(version)))[0].calendar;
+        const shown = plan.summary && plan.summary.calendar ? Object.values(plan.summary.calendar) : null;
+        const key = JSON.stringify(wanted);
+        if (shown && JSON.stringify(shown) === key) return;
+        if (syncing === key) return;
+        syncing = key;
+        A.save(driverCalendar(eventsOf(version))).then(ok => { if (!ok) syncing = ''; });
     }
 
-    function summaryTab() {
-        if (!tools.planId) return T.needPlan();
-        const plan = A.activePlan();
-        const summary = buildSummary();
-        const published = plan.summary || null;
-        const missing = [];
-        if (!finalised()) missing.push('The calendar isn’t finalised yet (calendar step).');
-        if (!summary.winner) missing.push('No winning car class is recorded (voting rounds step).');
-        const proposalsInVote = Object.values(tools.planAdmin.proposals || {}).filter(p => p && p.status === 'in-vote').length;
-        if (proposalsInVote > (summary.rules || []).length) missing.push('Some rule votes have no confirmed outcome yet (rule changes step).');
-        const preview = h('div', { class: 'sp-summary' });
-        UI.renderSummary(preview, summary, { admin: true });
-        const download = (name, text, type) => UI.downloadBlob(name, new Blob([text], { type }));
-        const slug = () => window.OneElevenCatalogue.slugify(summary.title || 'season');
-        return h('div', null,
-            h('section', { class: 'sp-card' }, h('h2', { text: 'Season summary' }),
-                published ? h('p', { class: 'sp-status sp-ok' }, `Published ${P.formatDateTime(published.publishedAt)}. `, h('a', { href: `season-polls.html?summary=${encodeURIComponent(tools.planId)}`, text: 'Open the drivers’ view' })) : h('p', { class: 'sp-muted', text: 'Not published yet. Drivers will see it on the Polls & Forms page.' }),
-                missing.length ? h('div', { class: 'sp-status sp-warn' }, 'Still to do (you can publish anyway; missing parts show as not decided):', h('ul', { class: 'sp-errors', style: 'color:inherit' }, missing.map(m => h('li', { text: m })))) : null,
-                h('p', { class: 'sp-muted sp-small', text: 'Publishing doesn’t create or activate a championship. Set up the championship in Championship Admin when you’re ready.' }),
-                h('div', { class: 'sp-inline-actions' },
-                    h('button', { type: 'button', text: published ? 'Republish summary' : 'Publish summary', onclick: async () => {
-                        if (!await A.confirmDialog({ title: 'Publish the season summary?', body: h('p', { text: 'Drivers will see the winning class, the calendar and the rule outcomes shown below.' }), confirmLabel: 'Publish' })) return;
-                        if (JSON.stringify(buildSummary()) !== JSON.stringify(summary)) {
-                            A.setStatus('The summary changed while this was open. Nothing was published; check the preview and publish again.', 'warn');
-                            A.rerender();
-                            return;
-                        }
-                        T.decide({ [`${V1}/plans/${tools.planId}/summary`]: { ...summary, publishedAt: sv().TIMESTAMP, publishedBy: A.state.uid } }, 'summary', 'Season summary published', 'Summary published.');
-                    } }),
-                    published ? h('button', { type: 'button', class: 'sp-link', text: 'Unpublish', onclick: async () => {
-                        if (await A.confirmDialog({ title: 'Unpublish the summary?', body: h('p', { text: 'Drivers will no longer see it.' }), confirmLabel: 'Unpublish', danger: true })) {
-                            T.decide({ [`${V1}/plans/${tools.planId}/summary`]: null }, 'summary', 'Season summary unpublished');
-                        }
-                    } }) : null)),
-            h('section', { class: 'sp-card' }, h('h2', { text: 'Preview and exports' }),
-                h('div', { class: 'sp-inline-actions', style: 'margin-bottom:12px' },
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Calendar CSV', onclick: () => download(`${slug()}-calendar.csv`, K.calendarCsv(summary), 'text/csv') }),
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Text (Markdown)', onclick: () => download(`${slug()}-summary.md`, K.summaryMarkdown(summary), 'text/markdown') }),
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'JSON', onclick: () => download(`${slug()}-summary.json`, K.summaryJson(summary), 'application/json') }),
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Print', onclick: () => window.print() })),
-                preview));
-    }
-
-
-    window.SeasonCalendarTabs = { calendarTab, summaryTab };
+    window.SeasonCalendarTabs = { calendarTab, syncDriverCalendar };
     A.addTab({ id: 'calendar', label: 'Calendar', render: calendarTab });
-    A.addTab({ id: 'summary', label: 'Summary', render: summaryTab });
 })();

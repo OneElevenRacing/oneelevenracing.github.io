@@ -1,5 +1,5 @@
 // The Season page: one checklist of fixed steps (suggestions → voting rounds →
-// track picks → rule changes → calendar → summary). Each step is a card with a
+// track picks → rule changes → calendar). Each step is a card with a
 // status and its tools; "What needs doing" points at the step that needs you.
 // Also the Settings page. The step tools themselves live in season-planning-tools.js
 // and season-planning-calendar.js.
@@ -33,8 +33,7 @@
         rounds: ['create-round', 'round-decision', 'runoff', 'winner', 'round-target'],
         tracks: ['track-setup', 'create-track-poll', 'track-replacement', 'track-tie', 'track-exception'],
         rules: ['proposal', 'proposal-link', 'create-rules-poll', 'rule-outcome', 'min-turnout'],
-        calendar: ['calendar', 'calendar-target', 'calendar-finalise', 'calendar-reopen'],
-        summary: ['summary']
+        calendar: ['calendar', 'calendar-target', 'calendar-finalise', 'calendar-reopen', 'summary']
     };
 
     function toggle(id) {
@@ -68,7 +67,7 @@
     // ---------- Starting and editing a season ----------
 
     function stepChecklist(selected) {
-        const boxes = AC.STEPS.filter(step => step.id !== 'summary').map(step => ({ step, input: h('input', { type: 'checkbox', checked: selected.includes(step.id) }) }));
+        const boxes = AC.STEPS.map(step => ({ step, input: h('input', { type: 'checkbox', checked: selected.includes(step.id) }) }));
         return { boxes, element: h('div', { class: 'sp-checklist', style: 'max-height:none' }, boxes.map(({ step, input }) => h('label', { class: 'sp-check' }, input, step.label))) };
     }
 
@@ -76,7 +75,6 @@
         const title = h('input', { type: 'text', maxLength: 200, value: 'Next season' });
         const intro = h('input', { type: 'text', maxLength: 2000, value: 'Help shape the next season. Take part in each stage below.' });
         const steps = stepChecklist(AC.STEPS.map(s => s.id));
-        const past = Object.entries(A.state.plans || {}).filter(([, p]) => p && p.summary).sort(([, a], [, b]) => b.summary.publishedAt - a.summary.publishedAt);
         return h('div', null,
             h('section', { class: 'sp-card' }, h('h2', { text: 'Start a season' }),
                 h('p', { class: 'sp-small', text: 'Choose which steps to run. Drivers see them as the progress strip on Polls & Forms. You can change this later.' }),
@@ -86,10 +84,7 @@
                     const stages = AC.stagesForSteps(ids);
                     A.save({ [`${V1}/plans/${A.newId()}`]: { title: title.value.trim() || 'Next season', intro: intro.value.trim(), status: 'active', stageCount: stages.length, stages,
                         createdAt: sv().TIMESTAMP, updatedAt: sv().TIMESTAMP } }, 'Season started.');
-                } })),
-            past.length ? h('section', { class: 'sp-card' }, h('h2', { text: 'Past seasons' }),
-                h('ul', { class: 'sp-clist' }, past.map(([id, p]) => h('li', { class: 'sp-crow' }, h('span', { class: 'sp-crow-name' }, h('span', { class: 'sp-crow-title', text: p.summary.title || p.title })),
-                    h('span', { class: 'sp-crow-actions' }, h('a', { class: 'sp-small', href: `season-polls.html?summary=${encodeURIComponent(id)}`, text: 'Summary' })))))) : null);
+                } })));
     }
 
     async function editSeason(plan) {
@@ -161,8 +156,7 @@
             case 'rounds': return roundsBody(plan, state);
             case 'tracks': return T.tracksTab();
             case 'rules': return T.rulesTab();
-            case 'calendar': return CT.calendarTab();
-            default: return CT.summaryTab();
+            default: return CT.calendarTab();
         }
     }
 
@@ -181,6 +175,7 @@
         const plan = A.activePlan();
         if (!plan) return startCard();
         if (!T.tools.planId) return T.loading();
+        CT.syncDriverCalendar();
         const state = inputs(plan);
         const steps = AC.seasonSteps(state);
         const next = AC.nextStep(steps);
@@ -206,8 +201,7 @@
                         h('span', { class: 'sp-steptext' }, h('span', { class: 'sp-steplabel', text: step.label }), h('span', { class: 'sp-stepline', text: step.line })),
                         h('span', { class: `sp-badge ${tone}`, text: badge })),
                     open ? h('div', { class: 'sp-stepbody' }, stepBody(step, plan, state), activity(step.id)) : null);
-            })),
-            h('p', { class: 'sp-small', style: 'margin-top:10px' }, h('a', { href: 'season-planning-admin.html?tab=history', text: 'Full activity log' })));
+            })));
     }
 
     // ---------- Settings ----------

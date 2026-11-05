@@ -9,7 +9,8 @@
     const V1 = 'seasonPlanning/v1';
     const params = new URLSearchParams(location.search);
     const pollId = params.get('poll');
-    const summaryId = params.get('summary');
+    // Old season-summary links: the calendar is on the hub now.
+    if (params.get('summary')) history.replaceState(null, '', 'season-polls.html');
     const $ = id => document.getElementById(id);
     const db = () => firebase.database();
     let uid = null;
@@ -20,7 +21,7 @@
 
     // ---------- Hub ----------
 
-    const hub = { index: null, plans: {}, submitted: {}, liveTotals: {}, definitions: {}, minTurnout: {}, error: '' };
+    const hub = { index: null, plans: {}, submitted: {}, liveTotals: {}, definitions: {}, minTurnout: {}, error: '', openStages: new Set(), calendarRevealed: false };
 
     function activePlan() {
         return Object.entries(hub.plans || {}).map(([id, plan]) => ({ id, ...plan }))
@@ -64,18 +65,11 @@
         return h('span', { class: 'sp-muted' }, `Closed ${P.formatDate(entry.closesAt)}`);
     }
 
-    function submittedBadge(id) {
-        const state = hub.submitted[id];
-        if (state === true) return h('span', { class: 'sp-badge sp-green', text: 'Submitted' });
-        if (state === false) return h('span', { class: 'sp-badge sp-red', text: 'Not submitted' });
-        return null;
-    }
-
     function pollCard(poll) {
         const submitted = hub.submitted[poll.id] === true;
         return h('article', { class: 'sp-card sp-poll-card' },
             h('h2', { text: poll.title }),
-            h('p', { class: 'sp-small' }, deadline(poll), submittedBadge(poll.id), poll.standalone ? h('span', { class: 'sp-badge', text: 'Standalone' }) : null),
+            h('p', { class: 'sp-small' }, deadline(poll)),
             poll.summary ? h('p', { class: 'sp-small', text: poll.summary }) : null,
             h('a', { class: `sp-btn${submitted ? ' sp-btn-secondary' : ''}`, href: `season-polls.html?poll=${encodeURIComponent(poll.id)}` },
                 submitted ? 'View your answers' : 'Cast your vote'));
@@ -102,24 +96,43 @@
         }));
     }
 
+    // Where a poll stands for this driver: open polls say whether they've voted;
+    // once a poll closes it just says Closed (its results are a click away).
+    function pollStatus(poll) {
+        if (poll.phase === 'scheduled') return { icon: 'todo', text: `Opens ${P.formatDate(poll.opensAt)}`, tone: 'sp-muted' };
+        if (poll.phase === 'open') return hub.submitted[poll.id] === true ? { icon: 'done', text: 'Submitted', tone: 'sp-green-text' } : { icon: 'open', text: 'Open now', tone: 'sp-red-text' };
+        return { icon: 'closed', text: 'Closed', tone: 'sp-muted' };
+    }
+    const pollHref = poll => `season-polls.html?poll=${encodeURIComponent(poll.id)}${poll.phase === 'closed' ? '&tab=results' : ''}`;
+    const mineRow = (tag, status, label, extraClass = '') => h(tag, { class: `sp-mine sp-mine-${status.icon}${extraClass}` },
+        h('span', { class: 'sp-mine-dot', 'aria-hidden': 'true' }), label, h('span', { class: status.tone, text: status.text }));
+
+    function stageRow(stage) {
+        // The calendar stage has no poll: it's done once the calendar is final.
+        if (!stage.polls.length) {
+            const final = stage.status === 'done';
+            return mineRow('li', final ? { icon: 'closed', text: 'Final', tone: 'sp-green-text' } : { icon: 'todo', text: 'Not yet', tone: 'sp-muted' },
+                final ? h('button', { type: 'button', class: 'sp-mine-link', text: stage.label, onclick: () => revealCalendar(true) }) : h('span', { text: stage.label }));
+        }
+        if (stage.polls.length === 1) {
+            const poll = stage.polls[0];
+            return mineRow('li', pollStatus(poll), h('a', { href: pollHref(poll), text: stage.label }));
+        }
+        // Several polls (car-class rounds): one line for the stage, the rounds folded inside.
+        const current = stage.polls.find(p => p.phase === 'open') || stage.polls.find(p => p.phase === 'scheduled') || stage.polls[stage.polls.length - 1];
+        const status = pollStatus(current);
+        const details = h('details', { class: 'sp-mine-fold', open: hub.openStages.has(stage.id) },
+            mineRow('summary', status, h('span', null, stage.label, h('span', { class: 'sp-muted sp-small', text: ` · ${stage.polls.length} polls` }))),
+            h('ul', { class: 'sp-mine-list sp-mine-sub' }, stage.polls.map(poll => mineRow('li', pollStatus(poll), h('a', { href: pollHref(poll), text: poll.title })))));
+        details.addEventListener('toggle', () => { if (details.open) hub.openStages.add(stage.id); else hub.openStages.delete(stage.id); });
+        return h('li', { class: 'sp-mine-group' }, details);
+    }
+
     function yourProgress(stages) {
-        const items = stages.flatMap(stage => (stage.polls.length ? stage.polls : [null]).map(poll => {
-            let status;
-            if (!poll) status = h('span', { class: 'sp-muted', text: 'Not yet open' });
-            else if (poll.phase === 'scheduled') status = h('span', { class: 'sp-muted', text: `Opens ${P.formatDate(poll.opensAt)}` });
-            else if (hub.submitted[poll.id] === true) status = h('span', { class: 'sp-green-text', text: 'Submitted' });
-            else if (poll.phase === 'open') status = h('span', { class: 'sp-red-text', text: 'Open now' });
-            else status = h('span', { class: 'sp-muted', text: 'Closed' });
-            const icon = poll && hub.submitted[poll.id] === true ? 'done' : poll && poll.phase === 'open' ? 'open' : 'todo';
-            return h('li', { class: `sp-mine sp-mine-${icon}` },
-                h('span', { class: 'sp-mine-dot', 'aria-hidden': 'true' }),
-                poll ? h('a', { href: `season-polls.html?poll=${encodeURIComponent(poll.id)}`, text: stages.length && stage.polls.length > 1 ? poll.title : stage.label }) : h('span', { text: stage.label }),
-                status);
-        }));
-        const done = stages.filter(stage => stage.polls.length && stage.polls.every(poll => hub.submitted[poll.id] === true || poll.phase === 'closed' || poll.phase === 'finalised')).length;
+        const done = stages.filter(stage => (!stage.polls.length && stage.status === 'done') || (stage.polls.length && stage.polls.every(poll => hub.submitted[poll.id] === true || poll.phase === 'closed'))).length;
         return h('section', { class: 'sp-card', 'aria-labelledby': 'mineTitle' },
             h('div', { class: 'sp-card-head' }, h('h2', { id: 'mineTitle', text: 'Your progress' }), h('span', { class: 'sp-muted sp-small', text: `${done} of ${stages.length} stages done` })),
-            h('ul', { class: 'sp-mine-list' }, items));
+            h('ul', { class: 'sp-mine-list' }, stages.map(stageRow)));
     }
 
     // One card per open poll whose results drivers can watch live.
@@ -137,10 +150,30 @@
         });
     }
 
-    // Published summaries of plans other than the active one, newest first.
-    function pastSummaries(active) {
-        return Object.entries(hub.plans || {}).filter(([id, p]) => p && p.summary && (!active || id !== active.id))
-            .sort(([, a], [, b]) => b.summary.publishedAt - a.summary.publishedAt);
+    // The season's calendar, once an admin has finalised it. It starts folded behind a
+    // Reveal button; revealing drops the rounds in one by one.
+    function calendarEvents(plan) {
+        return plan && plan.summary && plan.summary.calendar ? Object.values(plan.summary.calendar) : [];
+    }
+
+    function calendarCard(plan) {
+        const events = calendarEvents(plan);
+        if (!events.length) return null;
+        return h('section', { class: 'sp-card sp-calendar-card', id: 'calendarCard', 'aria-labelledby': 'calendarTitle' },
+            h('div', { class: 'sp-card-head' }, h('h2', { id: 'calendarTitle', text: 'Season calendar' }), h('span', { class: 'sp-muted sp-small', text: `${events.length} ${events.length === 1 ? 'round' : 'rounds'}` })),
+            hub.calendarRevealed ? UI.calendarList(events)
+                : h('div', { class: 'sp-reveal' }, h('p', { class: 'sp-small', text: 'Next season’s tracks are decided.' }),
+                    h('button', { type: 'button', text: 'Reveal the calendar', onclick: () => revealCalendar(false) })));
+    }
+
+    function revealCalendar(scroll) {
+        const fresh = !hub.calendarRevealed;
+        hub.calendarRevealed = true;
+        renderHub();
+        const card = $('calendarCard');
+        if (!card) return;
+        if (scroll) card.scrollIntoView({ block: 'start', behavior: UI.reduceMotion() ? 'auto' : 'smooth' });
+        if (fresh) card.querySelectorAll('.sp-event').forEach((row, i) => UI.play(row, [{ opacity: 0, transform: 'translateY(12px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 380, delay: 120 + i * 110, fill: 'backwards' }));
     }
 
     function renderHub() {
@@ -150,33 +183,33 @@
         const groups = P.groupPolls(hub.index, now());
         const plan = activePlan();
         const stages = plan ? P.planProgress(plan, hub.index, now()) : [];
+        // Polls in the season's stages are listed (and linked) under Your progress; the
+        // lists below only add polls that aren't part of the season.
+        const inSeason = new Set(stages.flatMap(stage => stage.polls.map(poll => poll.id)));
+        const scheduled = groups.scheduled.filter(poll => !inSeason.has(poll.id));
+        const closed = groups.results.filter(poll => !inSeason.has(poll.id));
         watchLiveResults(groups);
         fill(app,
             h('p', { class: 'sp-eyebrow', text: plan ? 'Season planning' : 'One Eleven' }),
             h('h1', { text: plan ? plan.title : 'Polls & forms' }),
             h('p', { class: 'sp-lede', text: plan ? (plan.intro || 'Help shape the next season. Take part in each stage below.') : 'Votes, suggestions and forms for drivers.' }),
             stages.length ? progressStrip(stages) : null,
-            plan && plan.summary ? h('p', { class: 'sp-status sp-ok' }, 'The season summary is out: winning class, calendar and rule changes. ',
-                h('a', { href: `season-polls.html?summary=${encodeURIComponent(plan.id)}`, text: 'See the summary' })) : null,
             stages.length ? yourProgress(stages) : null,
             h('div', { class: 'sp-hub-grid' },
                 h('div', null,
                     h('h2', { class: 'sp-section-title', text: 'Open now' }),
                     groups.open.length ? groups.open.map(pollCard) : h('p', { class: 'sp-card sp-muted', text: 'No polls are open right now.' })),
                 h('div', null, liveResultsCard(groups))),
-            groups.scheduled.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Coming up' }),
-                h('ul', { class: 'sp-list' }, groups.scheduled.map(poll => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
+            scheduled.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Coming up' }),
+                h('ul', { class: 'sp-list' }, scheduled.map(poll => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
                     h('div', null, h('div', { class: 'sp-item-title', text: poll.title }),
                         h('div', { class: 'sp-small', style: 'font-weight:600', text: `Opens ${P.formatDateTime(poll.opensAt, { year: false })}` }),
                         poll.summary ? h('div', { class: 'sp-item-meta', text: poll.summary }) : null))))) : null,
-            groups.results.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Closed polls and results' }),
-                h('ul', { class: 'sp-list' }, groups.results.map(poll => h('li', { class: 'sp-item' },
-                    h('div', null, h('div', { class: 'sp-item-title', text: poll.title }), h('div', { class: 'sp-item-meta' }, deadline(poll), ' ', submittedBadge(poll.id))),
+            calendarCard(plan),
+            closed.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Other closed polls' }),
+                h('ul', { class: 'sp-list' }, closed.map(poll => h('li', { class: 'sp-item' },
+                    h('div', null, h('div', { class: 'sp-item-title', text: poll.title }), h('div', { class: 'sp-item-meta' }, deadline(poll))),
                     h('a', { class: 'sp-small', href: `season-polls.html?poll=${encodeURIComponent(poll.id)}&tab=results`, text: poll.resultVisibility === 'hidden' ? 'Your answers' : 'Results' }))))) : null,
-            pastSummaries(plan).length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Season summaries' }),
-                h('ul', { class: 'sp-list' }, pastSummaries(plan).map(([id, p]) => h('li', { class: 'sp-item' },
-                    h('div', null, h('div', { class: 'sp-item-title', text: p.summary.title }), h('div', { class: 'sp-item-meta', text: `Published ${P.formatDate(p.summary.publishedAt)}` })),
-                    h('a', { class: 'sp-small', href: `season-polls.html?summary=${encodeURIComponent(id)}`, text: 'Open' }))))) : null,
             driver && driver.isAdmin ? h('p', { class: 'sp-admin-link' }, h('a', { class: 'sp-btn sp-btn-secondary', href: 'season-planning-admin.html', text: 'Manage season planning' })) : null);
     }
 
@@ -249,8 +282,7 @@
             h('h1', { text: (poll.definition && poll.definition.title) || (poll.entry && poll.entry.title) || 'Poll' }),
             poll.definition && poll.definition.description ? h('p', { class: 'sp-lede', text: poll.definition.description }) : null,
             line ? h('p', { class: phase === 'open' ? 'sp-deadline' : 'sp-muted' }, phase === 'open' ? UI.countdownRing(control.opensAt, control.closesAt, now()) : null, line) : null,
-            h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Poll sections' }, tab('vote', 'Vote'), tab('results', 'Results'),
-                h('a', { role: 'tab', class: 'sp-tab-link', href: 'season-polls.html', text: 'Season' }))
+            h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Poll sections' }, tab('vote', 'Vote'), tab('results', 'Results'))
         ];
     }
 
@@ -427,26 +459,6 @@
         setInterval(renderPoll, 60000);
     }
 
-    // ---------- Season summary ----------
-
-    function startSummary() {
-        $('backLink').href = 'season-polls.html';
-        $('backLink').setAttribute('aria-label', 'Back to all polls');
-        db().ref(`${V1}/plans/${summaryId}`).on('value', snapshot => {
-            const plan = snapshot.val();
-            const summary = plan && plan.summary;
-            if (!summary) { fill($('app'), h('p', { class: 'sp-status', text: 'This season summary hasn’t been published yet.' })); return; }
-            const body = h('div', { class: 'sp-summary' });
-            UI.renderSummary(body, summary);
-            fill($('app'),
-                h('h1', { text: 'Season summary' }),
-                h('p', { class: 'sp-muted', text: `Published ${P.formatDateTime(summary.publishedAt)}.` }),
-                h('div', { class: 'sp-inline-actions', style: 'margin:6px 0 2px' },
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Print', onclick: () => window.print() })),
-                body);
-        }, () => fill($('app'), h('p', { class: 'sp-status sp-error', text: 'The summary could not be loaded.' })));
-    }
-
     // ---------- Start ----------
 
     document.addEventListener('oneEleven:activeDriver', event => {
@@ -470,8 +482,7 @@
                 return;
             }
             if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html?tab=settings', text: 'Season Planning → Settings' }), '.'));
-            if (summaryId) startSummary();
-            else if (pollId) startPoll();
+            if (pollId) startPoll();
             else startHub();
         });
     });

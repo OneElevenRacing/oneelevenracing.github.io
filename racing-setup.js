@@ -674,7 +674,7 @@
         const values = { ...SP.DEFAULT_SETTINGS, ...seasonSettings };
         $('defInstructions').value = values.instructions || '';
         $('defDuration').value = values.durationDays;
-        fillSelect($('defVisibility'), Object.entries(SP.VISIBILITY), '');
+        fillSelect($('defVisibility'), SP.visibilityChoices(''), '');
         $('defVisibility').querySelector('option[value=""]').remove();
         $('defVisibility').value = values.resultVisibility;
         $('defLabels').checked = values.labelsHidden === true;

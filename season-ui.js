@@ -577,7 +577,8 @@
     // are separate figures; names stay hidden everywhere when labels are hidden.
     // `animateKey` (drivers' pages) turns on animation and names the chart's memory.
     // `pie`: draw choice questions as pie charts with an outcome line (rule votes).
-    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0, animateKey = '', pie = false }) {
+    // `showRespondents: false` when the page already says how many drivers answered.
+    function renderResults(container, { definition, totals, pollId, labelsHidden, provisional, title, downloads = true, width, compact = false, minTurnout = 0, animateKey = '', pie = false, showRespondents = true }) {
         // Draw at the screen's width so text stays readable on phones; exports use the same drawing.
         const chartWidth = width || Math.max(300, Math.min(640, window.innerWidth - 72));
         const respondents = (totals && totals.respondents) || 0;
@@ -596,7 +597,7 @@
                 // Options keep the poll's order, so each keeps its colour as votes come in.
                 const order = Object.keys(question.options || {});
                 const ordered = [...list].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-                svg = R.pieChartSvg(ordered, { title: question.prompt, width: Math.min(chartWidth, 520), yesNo });
+                svg = R.pieChartSvg(ordered, { title: question.prompt, width: Math.min(chartWidth, 360), yesNo, size: 110 });
                 if (yesNo) {
                     const count = id => (list.find(r => r.id === id) || {}).count || 0;
                     outcome = outcomeLine(R.yesNoOutcome(count('yes'), count('no'), { minTurnout }));
@@ -619,19 +620,19 @@
                     h('thead', null, h('tr', null, h('th', { text: labelsHidden ? 'Option (name hidden)' : 'Option' }), h('th', { text: 'Selections' }))),
                     h('tbody', null, list.map(row => h('tr', null, h('td', { text: row.label }), h('td', { text: String(row.count) })))))));
             return h('figure', { class: 'sp-figure', 'data-question': String(i) },
-                h('div', { class: 'sp-stats' },
-                    h('span', null, 'Respondents ', h('strong', { 'data-number': 'respondents', text: String(respondents) })),
-                    yesNo || pie ? null : h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
+                yesNo || pie ? null : h('div', { class: 'sp-stats' },
+                    h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
                 chart,
                 outcome,
                 labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,
-                // In compact views the summary stays available to screen readers.
-                h('figcaption', { class: compact ? 'sp-visually-hidden' : 'sp-small', text: summary }),
+                // The same figures in words, for screen readers (the chart shows them already).
+                h('figcaption', { class: 'sp-visually-hidden', text: summary }),
                 compact ? null : h('div', { class: 'sp-figure-tools' }, table,
                     downloads ? h('button', { type: 'button', class: 'sp-link', text: 'Download chart (PNG)', onclick: () => downloadSvgAsPng(svg, `${name}.png`) }) : null));
         });
         const shown = figures.filter(Boolean);
         fill(container,
+            showRespondents && shown.length ? h('p', { class: 'sp-stats' }, h('span', null, h('strong', { 'data-number': 'respondents', text: String(respondents) }), respondents === 1 ? ' driver responded' : ' drivers responded')) : null,
             shown.length ? shown : h('p', { class: 'sp-muted', text: 'This poll has only written answers, so there are no charts.' }),
             downloads && shown.length ? h('button', { type: 'button', class: 'sp-secondary', text: 'Download totals (CSV)',
                 onclick: () => downloadBlob(`${slug(title)}${labelsHidden ? '-names-hidden' : ''}.csv`, new Blob([R.resultsCsv(definition, totals, { labelsHidden, pollId })], { type: 'text/csv' })) }) : null);
@@ -648,32 +649,15 @@
         }
     }
 
-    // ---------- Season summary (drivers' page and admin preview) ----------
+    // ---------- Final season calendar (drivers' page) ----------
 
-    function renderSummary(container, summary, { admin = false } = {}) {
-        const rules = summary.rules || [];
-        fill(container,
-            h('h2', { class: 'sp-summary-title', text: summary.title }),
-            summary.intro ? h('p', { class: 'sp-muted', text: summary.intro }) : null,
-            h('h3', { text: 'Car class' }),
-            summary.winner ? h('p', { class: 'sp-summary-winner' }, h('strong', { text: summary.winner.label }), summary.winner.explanation ? h('span', { class: 'sp-muted', text: ` — ${summary.winner.explanation}` }) : null) : h('p', { class: 'sp-muted', text: 'Not decided yet.' }),
-            h('h3', { text: 'Calendar' }),
-            (summary.calendar || []).length ? h('ol', { class: 'sp-events sp-events-summary' }, summary.calendar.map((e, i) => h('li', { class: 'sp-event' },
-                h('span', { class: 'sp-event-number', text: String(i + 1) }),
-                h('img', { class: 'sp-thumb', src: e.imagePath || 'Logos_and_icons/racetracks/TBD.png', alt: '' }),
-                h('div', null, h('div', { class: 'sp-item-title' }, e.label, ' ', h('span', { class: `sp-badge ${e.source === 'driver' ? 'sp-green' : ''}`, text: e.source === 'driver' ? 'Driver choice' : 'Random draw' })),
-                    h('div', { class: 'sp-item-meta', text: [e.locationName, e.date ? P.formatDate(Date.parse(`${e.date}T12:00:00Z`)) : ''].filter(Boolean).join(' · ') })))))
-                : h('p', { class: 'sp-muted', text: 'Not finalised yet.' }),
-            h('h3', { text: 'Rule changes' }),
-            rules.length ? h('ul', { class: 'sp-list' }, rules.map(r => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
-                h('div', null, h('div', { class: 'sp-item-title', text: r.prompt }), h('div', { class: `sp-outcome sp-outcome-${r.outcome}` },
-                    h('span', { 'aria-hidden': 'true', text: r.outcome === 'pass' || r.outcome === 'chosen' ? '✓ ' : r.outcome === 'fail' ? '✕ ' : '– ' }),
-                    `${{ pass: 'Accepted', fail: 'Rejected', chosen: 'Decided' }[r.outcome] || 'No decision'} · ${r.label}`)))))
-                : h('p', { class: 'sp-muted', text: 'No rule votes.' }),
-            (summary.rounds || []).length ? [h('h3', { text: 'Voting rounds' }), h('ul', null, summary.rounds.map(r => h('li', null,
-                h('a', { href: admin ? `season-planning-admin.html?poll=${encodeURIComponent(r.pollId)}` : `season-polls.html?poll=${encodeURIComponent(r.pollId)}&tab=results`, text: r.title }))))] : null);
+    function calendarList(events) {
+        return h('ol', { class: 'sp-events sp-events-summary' }, events.map((e, i) => h('li', { class: 'sp-event' },
+            h('span', { class: 'sp-event-number', text: String(i + 1) }),
+            h('img', { class: 'sp-thumb', src: e.imagePath || 'Logos_and_icons/racetracks/TBD.png', alt: '' }),
+            h('div', null, h('div', { class: 'sp-item-title' }, e.label, ' ', h('span', { class: `sp-badge ${e.source === 'driver' ? 'sp-green' : ''}`, text: e.source === 'driver' ? 'Driver choice' : 'Random draw' })),
+                h('div', { class: 'sp-item-meta', text: [e.locationName, e.date ? P.formatDate(Date.parse(`${e.date}T12:00:00Z`)) : ''].filter(Boolean).join(' · ') })))));
     }
 
-
-    window.SeasonUI = { h, fill, play, enter, reduceMotion, saveFeedback, countdownRing, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, renderSummary };
+    window.SeasonUI = { h, fill, play, enter, reduceMotion, saveFeedback, countdownRing, blankAnswers, renderForm, renderReview, renderReceipt, renderResults, answersFromBallot, answerSummary, downloadBlob, calendarList };
 })();

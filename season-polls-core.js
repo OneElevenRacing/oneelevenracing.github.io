@@ -31,6 +31,12 @@
         hidden: 'Hidden'
     };
 
+    // The settings offered when creating or changing a poll. "Published snapshot only"
+    // is no longer offered; polls that already use it keep working.
+    function visibilityChoices(current) {
+        return Object.entries(VISIBILITY).filter(([key]) => key !== 'snapshot' || key === current);
+    }
+
     // ---------- Timing ----------
 
     // What a poll is doing right now. Opening and closing follow the timestamps,
@@ -421,7 +427,7 @@
 
     return {
         ZONE, DAY, LIMITS, RANDOM_TRACK, RANDOM_TRACK_OPTION, QUESTION_TYPES, VISIBILITY, BUILT_IN_TEMPLATES, DEFAULT_SETTINGS,
-        pollPhase, resultsAccess, formatDateTime, formatDate, relative, londonInputToUtc, utcToLondonInput,
+        pollPhase, resultsAccess, visibilityChoices, formatDateTime, formatDate, relative, londonInputToUtc, utcToLondonInput,
         draftKey, clearDrafts, defaultQuota, describeQuota, blankQuestion, resolveOptions, validateDraft,
         buildDefinition, buildControl, indexEntry, draftQuestions, draftFromTemplate, groupPolls, planProgress
     };

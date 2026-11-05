@@ -225,15 +225,14 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
    passes when Yes beats No; your own options go to the most votes). Outcomes don't change the rules document or
    scoring; update those yourself.
 6. **Calendar:** set the number of events and press **Generate calendar**. Use Keep, Pin,
-   ↑ ↓, Replace, Remove, Redraw, Shuffle and dates until you're happy. Every change is a saved
-   version you can restore. Then **Finalise**.
-7. **Publish the summary.** Drivers see it on Polls & Forms and can print it. Then set up the
-   championship in Championship Admin as usual; publishing the summary doesn't do that for
-   you. **Finish season** at the top of the page when you're done.
+   ↑ ↓, Replace, Remove, Redraw, Shuffle and dates until you're happy. Then **Finalise**:
+   drivers see the calendar at the top of Polls & Forms straight away (**Reopen for
+   changes** takes it down again). Then set up the championship in Championship Admin as
+   usual; finalising doesn't do that for you. **Finish season** at the top of the page when
+   you're done.
 
 Each poll in a step has **Open poll** and, while it's live, **Edit poll** links.
-Each step has an **Activity** list of its decisions; **Full activity log** (bottom of the Season
-page, or Settings) shows everything.
+Each step has an **Activity** list of its decisions; **Settings → Activity log** shows everything.
 
 Any poll can also run on its own, outside a season (a suggestion box, a quick vote): use **Polls → New poll**.
 
@@ -311,11 +310,11 @@ Import JSON** on that branch) to restore everything.
 
 | File | What it does |
 |---|---|
-| `season-polls.html`, `season-polls.js` | Drivers' hub, ballots, results and season summary |
+| `season-polls.html`, `season-polls.js` | Drivers' hub, ballots, results and the final calendar |
 | `season-planning-admin.html`, `season-planning-admin.js` | Admin overview, polls, builder, poll pages |
 | `season-planning-season.js` | Season checklist and Settings |
 | `season-planning-tools.js` | Tools inside the suggestions, voting rounds, track picks and rule steps; activity log |
-| `season-planning-calendar.js` | Tools inside the calendar and summary steps |
+| `season-planning-calendar.js` | Tools inside the calendar step |
 | `racing-setup.html`, `racing-setup.js` | Car classes, tracks, imports, templates and defaults |
 | `track-catalogue.js` | Feeds existing track menus and images from the catalogue |
 | `catalogue.js`, `season-ballot.js`, `season-polls-core.js`, `season-results.js`, `season-admin-core.js`, `season-calendar.js` | Logic shared by the pages, covered by unit tests |

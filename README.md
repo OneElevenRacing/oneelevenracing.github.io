@@ -49,7 +49,7 @@ Admins use **Admin → Open Season Planning** (`season-planning-admin.html`). It
 pages:
 
 - **Season:** a checklist of steps: car-class suggestions, voting rounds, track picks, rule
-  changes, calendar and summary. Untick the ones you don't need when starting the season;
+  changes and calendar. Untick the ones you don't need when starting the season;
   drivers see the rest as the progress strip. Each step shows its status, and **What needs
   doing** points at the next decision. Polls made by a step only ask for a closing date
   before publishing. The rules each step follows:
@@ -61,11 +61,10 @@ pages:
   - A Yes/No rule passes only when Yes beats No; rules with custom options go to the most votes.
   - The calendar draws locations equally likely, never repeats one, saves every change as
     a version, and only finalises once track clashes are settled.
-  - The summary can be printed and downloaded (CSV, Markdown, JSON) by admins.
+  - Finalising the calendar shows it to drivers on Polls & Forms.
   - Nothing creates or changes a championship.
 - **Polls:** every poll, plus **New poll** for standalone polls. Each poll's page has Preview as
-  driver, dates and results settings, close, delete, duplicate/replace, result
-  snapshots, recount, individual answers (with corrections) and its history.
+  driver, dates and results settings, close, delete, duplicate/replace, recount, individual answers (with corrections) and its history.
 - **Settings:** the drivers' access switch and links to Racing Setup, templates and defaults,
   and the activity log.
 

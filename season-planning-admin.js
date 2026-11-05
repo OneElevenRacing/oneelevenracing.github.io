@@ -1,5 +1,5 @@
 // Season Planning Admin. Views (chosen by the address):
-//   (none) or ?tab=polls  overview / poll list
+//   (none), ?tab=polls…   the Season page (season-planning-season.js), poll list, settings
 //   ?draft=ID             poll builder for a draft
 //   ?template=ID          template builder (built-in IDs start a copy)
 //   ?poll=ID              a published poll: lifecycle, results, answers, history
@@ -17,7 +17,6 @@
     const sv = () => firebase.database.ServerValue;
     const KINDS = { nomination: 'Car-class suggestions', elimination: 'Car-class voting round', track: 'Track choice', rules: 'Rule changes', suggestions: 'Suggestion box', custom: 'Custom poll' };
     const PHASE_LABEL = { draft: 'Draft', scheduled: 'Scheduled', open: 'Open', closed: 'Closed' };
-    const DEFAULT_STAGES = ['Suggestions', 'Car votes', 'Tracks', 'Rules', 'Calendar'];
 
     const state = { uid: null, index: null, drafts: null, plans: {}, templates: {}, settings: {}, catalogue: {}, drivers: {} };
     let serverOffset = 0;
@@ -125,13 +124,6 @@
 
     // ---------- Overview and poll list ----------
 
-    const participation = {};
-    function watchParticipation(id) {
-        if (id in participation) return;
-        participation[id] = null;
-        db().ref(`${V1}/polls/${id}/totals/respondents`).on('value', snapshot => { participation[id] = snapshot.val() || 0; requestRender(); }, () => {});
-    }
-
     function eligibleCount(entry, control) {
         if (control && control.allDrivers === false) return Object.keys(control.eligible || {}).length;
         return activeDrivers().length;
@@ -142,15 +134,15 @@
 
     function renderMain() {
         if (state.index === null || state.drafts === null) return;
-        const known = ['overview', 'polls', ...extraTabs.map(t => t.id)];
+        const known = ['polls', ...extraTabs.map(t => t.id)];
         const nav = [{ id: 'polls', label: 'Polls', order: 20 }, ...extraTabs.filter(t => t.nav)].sort((a, b) => a.order - b.order);
-        const fallback = extraTabs.some(t => t.id === 'season') ? 'season' : 'overview';
+        const fallback = 'season';
         const tab = known.includes(params.get('tab')) ? params.get('tab') : fallback;
         const tabs = h('div', { class: 'sp-tabs', role: 'tablist', 'aria-label': 'Season planning sections' },
             nav.map(({ id, label }) =>
                 h('a', { role: 'tab', class: 'sp-tab-link', 'aria-selected': String(tab === id), href: id === fallback ? 'season-planning-admin.html' : `season-planning-admin.html?tab=${id}`, text: label })));
         const extra = extraTabs.find(t => t.id === tab);
-        const body = tab === 'polls' ? pollsTab() : tab === 'overview' ? overviewTab() : extra.render();
+        const body = tab === 'polls' ? pollsTab() : extra.render();
         // Live data (a vote arriving, say) redraws the page. When the drawing comes out
         // the same, keep the current one: a click that's under way, an open menu and
         // anything typed all survive.
@@ -167,43 +159,6 @@
     function signature(root) {
         return root.innerHTML + [...root.querySelectorAll('input, select, textarea, option')]
             .map(e => `${e.checked ? 1 : 0}${e.selected ? 1 : 0}${e.disabled ? 1 : 0}${e.value}`).join('|');
-    }
-
-    function overviewTab() {
-        const plan = activePlan();
-        const groups = P.groupPolls(state.index, now());
-        groups.open.forEach(poll => watchParticipation(poll.id));
-        const drafts = Object.values(state.drafts || {}).filter(Boolean).length;
-        const planCard = plan
-            ? h('section', { class: 'sp-card' },
-                h('div', { class: 'sp-card-head' }, h('h2', { text: plan.title }), h('span', { class: 'sp-badge sp-green', text: 'Active plan' })),
-                plan.intro ? h('p', { text: plan.intro }) : null,
-                h('ol', { class: 'sp-admin-stages' }, P.planProgress(plan, state.index, now()).map(stage => h('li', null,
-                    h('strong', { text: stage.label }), ' ',
-                    h('span', { class: 'sp-muted sp-small', text: stage.polls.length ? `${plural(stage.polls.length, 'poll')} · ${{ done: 'finished', open: 'open now', scheduled: 'scheduled', upcoming: 'not started' }[stage.status]}` : 'No polls yet' })))),
-                h('div', { class: 'sp-inline-actions' },
-                    h('button', { type: 'button', class: 'sp-secondary', text: 'Edit plan', onclick: () => editPlan(plan) }),
-                    h('button', { type: 'button', class: 'sp-link', text: 'Mark plan complete', onclick: () => completePlan(plan) })))
-            : h('section', { class: 'sp-card' },
-                h('h2', { text: 'Season plan' }),
-                h('p', { text: 'Start a season plan to show drivers the stages on the Polls & Forms page. Polls can also run on their own without a plan.' }),
-                h('button', { type: 'button', text: 'Start season planning', onclick: () => editPlan(null) }));
-        return h('div', null,
-            visibilityCard(),
-            planCard,
-            h('section', { class: 'sp-card' },
-                h('h2', { text: 'Open polls' }),
-                groups.open.length ? h('ul', { class: 'sp-list' }, groups.open.map(poll => h('li', { class: 'sp-item' },
-                    h('div', null, h('a', { class: 'sp-item-title', href: `?poll=${encodeURIComponent(poll.id)}`, text: poll.title }),
-                        h('div', { class: 'sp-item-meta', text: `Closes ${P.formatDateTime(poll.closesAt, { year: false })}` })),
-                    h('span', { class: 'sp-small', text: participation[poll.id] === null || participation[poll.id] === undefined ? '…' : `${participation[poll.id]} of ${eligibleCount(poll)} responded` })))) : h('p', { class: 'sp-muted', text: 'No polls are open.' })),
-            h('section', { class: 'sp-card' },
-                h('h2', { text: 'To do' }),
-                drafts ? h('ul', { class: 'sp-list' },
-                    h('li', { class: 'sp-item' }, h('div', null, h('div', { class: 'sp-item-title', text: plural(drafts, 'draft poll') }), h('div', { class: 'sp-item-meta', text: 'Not visible to drivers until published.' })),
-                        h('a', { class: 'sp-small', href: '?tab=polls', text: 'View' })))
-                    : h('p', { class: 'sp-muted', text: 'Nothing waiting.' })),
-            h('p', null, h('button', { type: 'button', text: 'New poll', onclick: newPoll })));
     }
 
     // The switch that shows Polls & Forms to drivers. Hiding it keeps all data.
@@ -276,46 +231,6 @@
             return out;
         }
         return value;
-    }
-
-    // ---------- Season plan ----------
-
-    async function editPlan(plan) {
-        const stages = plan ? [] : DEFAULT_STAGES.map(label => ({ id: C.slugify(label), label }));
-        if (plan) for (let i = 0; i < (plan.stageCount || 0); i++) if (plan.stages[i]) stages.push({ ...plan.stages[i] });
-        const title = h('input', { type: 'text', id: 'planTitle', maxLength: 200, value: plan ? plan.title : 'Next season' });
-        const intro = h('textarea', { id: 'planIntro', rows: 2, maxLength: 2000, style: 'min-height:0;font-family:inherit;font-size:1rem' });
-        intro.value = plan ? plan.intro || '' : 'Help shape the next season. Take part in each stage below.';
-        const list = h('ol', { class: 'sp-stage-editor' });
-        const renderStages = () => fill(list, stages.map((stage, i) => {
-            const input = h('input', { type: 'text', value: stage.label, maxLength: 60, 'aria-label': `Stage ${i + 1} name` });
-            input.addEventListener('input', () => { stage.label = input.value; });
-            const move = (d) => { const j = i + d; if (j < 0 || j >= stages.length) return; [stages[i], stages[j]] = [stages[j], stages[i]]; renderStages(); };
-            return h('li', null, input,
-                h('button', { type: 'button', class: 'sp-link', 'aria-label': `Move ${stage.label} up`, text: '↑', disabled: i === 0, onclick: () => move(-1) }),
-                h('button', { type: 'button', class: 'sp-link', 'aria-label': `Move ${stage.label} down`, text: '↓', disabled: i === stages.length - 1, onclick: () => move(1) }),
-                h('button', { type: 'button', class: 'sp-link', 'aria-label': `Remove ${stage.label}`, text: 'Remove', onclick: () => { stages.splice(i, 1); renderStages(); } }));
-        }));
-        renderStages();
-        const add = h('button', { type: 'button', class: 'sp-secondary', text: 'Add stage', onclick: () => { if (stages.length < 12) { stages.push({ label: 'New stage' }); renderStages(); } } });
-        const body = h('div', null,
-            h('div', { class: 'sp-field' }, h('label', { for: 'planTitle', text: 'Title' }), title),
-            h('div', { class: 'sp-field' }, h('label', { for: 'planIntro', text: 'Introduction for drivers' }), intro),
-            h('p', { style: 'font-weight:600;margin-bottom:4px', text: 'Stages, in order' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Drivers see these as the progress strip. Polls are linked to a stage when you create them. Stages can overlap.' }),
-            list, add);
-        const result = await confirmDialog({ title: plan ? 'Edit season plan' : 'Start season planning', body, confirmLabel: 'Save plan' });
-        if (!result) return;
-        const taken = new Set();
-        const tidy = stages.filter(s => s.label.trim()).map(s => {
-            const id = s.id && !taken.has(s.id) ? s.id : C.uniqueId(s.label, taken);
-            taken.add(id);
-            return { id, label: s.label.trim().slice(0, 60) };
-        });
-        const id = plan ? plan.id : newId();
-        const record = { title: title.value.trim() || 'Season planning', intro: intro.value.trim(), status: 'active', stageCount: tidy.length, stages: tidy,
-            createdAt: plan ? plan.createdAt || now() : sv().TIMESTAMP, updatedAt: sv().TIMESTAMP };
-        save({ [`${V1}/plans/${id}`]: record }, 'Season plan saved.');
     }
 
     async function completePlan(plan) {
@@ -439,8 +354,8 @@
                 };
                 timing.append(h('div', { class: 'sp-row' }, field('Opens (UK time)', dateInput('opensAt')), field('Closes (UK time)', dateInput('closesAt'))));
             }
-            timing.append(field('Results', selectOf(Object.entries(P.VISIBILITY), d.resultVisibility || settings().resultVisibility, v => { d.resultVisibility = v; }),
-                'Live: drivers see totals while voting. After closing: totals appear once the poll closes. Snapshot: only results you publish. Hidden: admins only.'),
+            timing.append(field('Results', selectOf(P.visibilityChoices(d.resultVisibility), d.resultVisibility || settings().resultVisibility, v => { d.resultVisibility = v; }),
+                'Live: drivers see totals while voting. After closing: totals appear once the poll closes. Hidden: admins only.'),
                 bindCheck(d, 'labelsHidden', 'Hide class names in results charts (presentation only)'));
             if (isDraft) {
                 const pick = h('div', { class: 'sp-option-list', hidden: d.allDrivers !== false });
@@ -933,7 +848,7 @@
         const closes = h('input', { type: 'datetime-local', value: P.utcToLondonInput(control.closesAt), disabled: control.state !== 'published' });
         opens.addEventListener('change', () => { changes.opensAt = P.londonInputToUtc(opens.value); });
         closes.addEventListener('change', () => { changes.closesAt = P.londonInputToUtc(closes.value); });
-        const visibility = selectOf(Object.entries(P.VISIBILITY), control.resultVisibility, v => { changes.resultVisibility = v; });
+        const visibility = selectOf(P.visibilityChoices(control.resultVisibility), control.resultVisibility, v => { changes.resultVisibility = v; });
         const labels = h('input', { type: 'checkbox', checked: control.labelsHidden === true });
         labels.addEventListener('change', () => { changes.labelsHidden = labels.checked; });
         return h('details', { class: 'sp-card sp-fold' }, h('summary', null, h('h2', { text: 'Change dates or results setting' })),
@@ -983,16 +898,16 @@
         const charts = h('div');
         const hidden = control.labelsHidden === true && !detail.reveal;
         const entry = (state.index && state.index[params.get('poll')]) || {};
-        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: P.pollPhase(control, now()) !== 'closed', title: detail.definition.title, minTurnout: control.minTurnout || 0, pie: entry.kind === 'rules' });
+        UI.renderResults(charts, { definition: detail.definition, totals: detail.totals || {}, pollId: params.get('poll'), labelsHidden: hidden, provisional: P.pollPhase(control, now()) !== 'closed', title: detail.definition.title, minTurnout: control.minTurnout || 0, pie: entry.kind === 'rules', showRespondents: false });
         fill(box,
             h('p', null, h('strong', { text: `${respondents} of ${eligible}` }), ' eligible drivers have responded.'),
             control.labelsHidden ? h('label', { class: 'sp-check' }, h('input', { type: 'checkbox', checked: detail.reveal, onchange: e => { detail.reveal = e.target.checked; renderDetailResults(); } }),
                 'Show class names here (only on your screen; downloads follow this choice)') : null,
             charts,
             h('div', { class: 'sp-inline-actions', style: 'margin-top:12px' },
-                h('button', { type: 'button', class: 'sp-secondary', text: detail.snapshot ? 'Publish updated snapshot' : 'Publish results snapshot', onclick: publishSnapshot }),
-                h('button', { type: 'button', class: 'sp-link', text: 'Recount from ballots', onclick: recount })),
-            h('p', { class: 'sp-muted sp-small', text: detail.snapshot ? `Snapshot published ${P.formatDateTime(detail.snapshot.at)}. Drivers see it when Results is set to “Published snapshot only”.` : 'A snapshot freezes the current totals for drivers when Results is set to “Published snapshot only”.' }));
+                // Only for older polls still set to "Published snapshot only".
+                control.resultVisibility === 'snapshot' ? h('button', { type: 'button', class: 'sp-secondary', text: detail.snapshot ? 'Publish updated snapshot' : 'Publish results snapshot', onclick: publishSnapshot }) : null,
+                h('button', { type: 'button', class: 'sp-link', text: 'Recount from ballots', onclick: recount })));
     }
 
     async function publishSnapshot() {

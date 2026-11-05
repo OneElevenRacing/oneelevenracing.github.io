@@ -633,3 +633,20 @@ body:has(.sp-actionbar) .sp-status.sp-toast { bottom: calc(84px + env(safe-area-
 .sp-live-switch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
     margin: 6px 0 8px; padding: 10px 12px; border-radius: 10px; background: var(--sp-soft); }
 .sp-live-switch.sp-on { background: var(--sp-green-soft); }
+
+/* Your progress: closed polls, and stages with several polls folded into one line. */
+.sp-mine-closed .sp-mine-dot { background: #bdbdbd; border-color: #bdbdbd; }
+.sp-mine-group { border-bottom: 1px solid var(--sp-line); }
+.sp-mine-group:last-child { border-bottom: 0; }
+.sp-mine-fold > summary { list-style: none; cursor: pointer; border-bottom: 0; }
+.sp-mine-fold > summary::-webkit-details-marker { display: none; }
+.sp-mine-fold > summary > span:nth-child(2)::after { content: '▸'; display: inline-block; margin-left: 6px; color: var(--sp-muted); transition: transform 0.2s; }
+.sp-mine-fold[open] > summary > span:nth-child(2)::after { transform: rotate(90deg); }
+.sp-mine-sub { margin: 0 0 6px 30px; border-left: 2px solid var(--sp-line); padding-left: 10px; }
+.sp-mine-sub .sp-mine { min-height: 32px; font-size: 0.9rem; }
+.sp button.sp-mine-link, .sp button.sp-mine-link:hover { background: none; border: 0; padding: 0; margin: 0; width: auto; min-height: 0; border-radius: 0; box-shadow: none;
+    font: inherit; letter-spacing: normal; text-transform: none; color: inherit; text-decoration: underline; cursor: pointer; text-align: left; justify-self: start; }
+
+/* Season calendar on the drivers' page: folded until revealed. */
+.sp-reveal { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 4px 0; }
+.sp-reveal p { margin: 0; }

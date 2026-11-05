@@ -109,23 +109,6 @@ test('finalising is blocked by unresolved duplicates, wrong counts and repeated 
     assert.deepEqual(K.finaliseProblems({ events, target: 2, exceptions: { b: 'Agreed' } }), []);
 });
 
-test('summary exports: CSV is formula-safe, Markdown is escaped, JSON is complete', () => {
-    const summary = {
-        title: 'Season 11', winner: { label: 'GT4', explanation: 'Won round 3' },
-        calendar: [{ label: '=Brands', locationName: 'Brands Hatch', source: 'driver' }, { label: 'Monza', locationName: 'Monza', source: 'random', date: '2027-01-15' }],
-        rules: [{ prompt: 'Allow *ghosting*?', outcome: 'pass', label: 'Passes (6 Yes, 4 No)' }, { prompt: 'Reverse grid?', outcome: 'fail', label: 'Fails on a tie (5 each)' }],
-        rounds: [{ title: 'Car class · Round 1', pollId: 'p1' }]
-    };
-    const csv = K.calendarCsv(summary);
-    assert.match(csv, /^round,track,location,chosen by,date\r\n1,'=Brands,Brands Hatch,Driver choice,\r\n2,Monza,Monza,Random draw,2027-01-15/);
-    const markdown = K.summaryMarkdown(summary);
-    assert.match(markdown, /\*\*GT4\*\* — Won round 3/);
-    assert.match(markdown, /- Accepted: Allow \\\*ghosting\\\*\?/);
-    assert.match(markdown, /- Rejected: Reverse grid\?/);
-    assert.match(markdown, /\| 2 \| Monza \| Monza \| Random draw \| 2027-01-15 \|/);
-    assert.deepEqual(JSON.parse(K.summaryJson(summary)).calendar.length, 2);
-});
-
 test('updating driver choices swaps changed ones and removes clashing random events', () => {
     const events = [
         { id: 'd-alex', source: 'driver', uid: 'alex', layoutId: 'b1', locationId: 'b', pinned: true, date: '2027-01-01' },
