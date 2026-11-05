@@ -82,7 +82,7 @@
         }
         if (!total) return `${people}. No selections yet.`;
         const ranked = list.filter(r => r.count).map(r => `${r.label} ${r.count}`).join(', ');
-        return `${people}, making ${total} ${total === 1 ? 'selection' : 'selections'} in total. ${labelsHidden ? 'Class names are hidden. ' : ''}Ranked: ${ranked}.`;
+        return `${people}, making ${total} ${total === 1 ? 'selection' : 'selections'} in total. ${labelsHidden ? 'Names are hidden. ' : ''}Ranked: ${ranked}.`;
     }
 
     const esc = text => String(text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));

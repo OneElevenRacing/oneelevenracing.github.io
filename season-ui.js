@@ -585,7 +585,9 @@
         const figures = questions(definition).map((question, i) => {
             if (question.kind === 'text') return null;
             const list = R.rows(definition, i, totals, { labelsHidden, pollId });
-            const yesNo = question.type === 'yesno';
+            // With names hidden a Yes/No question is drawn like any other: no Yes/No
+            // colours, labels or outcome (any of those would give the answer away).
+            const yesNo = question.type === 'yesno' && !labelsHidden;
             const summary = R.summaryText(list, { respondents, labelsHidden, yesNo, minTurnout });
             const name = `${slug(title)}-q${i + 1}${labelsHidden ? '-names-hidden' : ''}`;
             let svg;
@@ -594,9 +596,11 @@
                 h('span', { 'aria-hidden': 'true', text: result.outcome === 'pass' || result.outcome === 'chosen' ? '✓ ' : result.outcome === 'fail' ? '✕ ' : '– ' }),
                 result.outcome === 'chosen' ? `Most votes: ${result.label}` : result.label, provisional ? h('span', { class: 'sp-muted', text: ' · voting still open' }) : null);
             if (pie) {
-                // Options keep the poll's order, so each keeps its colour as votes come in.
+                // Options keep a fixed order, so each keeps its colour as votes come in. With
+                // names hidden that's the hidden names' order, which says nothing about the options.
                 const order = Object.keys(question.options || {});
-                const ordered = [...list].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+                const ordered = labelsHidden ? [...list].sort((a, b) => a.label.localeCompare(b.label, 'en', { numeric: true }))
+                    : [...list].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
                 svg = R.pieChartSvg(ordered, { title: question.prompt, width: Math.min(chartWidth, 360), yesNo, size: 110 });
                 if (yesNo) {
                     const count = id => (list.find(r => r.id === id) || {}).count || 0;
@@ -622,7 +626,7 @@
             return h('figure', { class: 'sp-figure', 'data-question': String(i) },
                 chart,
                 outcome,
-                labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,
+                labelsHidden ? h('p', { class: 'sp-muted sp-small', text: `${{ class: 'Class names', nomination: 'Class names', track: 'Track names' }[question.type] || 'Answers'} are hidden until the reveal.` }) : null,
                 // The same figures in words, for screen readers (the chart shows them already).
                 h('figcaption', { class: 'sp-visually-hidden', text: summary }),
                 compact ? null : h('div', { class: 'sp-figure-tools' }, table,

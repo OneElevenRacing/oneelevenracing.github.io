@@ -162,7 +162,7 @@ test('rule outcomes: Yes must beat No, ties fail, no votes is no decision', () =
 test('summaries, charts and CSV respect hidden names and stay safe', () => {
     const hidden = R.rows(resultDef, 0, totals, { labelsHidden: true, pollId: 'poll1' });
     const text = R.summaryText(hidden, { respondents: 4, labelsHidden: true });
-    assert.match(text, /^4 drivers responded, making 7 selections in total\. Class names are hidden\./);
+    assert.match(text, /^4 drivers responded, making 7 selections in total\. Names are hidden\./);
     assert.doesNotMatch(text, /GT4|P2/);
     const svg = R.barChartSvg(hidden, { title: 'Round 1' });
     assert.doesNotMatch(svg, /GT4|P2|Formula/);
