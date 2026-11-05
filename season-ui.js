@@ -620,8 +620,6 @@
                     h('thead', null, h('tr', null, h('th', { text: labelsHidden ? 'Option (name hidden)' : 'Option' }), h('th', { text: 'Selections' }))),
                     h('tbody', null, list.map(row => h('tr', null, h('td', { text: row.label }), h('td', { text: String(row.count) })))))));
             return h('figure', { class: 'sp-figure', 'data-question': String(i) },
-                yesNo || pie ? null : h('div', { class: 'sp-stats' },
-                    h('span', null, 'Total selections ', h('strong', { 'data-number': 'selections', text: String(R.totalSelections(list)) }))),
                 chart,
                 outcome,
                 labelsHidden && !yesNo ? h('p', { class: 'sp-muted sp-small', text: 'Class names are hidden until the reveal.' }) : null,

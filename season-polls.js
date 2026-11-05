@@ -111,7 +111,7 @@
         // The calendar stage has no poll: it's done once the calendar is final.
         if (!stage.polls.length) {
             const final = stage.status === 'done';
-            return mineRow('li', final ? { icon: 'closed', text: 'Final', tone: 'sp-green-text' } : { icon: 'todo', text: 'Not yet', tone: 'sp-muted' },
+            return mineRow('li', final ? { icon: 'closed', text: 'Created', tone: 'sp-green-text' } : { icon: 'todo', text: 'Not yet', tone: 'sp-muted' },
                 final ? h('button', { type: 'button', class: 'sp-mine-link', text: stage.label, onclick: () => revealCalendar(true) }) : h('span', { text: stage.label }));
         }
         if (stage.polls.length === 1) {
@@ -129,9 +129,8 @@
     }
 
     function yourProgress(stages) {
-        const done = stages.filter(stage => (!stage.polls.length && stage.status === 'done') || (stage.polls.length && stage.polls.every(poll => hub.submitted[poll.id] === true || poll.phase === 'closed'))).length;
         return h('section', { class: 'sp-card', 'aria-labelledby': 'mineTitle' },
-            h('div', { class: 'sp-card-head' }, h('h2', { id: 'mineTitle', text: 'Your progress' }), h('span', { class: 'sp-muted sp-small', text: `${done} of ${stages.length} stages done` })),
+            h('h2', { id: 'mineTitle', text: 'Your progress' }),
             h('ul', { class: 'sp-mine-list' }, stages.map(stageRow)));
     }
 
@@ -160,7 +159,7 @@
         const events = calendarEvents(plan);
         if (!events.length) return null;
         return h('section', { class: 'sp-card sp-calendar-card', id: 'calendarCard', 'aria-labelledby': 'calendarTitle' },
-            h('div', { class: 'sp-card-head' }, h('h2', { id: 'calendarTitle', text: 'Season calendar' }), h('span', { class: 'sp-muted sp-small', text: `${events.length} ${events.length === 1 ? 'round' : 'rounds'}` })),
+            h('h2', { id: 'calendarTitle', text: 'Season calendar' }),
             hub.calendarRevealed ? UI.calendarList(events)
                 : h('div', { class: 'sp-reveal' }, h('p', { class: 'sp-small', text: 'Next season’s tracks are decided.' }),
                     h('button', { type: 'button', text: 'Reveal the calendar', onclick: () => revealCalendar(false) })));
@@ -186,7 +185,6 @@
         // Polls in the season's stages are listed (and linked) under Your progress; the
         // lists below only add polls that aren't part of the season.
         const inSeason = new Set(stages.flatMap(stage => stage.polls.map(poll => poll.id)));
-        const scheduled = groups.scheduled.filter(poll => !inSeason.has(poll.id));
         const closed = groups.results.filter(poll => !inSeason.has(poll.id));
         watchLiveResults(groups);
         fill(app,
@@ -200,11 +198,6 @@
                     h('h2', { class: 'sp-section-title', text: 'Open now' }),
                     groups.open.length ? groups.open.map(pollCard) : h('p', { class: 'sp-card sp-muted', text: 'No polls are open right now.' })),
                 h('div', null, liveResultsCard(groups))),
-            scheduled.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Coming up' }),
-                h('ul', { class: 'sp-list' }, scheduled.map(poll => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
-                    h('div', null, h('div', { class: 'sp-item-title', text: poll.title }),
-                        h('div', { class: 'sp-small', style: 'font-weight:600', text: `Opens ${P.formatDateTime(poll.opensAt, { year: false })}` }),
-                        poll.summary ? h('div', { class: 'sp-item-meta', text: poll.summary }) : null))))) : null,
             calendarCard(plan),
             closed.length ? h('section', null, h('h2', { class: 'sp-section-title', text: 'Other closed polls' }),
                 h('ul', { class: 'sp-list' }, closed.map(poll => h('li', { class: 'sp-item' },
@@ -478,7 +471,7 @@
         // Hidden from drivers until an admin switches Polls & Forms on.
         db().ref(`${V1}/visibility/drivers`).once('value').then(snapshot => snapshot.val() === true, () => false).then(visible => {
             if (!visible && !driver.isAdmin) {
-                fill($('app'), h('h1', { text: 'Polls & forms' }), h('p', { class: 'sp-status', text: 'Polls and forms aren’t open yet. Check back soon.' }));
+                fill($('app'), h('h1', { text: 'Polls & forms' }), h('p', { class: 'sp-status', text: 'Polls and Forms are currently closed.' }));
                 return;
             }
             if (!visible) $('app').before(h('p', { class: 'sp-status sp-warn' }, 'Drivers can’t see Polls & Forms yet. Switch it on in ', h('a', { href: 'season-planning-admin.html?tab=settings', text: 'Season Planning → Settings' }), '.'));

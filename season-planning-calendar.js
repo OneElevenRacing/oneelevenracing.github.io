@@ -97,14 +97,15 @@
         const pool = K.randomPool(A.state.catalogue, { excluded, taken: info.drivers.map(d => d.locationId) });
         T.put(card,
             A.field('Number of events (1–24)', targetInput),
-            h('p', { class: 'sp-small' }, info.poll ? `${A.plural(info.drivers.length, 'driver choice')} from “${info.poll.title}”${info.randomCount ? ` (${info.randomCount} more asked for a random track)` : ''}. ` : info.note || '',
-                `${A.plural(pool.length, 'eligible location')} for random draws (excluded and already-chosen locations, and layouts not allowed in random draws, are left out).`),
+            h('p', { class: 'sp-small' }, info.poll ? `${A.plural(info.drivers.length, 'driver choice')}${info.randomCount ? ` (${info.randomCount} more asked for a random track)` : ''} · ` : `${info.note || ''} `,
+                `${A.plural(pool.length, 'location')} left for random draws.`),
             info.open ? h('p', { class: 'sp-status sp-warn', text: 'The track poll is still open, so driver choices may change.' }) : null,
             info.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(info.unresolved, 'driver choice')} still ${info.unresolved === 1 ? 'needs' : 'need'} a decision in the track picks step.` }) : null);
         if (!version) {
             const problem = K.shortfall(info.drivers, target(), pool.length);
             T.put(card,
-                problem ? h('p', { class: 'sp-status sp-error', text: problem.message }) : h('p', { text: `Generating keeps every driver choice, draws ${Math.max(0, target() - info.drivers.length)} more locations at random (each location equally likely, then one of its layouts), and shuffles the whole order. The result is saved, so reloading won’t change it.` }),
+                problem ? h('p', { class: 'sp-status sp-error', text: problem.message }) : null,
+                T.help('Generating keeps every driver choice, draws the rest at random (each location equally likely, then one of its layouts) and shuffles the order. Excluded and already-chosen locations, and layouts not allowed in random draws, are left out. The result is saved, so reloading won’t change it.'),
                 h('button', { type: 'button', text: 'Generate calendar', disabled: Boolean(problem), onclick: () => {
                     const result = K.generate({ drivers: info.drivers, catalogue: A.state.catalogue, excluded, target: target(), source: K.cryptoSource() });
                     if (result.problem) { A.setStatus(result.problem.message, 'error'); return; }
@@ -172,7 +173,7 @@
                 h('button', { type: 'button', class: 'sp-secondary', text: `Shuffle order (${ops.shuffle})`, disabled: ops.shuffle < 2, onclick: () => run('Shuffle order',
                     `Shuffles ${A.plural(ops.shuffle, 'event')} that ${ops.shuffle === 1 ? 'isn’t' : 'aren’t'} pinned. Pinned events keep their round number.`,
                     () => K.shuffleOrder({ events, source: source() }), 'shuffle') })),
-            h('p', { class: 'sp-muted sp-small', text: 'Keep: a random track survives a redraw. Pin: the event keeps its round number when shuffling. Use ↑ ↓ to move events without dragging.' }));
+            T.help('Keep: a random track survives a redraw. Pin: the event keeps its round number when shuffling. Use ↑ ↓ to move events without dragging.'));
     }
 
     function finaliseCard(events, info, locked) {

@@ -43,13 +43,25 @@
             .sort((a, b) => a.opensAt - b.opensAt);
     }
 
-    // Links from a step to the poll's own page and, while it's live, straight to its editor.
+    // Edit link for a poll that's still open (closed polls can't be edited).
     function pollLinks(poll) {
-        const id = encodeURIComponent(poll.id);
-        return h('span', { class: 'sp-poll-links' },
-            h('a', { class: 'sp-small', href: `season-planning-admin.html?poll=${id}`, text: 'Open poll' }),
-            poll.state === 'published' ? h('a', { class: 'sp-small', href: `season-planning-admin.html?edit=${id}`, text: 'Edit poll' }) : null);
+        const live = poll.phase === 'open' || poll.phase === 'scheduled';
+        return live && poll.state === 'published' ? h('a', { class: 'sp-small', href: `season-planning-admin.html?edit=${encodeURIComponent(poll.id)}`, text: 'Edit' }) : null;
     }
+
+    // One line naming a poll inside a step: its title (links to the poll's page), its
+    // status, anything else worth knowing, and Edit while it's open.
+    function pollLine(poll, extra) {
+        const edit = pollLinks(poll);
+        return h('p', { class: 'sp-poll-line' },
+            h('a', { class: 'sp-poll-title', href: `season-planning-admin.html?poll=${encodeURIComponent(poll.id)}`, text: poll.title }), ' ', A.phaseBadge(poll.phase),
+            extra ? h('span', { class: 'sp-small sp-muted', text: ` ${extra}` }) : null,
+            poll.phase === 'open' ? h('span', { class: 'sp-small sp-muted', text: ` · closes ${P.formatDateTime(poll.closesAt, { year: false })}` }) : null,
+            edit ? [' ', edit] : null);
+    }
+
+    // Explanations stay out of the way until asked for.
+    const help = text => h('details', { class: 'sp-help' }, h('summary', { text: 'How this works' }), h('p', { class: 'sp-small sp-muted', text }));
 
     // A poll's definition (an admin can still edit it while it's open) plus live
     // totals, control and, when asked for, live ballots. Each is subscribed to once for the page's lifetime, so
@@ -241,7 +253,7 @@
         const poll = polls.find(p => p.id === nomination.pollId);
         return h('div', null,
             pollPicker(polls, nomination.pollId, id => { nomination.pollId = id; A.rerender(); }, 'Suggestion poll'),
-            h('p', null, h('strong', { text: poll.title }), ` · ${A.plural(result.respondents, 'response')} · `, A.phaseBadge(poll.phase), ' ', pollLinks(poll)),
+            pollLine(poll, `· ${A.plural(result.respondents, 'response')}`),
             writeInCard(result),
             shortlistCard(result, unchanged));
     }
@@ -250,16 +262,20 @@
         const groups = result.writeIns;
         const statusBadge = g => ({ pending: h('span', { class: 'sp-badge sp-amber', text: 'To review' }), merged: h('span', { class: 'sp-badge', text: 'Merged' }),
             mapped: h('span', { class: 'sp-badge sp-green', text: `Counts for ${className(g.classId)}` }), excluded: h('span', { class: 'sp-badge', text: 'Excluded' }) }[g.status]);
-        return h('section', { class: 'sp-card' }, h('h2', { text: 'Written suggestions' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Identical wording (ignoring capitals, accents and spaces) is grouped automatically. Drivers’ original text is never changed.' }),
-            groups.length ? h('ul', { class: 'sp-list' }, groups.map(g => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
-                h('div', null,
-                    h('div', { class: 'sp-item-title' }, g.label, ' ', statusBadge(g)),
-                    h('div', { class: 'sp-item-meta', text: `${A.plural(g.count, 'driver')} · written as: ${g.variants.map(v => `“${v}”`).join(', ')}` }),
-                    g.decision && g.decision.note ? h('div', { class: 'sp-item-meta', text: `Note: ${g.decision.note}` }) : null,
-                    g.decision && g.decision.action === 'merge' ? h('div', { class: 'sp-item-meta', text: `Merged into “${(groups.find(x => x.key === g.decision.target) || {}).label || g.decision.target}”` }) : null),
-                h('div', { class: 'sp-inline-actions' }, writeInActions(g, groups)))))
-                : h('p', { class: 'sp-muted', text: 'No written suggestions.' }));
+        if (!groups.length) return null;
+        const item = g => h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' },
+            h('div', null,
+                h('div', { class: 'sp-item-title' }, g.label, ' ', g.status === 'pending' ? null : statusBadge(g)),
+                h('div', { class: 'sp-item-meta', text: `${A.plural(g.count, 'driver')}${g.variants.length > 1 || g.variants[0] !== g.label ? ` · written as ${g.variants.map(v => `“${v}”`).join(', ')}` : ''}` }),
+                g.decision && g.decision.note ? h('div', { class: 'sp-item-meta', text: `Note: ${g.decision.note}` }) : null,
+                g.decision && g.decision.action === 'merge' ? h('div', { class: 'sp-item-meta', text: `Merged into “${(groups.find(x => x.key === g.decision.target) || {}).label || g.decision.target}”` }) : null),
+            h('div', { class: 'sp-inline-actions' }, writeInActions(g, groups)));
+        const pending = groups.filter(g => g.status === 'pending');
+        const decided = groups.filter(g => g.status !== 'pending');
+        return h('section', { class: 'sp-card' }, h('h2', { text: pending.length ? `Written suggestions to review (${pending.length})` : 'Written suggestions' }),
+            help('Identical wording (ignoring capitals, accents and spaces) is grouped automatically. Count each one for a class, merge spellings, add it as a new class or exclude it. Drivers’ original text is never changed.'),
+            pending.length ? h('ul', { class: 'sp-list' }, pending.map(item)) : h('p', { class: 'sp-small sp-green-text', text: 'All reviewed.' }),
+            decided.length ? h('details', { class: 'sp-fold-list' }, h('summary', { text: `Reviewed (${decided.length})` }), h('ul', { class: 'sp-list' }, decided.map(item))) : null);
     }
 
     const className = id => ((A.state.catalogue.classes || {})[id] || {}).name || id;
@@ -273,10 +289,8 @@
         }, 'review-suggestion', summary);
         if (group.decision) return [h('button', { type: 'button', class: 'sp-link', text: 'Undo decision', onclick: () => record(null, `Undid the decision for “${group.label}”`) })];
         const actions = [];
-        if (group.suggestedClassId) {
-            actions.push(h('button', { type: 'button', class: 'sp-secondary', text: `Count for ${className(group.suggestedClassId)}`,
-                onclick: () => record({ action: 'map', classId: group.suggestedClassId }, `“${group.label}” counts for ${className(group.suggestedClassId)}`) }));
-        }
+        const main = group.suggestedClassId ? h('button', { type: 'button', class: 'sp-secondary', text: `Count for ${className(group.suggestedClassId)}`,
+            onclick: () => record({ action: 'map', classId: group.suggestedClassId }, `“${group.label}” counts for ${className(group.suggestedClassId)}`) }) : null;
         actions.push(h('button', { type: 'button', class: 'sp-link', text: 'Match to a class…', onclick: async () => {
             const picker = select(classPairs(), '', 'Class');
             const ok = await A.confirmDialog({ title: `Match “${group.label}”`, body: h('div', null, h('p', { text: 'Votes for this suggestion will count for the class you choose.' }), picker), confirmLabel: 'Match' });
@@ -308,17 +322,20 @@
             const result = await A.confirmDialog({ title: `Exclude “${group.label}”`, body: h('p', { text: 'It won’t be offered in voting. Drivers don’t see this note.' }), reason: true, reasonLabel: 'Internal note (optional)', reasonFallback: 'Excluded by an admin', confirmLabel: 'Exclude' });
             if (result) record({ action: 'exclude', note: result.reason }, `Excluded “${group.label}”: ${result.reason}`);
         } }));
-        return actions;
+        // The options as a menu: picking one runs it (and the menu resets).
+        const menu = h('select', { 'aria-label': `Decide on “${group.label}”` }, h('option', { value: '', text: main ? 'Or…' : 'Decide…' }),
+            actions.map((button, i) => h('option', { value: String(i), text: button.textContent.replace('…', '') })));
+        menu.addEventListener('change', () => { const button = actions[Number(menu.value)]; menu.value = ''; if (button) button.click(); });
+        return [main, menu];
     }
 
     function shortlistCard(result, unchanged) {
         const saved = (tools.planAdmin.shortlist && tools.planAdmin.shortlist.pollId === nomination.pollId) ? tools.planAdmin.shortlist : null;
         const chosen = new Map((saved ? Object.values(saved.items || {}) : []).map(item => [item.classId, item.label]));
-        const rows = result.candidates.map(c => {
+        const rows = result.candidates.filter(c => !c.needsDecision).map(c => {
             const box = h('input', { type: 'checkbox', checked: c.classId && chosen.has(c.classId), disabled: !c.classId, 'aria-label': `Include ${c.label}` });
             const label = h('input', { type: 'text', value: (c.classId && chosen.get(c.classId)) || c.label, maxLength: 200, disabled: !c.classId, 'aria-label': `Ballot wording for ${c.label}` });
-            return { c, box, label, row: h('tr', null, h('td', null, box), h('td', null, label, c.needsDecision ? h('div', { class: 'sp-small sp-red-text', text: 'Decide on this written suggestion first' }) : null),
-                h('td', { text: String(c.count) }), h('td', { class: 'sp-muted', text: `${c.fromCatalogue} picked · ${c.fromWriteIns} written` })) };
+            return { c, box, label, row: h('tr', { title: `${c.fromCatalogue} picked from the list · ${c.fromWriteIns} written in` }, h('td', null, box), h('td', null, label), h('td', { text: String(c.count) })) };
         });
         const count = h('p', { class: 'sp-small', 'aria-live': 'polite' });
         const picked = () => rows.filter(r => r.box.checked && r.c.classId).map(r => ({ classId: r.c.classId, label: r.label.value.trim() || r.c.label }));
@@ -329,11 +346,11 @@
         rows.forEach(r => { r.box.addEventListener('change', updateCount); });
         updateCount();
         const saveShortlist = () => decide({ [`${planPath()}/shortlist`]: { pollId: nomination.pollId, items: picked(), ...stamp() } }, 'shortlist', `Shortlist: ${picked().map(i => i.label).join(', ')}`, 'Shortlist saved.');
-        return h('section', { class: 'sp-card' }, h('h2', { text: 'Candidates and shortlist' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Each driver counts once per class, however many ways they suggested it. Edit the wording drivers will see on the ballot if needed.' }),
-            result.pending ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(result.pending, 'written suggestion')} still to review.` }) : null,
+        return h('section', { class: 'sp-card' }, h('h2', { text: 'Shortlist for round 1' }),
+            help('Each driver counts once per class, however many ways they suggested it. Tick the classes for the first voting round; you can change the wording drivers see on the ballot.'),
+            result.pending ? h('p', { class: 'sp-small sp-muted', text: `${A.plural(result.pending, 'written suggestion')} above ${result.pending === 1 ? 'appears' : 'appear'} here once reviewed.` }) : null,
             h('div', { class: 'sp-table-wrap' }, h('table', null,
-                h('thead', null, h('tr', null, h('th', { text: 'Use' }), h('th', { text: 'Class (ballot wording)' }), h('th', { text: 'Drivers' }), h('th', { text: 'How' }))),
+                h('thead', null, h('tr', null, h('th', { text: 'Use' }), h('th', { text: 'Class (ballot wording)' }), h('th', { text: 'Drivers' }))),
                 h('tbody', null, rows.map(r => r.row)))),
             count,
             h('div', { class: 'sp-inline-actions' },
@@ -358,11 +375,11 @@
         const meta = tools.planAdmin.rounds || {};
         const draftRounds = Object.entries(A.state.drafts || {}).filter(([id, d]) => d && d.kind === 'elimination' && (d.planId === tools.planId || meta[id]));
         return h('div', null,
-            winnerCard(),
             rounds.length ? rounds.map(poll => roundCard(poll, meta[poll.id] || {})) : h('p', { class: 'sp-status', text: 'No voting rounds yet. Pick the shortlist in the suggestions step to start round 1.' }),
             draftRounds.length ? h('section', { class: 'sp-card' }, h('h2', { text: 'Rounds still in draft' }),
                 h('ul', { class: 'sp-list' }, draftRounds.map(([id, d]) => h('li', { class: 'sp-item' }, h('div', { class: 'sp-item-title', text: d.title }),
-                    h('a', { class: 'sp-small', href: `season-planning-admin.html?draft=${encodeURIComponent(id)}`, text: 'Edit and publish' }))))) : null);
+                    h('a', { class: 'sp-small', href: `season-planning-admin.html?draft=${encodeURIComponent(id)}`, text: 'Edit and publish' }))))) : null,
+            winnerCard());
     }
 
     function winnerCard() {
@@ -376,19 +393,17 @@
                 'winner', `Winning class: ${className(picker.value)}${result.reason ? ` — ${result.reason}` : ''}`, 'Winner recorded.');
         };
         tools.recordWinner = record;
+        // Normally set by the last round; recording one by hand is the exception.
+        if (!winner) return h('p', { class: 'sp-small' }, h('button', { type: 'button', class: 'sp-link', style: 'margin-left:-10px', text: 'Record a winner by hand…', onclick: () => record() }));
         return h('section', { class: 'sp-card' }, h('h2', { text: 'Winning class' }),
-            winner ? h('div', null, h('p', null, h('strong', { text: winner.label }), winner.explanation ? ` — ${winner.explanation}` : ''),
-                h('p', { class: 'sp-muted sp-small', text: `Recorded ${P.formatDateTime(winner.at)} by ${A.driverName(winner.by)}.` }),
-                h('button', { type: 'button', class: 'sp-link', text: 'Change', onclick: () => record() }))
-                : h('div', { class: 'sp-inline-actions', style: 'align-items:center' }, h('span', { class: 'sp-muted sp-small', text: 'Not decided yet — set when one class remains.' }),
-                    h('button', { type: 'button', class: 'sp-link', text: 'Record a winner', onclick: () => record() })));
+            h('p', null, h('strong', { text: winner.label }), winner.explanation ? ` — ${winner.explanation}` : '',
+                ' ', h('button', { type: 'button', class: 'sp-link', text: 'Change', onclick: () => record() })));
     }
 
     function roundCard(poll, meta) {
-        const card = h('section', { class: 'sp-card' }, h('div', { class: 'sp-card-head' },
-            h('h2', null, h('a', { href: `season-planning-admin.html?poll=${encodeURIComponent(poll.id)}`, text: poll.title })), h('span', { class: 'sp-inline-actions', style: 'align-items:center' }, pollLinks(poll), A.phaseBadge(poll.phase))));
+        const card = h('section', { class: 'sp-card' }, pollLine(poll));
         if (poll.phase === 'open' || poll.phase === 'scheduled') {
-            put(card, h('p', { class: 'sp-muted', text: `The decision appears here once the round closes (${P.formatDateTime(poll.closesAt)}). You can close it early from the poll page.` }));
+            put(card, h('p', { class: 'sp-small sp-muted', text: 'The result appears here when voting closes.' }));
             return card;
         }
         const data = pollData(poll.id);
@@ -408,10 +423,11 @@
                 h('tbody', null, rows.map((row, i) => h('tr', null, h('td', { text: String(i + 1) }), h('td', { text: row.label }), h('td', { text: String(row.count) }),
                     h('td', null, tiedSet.has(row.id) ? h('span', { class: 'sp-badge sp-amber', text: 'Tied at cutoff' }) : advancingSet.has(row.id) ? h('span', { class: 'sp-badge sp-green', text: 'Through' }) : h('span', { class: 'sp-muted', text: 'Out' }))))))));
         if (meta.decision) {
-            put(card, h('p', { class: 'sp-status sp-ok' }, `Decided (${meta.decision.method}): ${meta.decision.labels.join(', ')}.`, meta.decision.note ? ` ${meta.decision.note}` : '',
-                meta.decision.nextDraftId ? [' ', A.state.index[meta.decision.nextDraftId]
-                    ? h('a', { href: `season-planning-admin.html?poll=${encodeURIComponent(meta.decision.nextDraftId)}`, text: 'Next round' })
-                    : h('a', { href: `season-planning-admin.html?draft=${encodeURIComponent(meta.decision.nextDraftId)}`, text: 'Next round draft' })] : null));
+            const table = card.querySelector('.sp-table-wrap');
+            const respondentsLine = card.querySelector('p.sp-small');
+            const fold = h('details', { class: 'sp-fold-list' }, h('summary', { text: `${meta.decision.labels.length === 1 ? 'Winner' : 'Through'}: ${meta.decision.labels.join(', ')}` }),
+                respondentsLine, table, meta.decision.note && meta.decision.method !== 'top' ? h('p', { class: 'sp-small sp-muted', text: meta.decision.note }) : null);
+            put(card, fold);
             return card;
         }
         if (!meta.runoffFor) {
@@ -524,12 +540,16 @@
         if (!Object.keys((A.state.catalogue && A.state.catalogue.layouts) || {}).length) {
             return h('p', { class: 'sp-status sp-warn' }, 'Set up the track catalogue in ', h('a', { href: 'racing-setup.html', text: 'Racing Setup' }), ' first.');
         }
-        return h('div', null, planPolls('track').length ? null : draftNotice('track'), exclusionsCard(), duplicatesCard());
+        // Before the poll: set up exclusions and open it. Afterwards: settle clashes; the
+        // exclusions it used fold away.
+        const started = planPolls('track').length > 0;
+        return started ? h('div', null, duplicatesCard(), exclusionsCard(true)) : h('div', null, draftNotice('track'), exclusionsCard(false));
     }
 
-    function exclusionsCard() {
+    function exclusionsCard(folded) {
         loadSeasons();
-        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Track poll: excluded locations' }));
+        if (folded && tools.seasons === null) return null;
+        let card = h('section', { class: 'sp-card' }, h('h2', { text: 'Excluded locations' }));
         if (tools.seasons === null) { put(card, seasonsLoading()); return card; }
         const stored = tools.planAdmin.trackSetup || {};
         const setup = { ...stored, unknown: unknownNames(stored) };
@@ -548,7 +568,7 @@
             });
             return h('label', { class: 'sp-check' }, input, `${season.name}${season.isActive ? ' (active)' : ''}`);
         }));
-        put(card, h('p', { class: 'sp-muted sp-small', text: `Every layout at a location used in the ticked seasons is left out of the track poll. Default: the latest ${A.plural(A.settings().exclusionSeasons, 'season')} (Racing Setup → Templates & defaults).` }),
+        put(card, help(`Every layout at a location used in the ticked seasons is left out of the track poll. Default: the latest ${A.plural(A.settings().exclusionSeasons, 'season')} (Racing Setup → Templates & defaults).`),
             tools.seasons.length ? seasonBoxes : h('p', { class: 'sp-muted', text: 'No championships found.' }));
 
         if (plan.unknown.length) {
@@ -559,13 +579,12 @@
                     return h('li', { class: 'sp-item', style: 'grid-template-columns:1fr' }, h('div', null, h('strong', { text: u.name }), h('span', { class: 'sp-small', text: ` (used in ${u.uses.join(', ')})` })), picker);
                 }))));
         }
-        put(card, h('h3', { style: 'margin:14px 0 4px', text: `Excluded (${plan.excluded.length})` }),
-            plan.excluded.length ? h('ul', { class: 'sp-list' }, plan.excluded.map(e => h('li', { class: 'sp-item' },
+        put(card, plan.excluded.length ? h('details', { class: 'sp-fold-list' }, h('summary', { text: `Excluded (${plan.excluded.length}): ${plan.excluded.map(e => e.name).join(', ')}` }), h('ul', { class: 'sp-list' }, plan.excluded.map(e => h('li', { class: 'sp-item' },
                 h('div', null, h('div', { class: 'sp-item-title', text: e.name }), h('div', { class: 'sp-item-meta', text: e.reasons.join(' · ') })),
                 h('button', { type: 'button', class: 'sp-link', text: 'Allow anyway', onclick: async () => {
                     const r = await A.confirmDialog({ title: `Allow ${e.name}?`, body: h('p', { text: 'Drivers will be able to choose its layouts.' }), reason: true, reasonFallback: 'Allowed by an admin', confirmLabel: 'Allow' });
                     if (r) saveSetup({ [`removed/${e.locationId}`]: r.reason, [`added/${e.locationId}`]: null }, `${e.name} allowed: ${r.reason}`);
-                } })))) : h('p', { class: 'sp-muted', text: 'Nothing excluded.' }),
+                } }))))) : h('p', { class: 'sp-muted', text: 'Nothing excluded.' }),
             plan.kept.length ? h('div', null, h('h3', { style: 'margin:14px 0 4px', text: 'Allowed despite last season' }),
                 h('ul', { class: 'sp-list' }, plan.kept.map(k => h('li', { class: 'sp-item' }, h('div', null, h('div', { class: 'sp-item-title', text: k.name }), h('div', { class: 'sp-item-meta', text: k.note })),
                     h('button', { type: 'button', class: 'sp-link', text: 'Exclude again', onclick: () => saveSetup({ [`removed/${k.locationId}`]: null }, `${k.name} excluded again`) }))))) : null,
@@ -575,19 +594,21 @@
                     const r = await A.confirmDialog({ title: 'Exclude a location', body: A.field('Location', picker), reason: true, reasonFallback: 'Excluded by an admin', confirmLabel: 'Exclude' });
                     if (r && picker.value) saveSetup({ [`added/${picker.value}`]: r.reason, [`removed/${picker.value}`]: null }, `${locations[picker.value].name} excluded: ${r.reason}`);
                 } })),
-            h('p', { class: 'sp-small', text: `${A.plural(plan.eligible.length, 'layout')} at ${A.plural(new Set(plan.eligible.map(t => t.locationId)).size, 'location')} will be offered. The list is frozen when the poll is published.` }),
-            h('button', { type: 'button', text: 'Open track picks', disabled: plan.blocking || !plan.eligible.length, onclick: () => {
+            folded ? null : h('p', { class: 'sp-small', text: `${A.plural(plan.eligible.length, 'layout')} at ${A.plural(new Set(plan.eligible.map(t => t.locationId)).size, 'location')} will be offered.` }),
+            folded ? null : h('button', { type: 'button', text: 'Open track picks', disabled: plan.blocking || !plan.eligible.length, onclick: () => {
                 const season = A.activePlan();
                 const draft = AC.trackDraft({ plan: season, eligible: plan.eligible, catalogue: A.state.catalogue, settings: A.settings(), now: A.now(), askRules: Boolean(season) && AC.includedSteps(season).includes('rules') });
                 createDraft(draft, 'create-track-poll', `Track poll draft with ${plan.eligible.length} layouts; excluded ${plan.excluded.map(e => e.name).join(', ') || 'none'}`, () => ({}));
             } }));
+        // Once track picks have opened, this is only for reference (it changes new track polls).
+        if (folded) card = h('details', { class: 'sp-card sp-fold' }, h('summary', null, h('h2', { text: `Excluded locations (${plan.excluded.length})` })), ...[...card.childNodes].slice(1));
         return card;
     }
 
     function duplicatesCard() {
         const polls = planPolls('track').filter(p => p.phase !== 'scheduled');
-        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Duplicate locations' }));
-        if (!polls.length) { put(card, h('p', { class: 'sp-muted', text: 'Appears once a track poll in this plan has opened.' })); return card; }
+        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Drivers who picked the same location' }));
+        if (!polls.length) return null;
         if (!polls.some(p => p.id === track.pollId)) track.pollId = polls[polls.length - 1].id;
         const poll = polls.find(p => p.id === track.pollId);
         const data = pollData(track.pollId, { ballots: true });
@@ -603,10 +624,10 @@
         const locationName = id => (Object.values(options).find(o => o.locationId === id) || {}).locationName || id;
         const base = `${planPath()}/trackResolution/${track.pollId}`;
         put(card, 
-            h('p', null, A.phaseBadge(poll.phase), ` ${A.plural(result.rows.length, 'driver')} chose a layout. `, poll.phase === 'open' ? 'Provisional until the poll closes. ' : '', pollLinks(poll)),
-            result.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(result.unresolved, 'driver')} still ${result.unresolved === 1 ? 'needs' : 'need'} a replacement or a decision. The calendar can’t be finalised until this is resolved.` })
-                : h('p', { class: 'sp-status sp-ok', text: 'No unresolved duplicates.' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Rule: when drivers chose layouts at the same location, the one who submitted last keeps it; earlier drivers pick again. Contact them outside the website and record their new choice here.' }));
+            pollLine(poll, `· ${A.plural(result.rows.length, 'driver')} chose a layout${poll.phase === 'open' ? ' so far' : ''}`),
+            result.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(result.unresolved, 'driver')} still ${result.unresolved === 1 ? 'needs' : 'need'} a replacement or a decision before the calendar can be finalised.` })
+                : h('p', { class: 'sp-status sp-ok', text: result.conflicts.length ? 'All settled.' : 'No clashes: every driver picked a different location.' }),
+            help('When drivers chose layouts at the same location, the one who submitted last keeps it; earlier drivers pick again. Contact them outside the website and record their new choice here.'));
         result.conflicts.forEach(conflict => {
             const rows = conflict.uids.map(uid => result.rows.find(r => r.uid === uid));
             put(card, h('div', { class: 'sp-conflict' },
@@ -671,7 +692,9 @@
 
     function rulesTab() {
         if (!tools.planId) return needPlan();
-        return h('div', null, planPolls('rules').length ? null : draftNotice('rules'), proposalsCard(), outcomesCard(), writtenCard());
+        // Once a vote exists its results come first; proposals for another vote follow.
+        return planPolls('rules').length ? h('div', null, outcomesCard(), proposalsCard(), writtenCard())
+            : h('div', null, draftNotice('rules'), proposalsCard(), outcomesCard(), writtenCard());
     }
 
     function proposals() {
@@ -722,7 +745,7 @@
             const related = Object.entries(p.related || {}).filter(([otherId]) => byId[otherId]);
             return h('li', { class: 'sp-item', style: 'grid-template-columns:auto 1fr' }, box,
                 h('div', null,
-                    h('div', { class: 'sp-item-title' }, p.text, ' ', h('span', { class: `sp-badge ${p.status === 'in-vote' ? 'sp-green' : p.status === 'withdrawn' ? '' : 'sp-amber'}`, text: { draft: 'Not yet voted on', 'in-vote': 'In a vote', withdrawn: 'Withdrawn' }[p.status] || p.status })),
+                    h('div', { class: 'sp-item-title', text: p.text }),
                     h('div', { class: 'sp-item-meta', text: answersText(p) }),
                     p.detail ? h('div', { class: 'sp-item-meta', text: p.detail }) : null,
                     related.map(([otherId, link]) => h('div', { class: 'sp-small sp-red-text', text: `⚠ ${link.type === 'contradicts' ? 'Contradicts' : 'Related to'}: “${byId[otherId].text}”${link.note ? ` — ${link.note}` : ''}` })),
@@ -732,12 +755,16 @@
                         p.status !== 'withdrawn' && p.status !== 'in-vote' ? h('button', { type: 'button', class: 'sp-link', text: 'Withdraw', onclick: () => decide({ [`${planPath()}/proposals/${p.id}/status`]: 'withdrawn' }, 'proposal', `Withdrew: ${p.text}`) }) : null,
                         p.status === 'withdrawn' ? h('button', { type: 'button', class: 'sp-link', text: 'Restore', onclick: () => decide({ [`${planPath()}/proposals/${p.id}/status`]: 'draft' }, 'proposal', `Restored: ${p.text}`) }) : null)));
         };
-        return h('section', { class: 'sp-card' }, h('h2', { text: 'Rule proposals' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Each proposal is one question: Yes/No, or your own answer options. Flag proposals that are related or contradict each other so they can be reviewed together.' }),
-            list.length ? h('ul', { class: 'sp-list' }, list.map(item)) : h('p', { class: 'sp-muted', text: 'No proposals yet.' }),
+        // Proposals already in a vote are shown with that vote's results.
+        const waiting = list.filter(p => p.status === 'draft');
+        const withdrawn = list.filter(p => p.status === 'withdrawn');
+        return h('section', { class: 'sp-card' }, h('h2', { text: planPolls('rules').length ? 'More proposals' : 'Rule proposals' }),
+            help('Each proposal is one question: Yes/No, or your own answer options. Tick the ones to vote on and open the vote. Flag proposals that are related or contradict each other so they’re voted on together.'),
+            waiting.length ? h('ul', { class: 'sp-list' }, waiting.map(item)) : h('p', { class: 'sp-muted sp-small', text: 'No proposals waiting for a vote.' }),
+            withdrawn.length ? h('details', { class: 'sp-fold-list' }, h('summary', { text: `Withdrawn (${withdrawn.length})` }), h('ul', { class: 'sp-list' }, withdrawn.map(item))) : null,
             h('div', { class: 'sp-inline-actions', style: 'margin-top:10px' },
                 h('button', { type: 'button', class: 'sp-secondary', text: 'Add proposal', onclick: () => editProposal(null) }),
-                h('button', { type: 'button', text: 'Open the vote for ticked proposals', onclick: () => {
+                waiting.length ? h('button', { type: 'button', text: 'Open the vote for ticked proposals', onclick: () => {
                     const chosen = list.filter(p => boxes.get(p.id) && boxes.get(p.id).checked);
                     if (!chosen.length) { A.setStatus('Tick at least one proposal.', 'error'); return; }
                     const unreviewed = chosen.filter(p => Object.keys(p.related || {}).some(id => byId[id] && byId[id].status !== 'withdrawn' && !chosen.includes(byId[id])));
@@ -747,7 +774,7 @@
                     if (!unreviewed.length) { go(); return; }
                     A.confirmDialog({ title: 'Related proposals left out', body: h('p', { text: `${unreviewed.map(p => `“${p.text}”`).join(', ')} ${unreviewed.length === 1 ? 'is' : 'are'} flagged as related to a proposal you didn’t tick. Create the vote anyway?` }), confirmLabel: 'Create anyway' })
                         .then(ok => { if (ok) go(); });
-                } })));
+                } }) : null));
     }
 
     async function linkProposal(p, list) {
@@ -775,17 +802,18 @@
 
     function outcomesCard() {
         const polls = planPolls('rules');
-        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Results and outcomes' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Yes/No proposals pass only when Yes beats No; questions with your own options go to the most votes. Drivers who don’t vote aren’t counted. Confirming an outcome doesn’t change the rules document or any scoring settings.' }));
+        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Rule votes' }),
+            help('Yes/No proposals pass only when Yes beats No; questions with your own options go to the most votes. Drivers who don’t vote aren’t counted. Confirming an outcome doesn’t change the rules document or any scoring settings.'));
         const minTurnout = tools.planAdmin.minTurnout || 0;
         const turnout = h('input', { type: 'number', min: 0, max: 100, value: String(minTurnout), style: 'max-width:100px' });
         turnout.addEventListener('change', () => decide({ [`${planPath()}/minTurnout`]: Math.max(0, Math.min(100, Number(turnout.value) || 0)) }, 'min-turnout', `Minimum turnout set to ${turnout.value || 0}`));
-        put(card, A.field('Minimum votes for a decision in new rule votes (0 = no minimum)', turnout, 'Saved into each vote when it opens, so drivers’ results use the same rule.'));
-        if (!polls.length) { put(card, h('p', { class: 'sp-muted', text: 'No rule votes in this plan yet.' })); return card; }
+        const settingsFold = h('details', { class: 'sp-fold-list' }, h('summary', { text: `Minimum votes for a decision: ${minTurnout || 'none'}` }),
+            A.field('Minimum votes for a decision in new rule votes (0 = no minimum)', turnout, 'Saved into each vote when it opens, so drivers’ results use the same rule.'));
+        if (!polls.length) { put(card, h('p', { class: 'sp-muted sp-small', text: 'No rule votes yet.' }), settingsFold); return card; }
         const confirmed = tools.planAdmin.outcomes || {};
         const proposalFor = (pollId, index) => proposals().find(p => p.pollId === pollId && p.questionIndex === index);
         polls.forEach(poll => {
-            put(card, h('h3', { style: 'margin:14px 0 4px' }, poll.title, ' ', A.phaseBadge(poll.phase), ' ', pollLinks(poll)));
+            put(card, pollLine(poll));
             if (poll.phase === 'scheduled') { put(card, h('p', { class: 'sp-muted', text: `Voting opens ${P.formatDateTime(poll.opensAt)}.` })); return; }
             const data = pollData(poll.id);
             if (!data.definition || !data.control) { put(card, pollLoading(poll.id)); return; }
@@ -798,9 +826,9 @@
                 put(card,
                     h('div', { class: `sp-live-switch${live ? ' sp-on' : ''}` },
                         h('span', null, h('strong', { text: live ? 'Drivers can see live results' : 'Drivers see results after closing' }),
-                            h('span', { class: 'sp-small sp-muted', text: ` · closes ${P.formatDateTime(poll.closesAt, { year: false })}` })),
+                            null),
                         h('button', { type: 'button', class: live ? 'sp-secondary' : '', text: live ? 'Hide live results' : 'Show drivers live results', onclick: () => setLiveResults(poll, data.control, !live) })),
-                    h('p', { class: 'sp-small', text: `${A.plural((data.totals && data.totals.respondents) || 0, 'driver')} voted so far. Outcomes can be confirmed once voting closes.` }),
+                    h('p', { class: 'sp-small sp-muted', text: `${A.plural((data.totals && data.totals.respondents) || 0, 'driver')} voted so far.` }),
                     charts);
                 return;
             }
@@ -811,7 +839,7 @@
                 return h('li', { class: 'sp-item' },
                     h('div', null, h('div', { class: 'sp-item-title', text: o.prompt }),
                         h('div', { class: `sp-outcome sp-outcome-${o.outcome}` }, h('span', { 'aria-hidden': 'true', text: o.outcome === 'pass' || o.outcome === 'chosen' ? '✓ ' : o.outcome === 'fail' ? '✕ ' : '– ' }), o.label,
-                            done ? h('span', { class: 'sp-muted', text: ` · confirmed ${P.formatDate(done.at)}` }) : h('span', { class: 'sp-muted', text: ' · not confirmed yet' }))),
+                            done ? h('span', { class: 'sp-badge sp-green', style: 'margin-left:6px', text: 'Confirmed' }) : null)),
                     done ? h('button', { type: 'button', class: 'sp-link', text: 'Reopen', onclick: () => decide({ [`${planPath()}/outcomes/${key}`]: null }, 'rule-outcome', `Outcome reopened: ${o.prompt}`) })
                         : h('button', { type: 'button', class: 'sp-secondary', text: 'Confirm outcome', onclick: () => {
                             const fresh = AC.ruleOutcomes(data.definition, data.totals, { minTurnout: data.control && data.control.minTurnout ? data.control.minTurnout : 0 }).find(x => x.index === o.index);
@@ -826,12 +854,13 @@
                         } }));
             })));
         });
+        put(card, settingsFold);
         return card;
     }
 
     function writtenCard() {
-        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Written suggestions from drivers' }),
-            h('p', { class: 'sp-muted sp-small', text: 'Answers to written questions in this plan’s polls and in suggestion boxes. Turn any into a proposal.' }));
+        const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Drivers’ written ideas' }),
+            help('Answers to written questions in this season’s polls and in suggestion boxes. Turn any into a proposal.'));
         if (!tools.written) {
             put(card, h('button', { type: 'button', class: 'sp-secondary', text: 'Load written answers', onclick: loadWritten }));
             return card;
@@ -899,7 +928,7 @@
 
     // Shared with season-planning-calendar.js and season-planning-season.js.
     window.SeasonTools = {
-        tools, pollData, pollLoading, seasonsLoading, planPolls, decide, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf, planDrafts, draftNotice,
+        tools, pollData, pollLoading, seasonsLoading, planPolls, decide, help, pollLine, planPath, stamp, put, loading, needPlan, loadSeasons, decodeKey, unknownNames, createDraft, classPairs, snapshotOf, planDrafts, draftNotice,
         suggestionsTab, roundsTab, tracksTab, rulesTab, historyTab
     };
 

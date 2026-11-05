@@ -212,11 +212,11 @@ function goBack() {
 }
 
 function showAlert() {
-    alert('Coming Soon!');
+    alert('Polls and Forms are currently closed');
 }
 
 // Polls & Forms opens once an admin has switched it on for drivers (Season Planning →
-// Overview). Admins can always open it. Until then drivers see the old message.
+// Settings). Admins can always open it. Until then drivers are told it's closed.
 function openPollsAndForms() {
     var user = firebase.auth().currentUser;
     if (!user) { showAlert(); return; }

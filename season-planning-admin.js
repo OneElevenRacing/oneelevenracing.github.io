@@ -166,7 +166,7 @@
         const visible = state.visibility && state.visibility.drivers === true;
         return h('section', { class: 'sp-card sp-access' },
             h('div', null, h('strong', { text: 'Drivers’ access ' }), h('span', { class: `sp-badge ${visible ? 'sp-green' : 'sp-amber'}`, text: visible ? 'Visible' : 'Hidden' }),
-                visible ? null : h('p', { class: 'sp-small sp-muted', style: 'margin:2px 0 0', text: 'Drivers see “Coming Soon”. Switch on once the rules are live and you’ve tried it.' })),
+                visible ? null : h('p', { class: 'sp-small sp-muted', style: 'margin:2px 0 0', text: 'Drivers see “Polls and Forms are currently closed”. Switch on once the rules are live and you’ve tried it.' })),
             h('button', { type: 'button', class: visible ? 'sp-secondary' : '', text: visible ? 'Hide from drivers' : 'Show to drivers', onclick: async () => {
                 const ok = await confirmDialog({ title: visible ? 'Hide Polls & Forms from drivers?' : 'Show Polls & Forms to drivers?',
                     body: h('p', { text: visible ? 'Nothing is deleted. Polls, answers and results stay saved and come back when you switch it on again.' : 'Drivers will be able to open the hub and vote in open polls.' }),
@@ -195,8 +195,8 @@
         return h('div', null,
             h('p', null, h('button', { type: 'button', text: 'New poll', onclick: newPoll })),
             section('Drafts', drafts, 'No drafts.'),
-            section('Open', by(['open']), 'No polls are open.'),
-            section('Scheduled', by(['scheduled']), 'Nothing scheduled.'),
+            // Polls set to open later sit with the open ones, marked Scheduled.
+            section('Open', by(['open', 'scheduled']), 'No polls are open.'),
             section('Closed', by(['closed']), 'None yet.'));
     }
 

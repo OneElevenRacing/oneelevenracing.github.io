@@ -650,3 +650,13 @@ body:has(.sp-actionbar) .sp-status.sp-toast { bottom: calc(84px + env(safe-area-
 /* Season calendar on the drivers' page: folded until revealed. */
 .sp-reveal { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 4px 0; }
 .sp-reveal p { margin: 0; }
+
+/* Season steps: a poll's one-line header, folded explanations and folded lists. */
+.sp-poll-line { margin: 0 0 8px; }
+.sp-poll-line .sp-poll-title { font-weight: 700; }
+.sp-help { margin: -2px 0 8px; }
+.sp-help > summary { cursor: pointer; font-size: 0.85rem; color: var(--sp-muted); text-decoration: underline; width: max-content; }
+.sp-help > p { margin: 4px 0 0; }
+.sp-fold-list { margin: 8px 0; }
+.sp-fold-list > summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; min-height: 32px; display: list-item; }
+.sp-item .sp-inline-actions select { width: auto; max-width: 100%; min-height: 40px; }
