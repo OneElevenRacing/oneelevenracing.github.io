@@ -224,11 +224,15 @@ leave out, or press **Untick all** for a suggestions poll that only asks for wri
    live results / Hide live results** switch. Confirm each outcome after it closes (Yes/No
    passes when Yes beats No; your own options go to the most votes). Outcomes don't change the rules document or
    scoring; update those yourself.
-6. **Calendar:** set the number of events and press **Generate calendar**. Use Keep, Pin,
+6. **Calendar:** set the number of events and tick the **Special event rounds** (the middle
+   and last rounds to start with). Tick **Driver-chosen tracks only for special events** if
+   those rounds must be on driver picks. Press **Generate calendar**; **Regenerate calendar**
+   starts the draw again (reopen a final calendar first). Dates stay with their round numbers,
+   but Keep and Pin are cleared. Use Keep, Pin,
    ↑ ↓, Replace, Remove, Redraw, Shuffle and dates until you're happy. Then **Finalise**:
    drivers see the calendar at the top of Polls & Forms straight away (**Reopen for
    changes** takes it down again). Then set up the championship in Championship Admin as
-   usual; finalising doesn't do that for you. **Finish season** at the top of the page when
+   usual, ticking the same rounds as special events; finalising doesn't do that for you. **Finish season** at the top of the page when
    you're done.
 
 Each poll in a step has **Open poll** and, while it's live, **Edit poll** links.

@@ -118,17 +118,29 @@ if (typeof firebase !== 'undefined' && firebase.auth) {
     });
 }
 
+// Firebase restores the saved sign-in a moment after a page opens, and currentUser is
+// empty until it has. Anything a button does straight after loading must wait for this.
+function signedInUser() {
+    return new Promise(function(resolve) {
+        const unsubscribe = firebase.auth().onAuthStateChanged(function(user) {
+            unsubscribe();
+            resolve(user);
+        });
+    });
+}
+
 function authorizeAndRedirect(targetUrl) {
-    const user = firebase.auth().currentUser;
-
-    if (!user) {
-        alert("Please sign in first.");
-        window.location.href = 'index.html';
-        return;
-    }
-
-    firebase.database().ref('drivers/' + user.uid).once('value')
+    signedInUser()
+        .then((user) => {
+            if (!user) {
+                alert("Please sign in first.");
+                window.location.href = 'index.html';
+                return null;
+            }
+            return firebase.database().ref('drivers/' + user.uid).once('value');
+        })
         .then((snapshot) => {
+            if (!snapshot) return;
             const driver = snapshot.val();
             if (driver && driver.active === true && driver.isAdmin === true) {
                 window.location.href = targetUrl;
@@ -218,15 +230,20 @@ function showAlert() {
 // Polls & Forms opens once an admin has switched it on for drivers (Season Planning →
 // Settings). Admins can always open it. Until then drivers are told it's closed.
 function openPollsAndForms() {
-    var user = firebase.auth().currentUser;
-    if (!user) { showAlert(); return; }
-    Promise.all([
-        firebase.database().ref('drivers/' + user.uid + '/isAdmin').once('value'),
-        firebase.database().ref('seasonPlanning/v1/visibility/drivers').once('value')
-    ]).then(function(results) {
+    signedInUser().then(function(user) {
+        if (!user) { window.location.href = 'index.html'; return null; }
+        return Promise.all([
+            firebase.database().ref('drivers/' + user.uid + '/isAdmin').once('value'),
+            firebase.database().ref('seasonPlanning/v1/visibility/drivers').once('value')
+        ]);
+    }).then(function(results) {
+        if (!results) return;
         if (results[0].val() === true || results[1].val() === true) window.location.href = 'season-polls.html';
         else showAlert();
-    }).catch(function() { showAlert(); });
+    }).catch(function(error) {
+        console.error('Error checking Polls and Forms:', error);
+        alert('Unable to open Polls and Forms. Please check your connection and try again.');
+    });
 }
 
 function setupMenuDropdown() {

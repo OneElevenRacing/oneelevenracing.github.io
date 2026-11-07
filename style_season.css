@@ -433,6 +433,9 @@
 .sp-event-number { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--sp-ink); color: #fff; font-weight: 700; font-size: 0.85rem; }
 .sp-event-controls { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: center; margin-top: 4px; }
 .sp-event-controls .sp-check { min-height: 36px; font-weight: 500; }
+.sp-round-picks { margin: 0 0 8px; padding: 0; border: 0; min-width: 0; }
+.sp-round-picks legend { padding: 0; font-weight: 600; }
+.sp-round-boxes { display: flex; flex-wrap: wrap; gap: 0 14px; }
 .sp-event-controls input[type="date"] { min-height: 40px; padding: 6px 8px; border: 1px solid #bdbdbd; border-radius: 8px; font: inherit; }
 .sp-summary h3 { margin: 14px 0 6px; }
 .sp-summary-title { font-size: 1.4rem !important; }

@@ -657,7 +657,8 @@
         return h('ol', { class: 'sp-events sp-events-summary' }, events.map((e, i) => h('li', { class: 'sp-event' },
             h('span', { class: 'sp-event-number', text: String(i + 1) }),
             h('img', { class: 'sp-thumb', src: e.imagePath || 'Logos_and_icons/racetracks/TBD.png', alt: '' }),
-            h('div', null, h('div', { class: 'sp-item-title' }, e.label, ' ', h('span', { class: `sp-badge ${e.source === 'driver' ? 'sp-green' : ''}`, text: e.source === 'driver' ? 'Driver choice' : 'Random draw' })),
+            h('div', null, h('div', { class: 'sp-item-title' }, e.label, ' ', h('span', { class: `sp-badge ${e.source === 'driver' ? 'sp-green' : ''}`, text: e.source === 'driver' ? 'Driver choice' : 'Random draw' }), ' ',
+                e.special ? h('span', { class: 'sp-badge sp-amber', text: 'Special event' }) : null),
                 h('div', { class: 'sp-item-meta', text: [e.locationName, e.date ? P.formatDate(Date.parse(`${e.date}T12:00:00Z`)) : ''].filter(Boolean).join(' · ') })))));
     }
 

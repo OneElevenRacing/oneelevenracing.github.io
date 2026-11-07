@@ -61,6 +61,8 @@ pages:
   - A Yes/No rule passes only when Yes beats No; rules with custom options go to the most votes.
   - The calendar draws locations equally likely, never repeats one, saves every change as
     a version, and only finalises once track clashes are settled.
+  - Special events default to the middle and last rounds. An option keeps them on
+    driver-chosen tracks only. Choosing rounds doesn't mark them in a championship.
   - Finalising the calendar shows it to drivers on Polls & Forms.
   - Nothing creates or changes a championship.
 - **Polls:** every poll, plus **New poll** for standalone polls. Each poll's page has Preview as

@@ -91,15 +91,49 @@
         return null;
     }
 
-    // Full generation: keep driver choices, draw the rest, shuffle the whole order.
-    function generate({ drivers, catalogue, excluded, target, source }) {
+    // ---------- Special events ----------
+
+    // Special events are rounds of the season: by default the middle one and the last
+    // (rounds 5 and 10 of 10). `chosen` is the admin's pick: undefined means the
+    // default, false means none. Rounds beyond the calendar's length are dropped.
+    function specialRounds(chosen, target) {
+        if (chosen === false) return [];
+        const rounds = chosen ? Object.values(chosen) : [Math.ceil(target / 2), target];
+        return [...new Set(rounds)].filter(r => r >= 1 && r <= target).sort((a, b) => a - b);
+    }
+
+    // Puts a driver choice on every special round that doesn't have one, by swapping
+    // with a driver choice from an ordinary round. Pinned events stay where they are.
+    function driversOnSpecial(events, rounds, source) {
+        const out = [...events];
+        const special = new Set(rounds.map(r => r - 1));
+        special.forEach(slot => {
+            if (!out[slot] || out[slot].source === 'driver' || out[slot].pinned) return;
+            const spare = out.map((e, i) => (e.source === 'driver' && !e.pinned && !special.has(i) ? i : -1)).filter(i => i >= 0);
+            if (!spare.length) return;
+            const from = spare[randomInt(spare.length, source)];
+            [out[slot], out[from]] = [out[from], out[slot]];
+        });
+        return out;
+    }
+
+    // Whether there are enough driver choices to cover the special rounds.
+    function specialShortfall(drivers, rounds) {
+        if (drivers.length >= rounds.length) return null;
+        return { problem: 'special', message: `${rounds.length} special events need a driver-chosen track but there ${drivers.length === 1 ? 'is' : 'are'} only ${drivers.length} driver ${drivers.length === 1 ? 'choice' : 'choices'}. Choose fewer special rounds or turn off “Driver-chosen tracks only”.` };
+    }
+
+    // Full generation: keep driver choices, draw the rest, shuffle the whole order. With
+    // `driverOnly`, the rounds in `special` always end up with driver choices.
+    function generate({ drivers, catalogue, excluded, target, source, special = [], driverOnly = false }) {
         const pool = randomPool(catalogue, { excluded, taken: usedLocations(drivers) });
-        const problem = shortfall(drivers, target, pool.length);
+        const problem = shortfall(drivers, target, pool.length) || (driverOnly ? specialShortfall(drivers, special) : null);
         if (problem) return { problem, poolSnapshot: snapshot(pool) };
         const working = [...pool];
         const random = [];
         while (drivers.length + random.length < target) random.push(drawEvent(working, source));
-        return { events: shuffle([...drivers, ...random], source), poolSnapshot: snapshot(pool) };
+        const events = shuffle([...drivers, ...random], source);
+        return { events: driverOnly ? driversOnSpecial(events, special, source) : events, poolSnapshot: snapshot(pool) };
     }
 
     // Adds random events for empty spaces at the end; nothing else changes.
@@ -191,12 +225,14 @@
 
     // Problems that block finalising. Shared locations are only allowed where an
     // admin recorded an exception during duplicate resolution.
-    function finaliseProblems({ events, target, unresolvedDuplicates = 0, exceptions = {}, driversChanged = false }) {
+    function finaliseProblems({ events, target, unresolvedDuplicates = 0, exceptions = {}, driversChanged = false, special = [], driverOnly = false }) {
         const problems = [];
         if (driversChanged) problems.push('Driver track choices have changed since this version. Update driver choices first.');
         if (unresolvedDuplicates > 0) problems.push(`${unresolvedDuplicates} driver track ${unresolvedDuplicates === 1 ? 'choice still needs' : 'choices still need'} a replacement or decision (track picks step).`);
         if (events.length !== target) problems.push(`The calendar has ${events.length} events but the target is ${target}.`);
         if (target < LIMITS.minEvents || target > LIMITS.maxEvents) problems.push(`The target must be ${LIMITS.minEvents}–${LIMITS.maxEvents} events.`);
+        if (driverOnly) special.filter(r => events[r - 1] && events[r - 1].source !== 'driver')
+            .forEach(r => problems.push(`Round ${r} is a special event but ${events[r - 1].label} isn’t a driver choice.`));
         const seen = new Map();
         events.forEach(e => seen.set(e.locationId, (seen.get(e.locationId) || 0) + 1));
         seen.forEach((count, locationId) => {
@@ -214,6 +250,6 @@
 
     return {
         GENERATION_VERSION, LIMITS, cryptoSource, randomInt, shuffle, randomPool, driverEvents, generate, fillRemaining, redraw, replaceOne,
-        shuffleOrder, move, describeOperations, syncDrivers, sameDrivers, finaliseProblems, shortfall
+        shuffleOrder, move, describeOperations, syncDrivers, sameDrivers, finaliseProblems, shortfall, specialRounds, driversOnSpecial, specialShortfall
     };
 });

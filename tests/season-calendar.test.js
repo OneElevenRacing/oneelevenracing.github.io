@@ -51,6 +51,14 @@ test('locations are equally likely however many layouts they have; layouts are u
     assert.deepEqual([...layouts].sort(), ['b1', 'b2', 'b3']);
 });
 
+test('special rounds default to the middle and last race, and honour the admin’s choice', () => {
+    assert.deepEqual(K.specialRounds(undefined, 10), [5, 10]);
+    assert.deepEqual(K.specialRounds(undefined, 9), [5, 9]);
+    assert.deepEqual(K.specialRounds(undefined, 1), [1]);
+    assert.deepEqual(K.specialRounds(false, 10), [], 'false means the admin chose none');
+    assert.deepEqual(K.specialRounds([8, 3, 12], 10), [3, 8], 'sorted, and rounds past the end are dropped');
+});
+
 const options = { b2: { label: 'Brands Indy', locationId: 'b', locationName: 'Brands Hatch' } };
 const drivers = K.driverEvents([{ uid: 'sam', layoutId: 'b2', locationId: 'b' }], options);
 
@@ -129,4 +137,43 @@ test('updating driver choices swaps changed ones and removes clashing random eve
 test('finalising is blocked while driver choices are out of date', () => {
     const events = [{ locationId: 'b', locationName: 'Brands Hatch' }];
     assert.deepEqual(K.finaliseProblems({ events, target: 1, driversChanged: true }), ['Driver track choices have changed since this version. Update driver choices first.']);
+});
+
+const eventAt = (id, source, extra = {}) => ({ id, label: id, locationId: id, locationName: id, source, ...extra });
+
+test('with driver-chosen tracks only, every special round gets a driver choice whatever the draw', () => {
+    const picks = K.driverEvents([{ uid: 'sam', layoutId: 'b2', locationId: 'b' }, { uid: 'ian', layoutId: 'c1', locationId: 'c' }],
+        { ...options, c1: { label: 'Cadwell', locationId: 'c', locationName: 'Cadwell' } });
+    for (let seed = 0; seed < 12; seed++) {
+        const { events } = K.generate({ drivers: picks, catalogue, excluded: [], target: 4, special: [2, 4], driverOnly: true, source: scripted([seed, seed + 1, seed + 2]) });
+        assert.equal(events.length, 4);
+        assert.equal(events[1].source, 'driver');
+        assert.equal(events[3].source, 'driver');
+    }
+});
+
+test('without the option, special rounds don’t change the draw', () => {
+    const source = () => scripted([1, 0, 2, 1]);
+    const plain = K.generate({ drivers, catalogue, excluded: [], target: 3, source: source() });
+    const marked = K.generate({ drivers, catalogue, excluded: [], target: 3, special: [2, 3], source: source() });
+    assert.deepEqual(marked.events.map(e => e.locationId), plain.events.map(e => e.locationId));
+});
+
+test('too few driver choices for the special rounds is explained, not half-done', () => {
+    const result = K.generate({ drivers, catalogue, excluded: [], target: 3, special: [1, 3], driverOnly: true, source: scripted([0]) });
+    assert.equal(result.problem.problem, 'special');
+    assert.equal(result.events, undefined);
+});
+
+test('moving driver choices onto special rounds leaves pinned events alone', () => {
+    const events = [eventAt('d1', 'driver', { pinned: true }), eventAt('r1', 'random'), eventAt('d2', 'driver'), eventAt('r2', 'random', { pinned: true })];
+    const out = K.driversOnSpecial(events, [2, 4], scripted([0]));
+    assert.deepEqual(out.map(e => e.id), ['d1', 'd2', 'r1', 'r2'], 'round 4 is pinned, so it stays; d1 is pinned, so it can’t move');
+});
+
+test('finalising is blocked while a special round isn’t a driver choice, only when that’s required', () => {
+    const events = [eventAt('Monza', 'random'), eventAt('Spa', 'driver', { uid: 'sam' })];
+    const base = { events, target: 2, special: [1, 2] };
+    assert.deepEqual(K.finaliseProblems(base), []);
+    assert.deepEqual(K.finaliseProblems({ ...base, driverOnly: true }), ['Round 1 is a special event but Monza isn’t a driver choice.']);
 });

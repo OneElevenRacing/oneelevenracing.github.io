@@ -20,6 +20,12 @@
     const eventsOf = version => (version ? Object.values(version.events || {}) : []);
     const target = () => calendar().target || A.settings().targetEvents || 10;
     const finalised = () => calendar().finalised || null;
+    const special = () => K.specialRounds(calendar().specialRounds, target());
+    const driverOnly = () => calendar().specialDriverOnly === true;
+    // A final calendar keeps the special rounds it was finalised with; one finalised
+    // before special rounds existed has none.
+    const finalRounds = (f, length) => K.specialRounds(f.specialRounds || false, length);
+    const roundList = rounds => rounds.join(', ').replace(/, (\d+)$/, ' and $1');
 
     // Driver choices after duplicate resolution, from the plan's latest track poll.
     function driverInfo() {
@@ -87,12 +93,41 @@
         return h('div', null, setupCard(info, excluded, version, locked), version ? eventsCard(version, events, info, excluded, locked) : null, version ? finaliseCard(events, info, locked) : null);
     }
 
+    // Which rounds are special events, and whether they must be on driver choices.
+    function specialFields() {
+        const chosen = special();
+        const saveRounds = rounds => T.decide({ [`${T.planPath()}/calendar/specialRounds`]: rounds.length ? rounds : false }, 'calendar-special',
+            rounds.length ? `Special events set to rounds ${roundList(rounds)}` : 'No special events');
+        const boxes = Array.from({ length: target() }, (_, i) => {
+            const round = i + 1;
+            const input = h('input', { type: 'checkbox', checked: chosen.includes(round), 'aria-label': `Round ${round} is a special event` });
+            input.addEventListener('change', () => saveRounds(input.checked ? [...chosen, round].sort((a, b) => a - b) : chosen.filter(r => r !== round)));
+            return h('label', { class: 'sp-check sp-small' }, input, String(round));
+        });
+        const only = h('input', { type: 'checkbox', checked: driverOnly() });
+        only.addEventListener('change', () => T.decide({ [`${T.planPath()}/calendar/specialDriverOnly`]: only.checked }, 'calendar-special',
+            `Driver-chosen tracks only for special events ${only.checked ? 'on' : 'off'}`));
+        return [
+            h('fieldset', { class: 'sp-round-picks' }, h('legend', { text: 'Special event rounds' }), h('div', { class: 'sp-round-boxes' }, boxes)),
+            h('label', { class: 'sp-check' }, only, 'Driver-chosen tracks only for special events')
+        ];
+    }
+
+    // Generates from scratch. Dates belong to the round number, so they stay put.
+    function generateCalendar(info, excluded, previous, basedOn) {
+        const result = K.generate({ drivers: info.drivers, catalogue: A.state.catalogue, excluded, target: target(), source: K.cryptoSource(), special: special(), driverOnly: driverOnly() });
+        if (result.problem) { A.setStatus(result.problem.message, 'error'); return; }
+        const events = result.events.map((e, i) => (previous[i] && previous[i].date ? { ...e, date: previous[i].date } : e));
+        saveVersion(events, basedOn ? 'regenerate' : 'generate', `${info.drivers.length} driver choices + ${events.length - info.drivers.length} random, shuffled`, { poolSnapshot: result.poolSnapshot }, basedOn);
+    }
+
     function setupCard(info, excluded, version, locked) {
         const card = h('section', { class: 'sp-card' }, h('h2', { text: 'Season calendar' }));
         const targetInput = h('input', { type: 'number', min: 1, max: 24, value: String(target()), disabled: locked, style: 'max-width:100px' });
         targetInput.addEventListener('change', () => {
             const value = Math.max(1, Math.min(24, Number(targetInput.value) || 1));
-            T.decide({ [`${T.planPath()}/calendar/target`]: value }, 'calendar-target', `Target set to ${value} events`);
+            // Special rounds go back to the default (the middle and last of the new length).
+            T.decide({ [`${T.planPath()}/calendar/target`]: value, [`${T.planPath()}/calendar/specialRounds`]: null }, 'calendar-target', `Target set to ${value} events`);
         });
         const pool = K.randomPool(A.state.catalogue, { excluded, taken: info.drivers.map(d => d.locationId) });
         T.put(card,
@@ -101,17 +136,26 @@
                 `${A.plural(pool.length, 'location')} left for random draws.`),
             info.open ? h('p', { class: 'sp-status sp-warn', text: 'The track poll is still open, so driver choices may change.' }) : null,
             info.unresolved ? h('p', { class: 'sp-status sp-warn', text: `${A.plural(info.unresolved, 'driver choice')} still ${info.unresolved === 1 ? 'needs' : 'need'} a decision in the track picks step.` }) : null);
+        if (locked) {
+            const rounds = finalRounds(finalised(), eventsOf(version).length);
+            T.put(card, rounds.length ? h('p', { class: 'sp-small', text: `Special events: ${rounds.length === 1 ? 'round' : 'rounds'} ${roundList(rounds)}.` }) : null,
+                h('p', { class: 'sp-small', text: 'To change this or generate again, reopen the calendar below.' }));
+            return card;
+        }
+        T.put(card, ...specialFields());
+        const problem = K.shortfall(info.drivers, target(), pool.length) || (driverOnly() ? K.specialShortfall(info.drivers, special()) : null);
+        if (problem) T.put(card, h('p', { class: 'sp-status sp-error', text: problem.message }));
         if (!version) {
-            const problem = K.shortfall(info.drivers, target(), pool.length);
             T.put(card,
-                problem ? h('p', { class: 'sp-status sp-error', text: problem.message }) : null,
-                T.help('Generating keeps every driver choice, draws the rest at random (each location equally likely, then one of its layouts) and shuffles the order. Excluded and already-chosen locations, and layouts not allowed in random draws, are left out. The result is saved, so reloading won’t change it.'),
-                h('button', { type: 'button', text: 'Generate calendar', disabled: Boolean(problem), onclick: () => {
-                    const result = K.generate({ drivers: info.drivers, catalogue: A.state.catalogue, excluded, target: target(), source: K.cryptoSource() });
-                    if (result.problem) { A.setStatus(result.problem.message, 'error'); return; }
-                    saveVersion(result.events, 'generate', `${info.drivers.length} driver choices + ${result.events.length - info.drivers.length} random, shuffled`, { poolSnapshot: result.poolSnapshot }, null);
-                } }));
-        } else if (!locked && !K.sameDrivers(eventsOf(version), info.drivers)) {
+                T.help('Generating keeps every driver choice, draws the rest at random (each location equally likely, then one of its layouts) and shuffles the order. With “Driver-chosen tracks only” on, driver choices go on the special rounds first. Excluded and already-chosen locations, and layouts not allowed in random draws, are left out. The result is saved, so reloading won’t change it.'),
+                h('button', { type: 'button', text: 'Generate calendar', disabled: Boolean(problem), onclick: () => generateCalendar(info, excluded, [], null) }));
+            return card;
+        }
+        T.put(card, h('button', { type: 'button', class: 'sp-secondary', text: 'Regenerate calendar', disabled: Boolean(problem), onclick: async () => {
+            const body = h('p', { text: 'This replaces the current calendar with a new draw. Driver choices stay in, but random tracks and the order change, and Keep and Pin are cleared. Dates stay with their round numbers.' });
+            if (await A.confirmDialog({ title: 'Regenerate the calendar?', body, confirmLabel: 'Regenerate' })) generateCalendar(info, excluded, eventsOf(version), version.id);
+        } }));
+        if (!K.sameDrivers(eventsOf(version), info.drivers)) {
             T.put(card, h('div', { class: 'sp-status sp-warn' }, 'Driver choices have changed since this version (for example a replacement was recorded). ',
                 h('button', { type: 'button', class: 'sp-link', text: 'Update driver choices', onclick: async () => {
                     const result = K.syncDrivers(eventsOf(version), info.drivers);
@@ -125,6 +169,9 @@
     function eventsCard(version, events, info, excluded, locked) {
         const ops = K.describeOperations(events, target());
         const source = () => K.cryptoSource();
+        const rounds = locked ? finalRounds(finalised(), events.length) : special();
+        // Filling and shuffling keep driver choices on the special rounds when that's required.
+        const arranged = result => (result.problem || !driverOnly() ? result : { ...result, events: K.driversOnSpecial(result.events, rounds, source()) });
         const run = async (title, explanation, compute, action) => {
             if (!await A.confirmDialog({ title, body: h('p', { text: explanation }), confirmLabel: title })) return;
             const result = compute();
@@ -144,7 +191,8 @@
             return h('li', { class: 'sp-event' },
                 h('span', { class: 'sp-event-number', text: String(index + 1) }), img,
                 h('div', null,
-                    h('div', { class: 'sp-item-title' }, event.label, ' ', h('span', { class: `sp-badge ${event.source === 'driver' ? 'sp-green' : ''}`, text: event.source === 'driver' ? `Driver choice · ${A.driverName(event.uid)}` : 'Random draw' })),
+                    h('div', { class: 'sp-item-title' }, event.label, ' ', h('span', { class: `sp-badge ${event.source === 'driver' ? 'sp-green' : ''}`, text: event.source === 'driver' ? `Driver choice · ${A.driverName(event.uid)}` : 'Random draw' }), ' ',
+                        rounds.includes(index + 1) ? h('span', { class: 'sp-badge sp-amber', text: 'Special event' }) : null),
                     h('div', { class: 'sp-item-meta', text: event.locationName }),
                     h('div', { class: 'sp-event-controls' }, dateInput,
                         event.source === 'random' ? toggle('keep', 'Keep this track') : null,
@@ -166,14 +214,21 @@
             locked ? null : h('div', { class: 'sp-inline-actions', style: 'margin-top:12px' },
                 h('button', { type: 'button', class: 'sp-secondary', text: `Fill empty spaces (${ops.fill})`, disabled: !ops.fill, onclick: () => run('Fill empty spaces',
                     `Adds ${A.plural(ops.fill, 'random track')} at the end. Existing events don’t change.`,
-                    () => K.fillRemaining({ events, catalogue: A.state.catalogue, excluded, target: target(), source: source() }), 'fill') }),
+                    () => arranged(K.fillRemaining({ events, catalogue: A.state.catalogue, excluded, target: target(), source: source() })), 'fill') }),
                 h('button', { type: 'button', class: 'sp-secondary', text: `Redraw random tracks (${ops.redraw})`, disabled: !ops.redraw, onclick: () => run('Redraw random tracks',
                     `Replaces ${A.plural(ops.redraw, 'random track')} that ${ops.redraw === 1 ? 'isn’t' : 'aren’t'} kept. Driver choices and kept tracks stay; positions stay the same.`,
                     () => K.redraw({ events, catalogue: A.state.catalogue, excluded, source: source() }), 'redraw') }),
                 h('button', { type: 'button', class: 'sp-secondary', text: `Shuffle order (${ops.shuffle})`, disabled: ops.shuffle < 2, onclick: () => run('Shuffle order',
                     `Shuffles ${A.plural(ops.shuffle, 'event')} that ${ops.shuffle === 1 ? 'isn’t' : 'aren’t'} pinned. Pinned events keep their round number.`,
-                    () => K.shuffleOrder({ events, source: source() }), 'shuffle') })),
+                    () => arranged(K.shuffleOrder({ events, source: source() })), 'shuffle') })),
             T.help('Keep: a random track survives a redraw. Pin: the event keeps its round number when shuffling. Use ↑ ↓ to move events without dragging.'));
+    }
+
+    function finaliseChecks(events, info) {
+        const problems = K.finaliseProblems({ events, target: target(), unresolvedDuplicates: info.unresolved || 0, exceptions: info.exceptions || {},
+            driversChanged: !K.sameDrivers(events, info.drivers || []), special: special(), driverOnly: driverOnly() });
+        if (info.open) problems.push('The track poll is still open.');
+        return problems;
     }
 
     function finaliseCard(events, info, locked) {
@@ -187,41 +242,38 @@
             } }));
             return card;
         }
-        const problems = K.finaliseProblems({ events, target: target(), unresolvedDuplicates: info.unresolved || 0, exceptions: info.exceptions || {},
-            driversChanged: !K.sameDrivers(events, info.drivers) });
-        if (info.open) problems.push('The track poll is still open.');
+        const problems = finaliseChecks(events, info);
         T.put(card, problems.length ? h('div', { class: 'sp-status sp-warn' }, 'Before finalising:', h('ul', { class: 'sp-errors', style: 'color:inherit' }, problems.map(p => h('li', { text: p }))))
             : h('p', { text: 'Everything checks out. Finalising fixes this version as the season calendar and shows it on the drivers’ Polls & Forms page.' }),
         h('button', { type: 'button', text: 'Finalise calendar', disabled: problems.length > 0, onclick: async () => {
             const shown = calendar().currentVersion;
             if (!await A.confirmDialog({ title: 'Finalise the calendar?', body: h('p', { text: 'Drivers will see it on Polls & Forms. This doesn’t create or change a championship.' }), confirmLabel: 'Finalise' })) return;
-            const fresh = driverInfo();
             const freshEvents = eventsOf(current());
-            const freshProblems = K.finaliseProblems({ events: freshEvents, target: target(), unresolvedDuplicates: fresh.unresolved || 0, exceptions: fresh.exceptions || {},
-                driversChanged: !K.sameDrivers(freshEvents, fresh.drivers || []) });
-            if (fresh.open) freshProblems.push('The track poll is still open.');
+            const rounds = special();
+            const freshProblems = finaliseChecks(freshEvents, driverInfo());
             if (freshProblems.length) { A.setStatus(`Not finalised: ${freshProblems.join(' ')}`, 'warn'); A.rerender(); return; }
             let outcome;
             try {
                 outcome = await firebase.database().ref(`${T.planPath()}/calendar`).transaction(currentCal => {
                     const cal = currentCal || {};
                     if (cal.currentVersion !== shown || cal.finalised) return undefined;
-                    cal.finalised = { versionId: shown, at: A.now(), by: A.state.uid };
+                    cal.finalised = { versionId: shown, at: A.now(), by: A.state.uid, specialRounds: rounds };
                     return cal;
                 });
             } catch (error) { A.setStatus(`Not finalised: ${error.message}`, 'error'); return; }
             if (!outcome.committed) { A.setStatus(CHANGED, 'warn'); A.rerender(); return; }
-            T.decide(driverCalendar(freshEvents), 'calendar-finalise', `Calendar finalised with ${freshEvents.length} events`, 'Calendar finalised and shown to drivers.');
+            T.decide(driverCalendar(freshEvents, rounds), 'calendar-finalise', `Calendar finalised with ${freshEvents.length} events`, 'Calendar finalised and shown to drivers.');
         } }));
         return card;
     }
 
     // The final calendar as drivers see it (stored as the plan's summary, which drivers
     // can read). Who chose each track isn't included.
-    function driverCalendar(events) {
+    function driverCalendar(events, rounds) {
         const plan = A.activePlan();
         return { [`${V1}/plans/${tools.planId}/summary`]: A.clean({ title: plan.title, publishedAt: sv().TIMESTAMP, publishedBy: A.state.uid,
-            calendar: events.map(e => A.clean({ label: e.label, locationName: e.locationName, imagePath: e.imagePath, source: e.source, date: e.date || undefined })) }) };
+            calendar: events.map((e, i) => A.clean({ label: e.label, locationName: e.locationName, imagePath: e.imagePath, source: e.source, date: e.date || undefined,
+                special: rounds.includes(i + 1) ? true : undefined })) }) };
     }
 
     // Keeps the drivers' copy in step with the final calendar: written when it's
@@ -234,13 +286,15 @@
         if (!plan || !tools.planId || !f || f.versionId !== calendar().currentVersion) return;
         const version = versions().find(v => v.id === f.versionId);
         if (!version) return;
-        const wanted = Object.values(driverCalendar(eventsOf(version)))[0].calendar;
+        const events = eventsOf(version);
+        const rounds = finalRounds(f, events.length);
+        const wanted = Object.values(driverCalendar(events, rounds))[0].calendar;
         const shown = plan.summary && plan.summary.calendar ? Object.values(plan.summary.calendar) : null;
         const key = JSON.stringify(wanted);
         if (shown && JSON.stringify(shown) === key) return;
         if (syncing === key) return;
         syncing = key;
-        A.save(driverCalendar(eventsOf(version))).then(ok => { if (!ok) syncing = ''; });
+        A.save(driverCalendar(events, rounds)).then(ok => { if (!ok) syncing = ''; });
     }
 
     window.SeasonCalendarTabs = { calendarTab, syncDriverCalendar };

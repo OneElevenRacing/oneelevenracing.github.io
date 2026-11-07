@@ -33,7 +33,7 @@
         rounds: ['create-round', 'round-decision', 'runoff', 'winner', 'round-target'],
         tracks: ['track-setup', 'create-track-poll', 'track-replacement', 'track-tie', 'track-exception'],
         rules: ['proposal', 'proposal-link', 'create-rules-poll', 'rule-outcome', 'min-turnout'],
-        calendar: ['calendar', 'calendar-target', 'calendar-finalise', 'calendar-reopen', 'summary']
+        calendar: ['calendar', 'calendar-target', 'calendar-special', 'calendar-finalise', 'calendar-reopen', 'summary']
     };
 
     function toggle(id) {
